@@ -1,0 +1,25 @@
+{
+  "name": "@sloppy/mcp",
+  "version": "1.0.0",
+  "description": "Model Context Protocol (MCP) server for Sloppy: The AI Slop UI Fixer",
+  "type": "module",
+  "bin": {
+    "sloppy-mcp": "./bin/sloppy-mcp.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node ./bin/sloppy-mcp.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@sloppy/core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "typescript": "^5.6.3"
+  },
+  "license": "MIT"
+}

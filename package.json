@@ -1,0 +1,25 @@
+{
+  "name": "sloppy-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sloppy: The ultimate AI slop UI fixer combining Stageshow's craft principles, React kit, 73+ patterns, MCP server, and universal agent skill.",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@sloppy/playground",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "mcp": "node packages/mcp/bin/sloppy-mcp.js",
+    "audit": "node packages/cli/bin/sloppy.js audit",
+    "sloppy": "node packages/cli/bin/sloppy.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.6.3"
+  },
+  "license": "MIT"
+}
