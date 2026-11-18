@@ -11,12 +11,16 @@ import {
   getLook,
   getPatternById,
   getRulesByTopic,
+  getSynthesizedArchetype,
   LOOKS,
   PATTERNS_CATALOG,
   searchAllComponents,
   searchPatterns,
+  searchSynthesizedArchetypes,
   SLOPPY_COMPONENTS,
-  SLOPPY_LIBRARIES
+  SLOPPY_LIBRARIES,
+  SYNTHESIZED_ARCHETYPES,
+  transformSlopToCraft
 } from '@sloppy/core';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -225,6 +229,47 @@ export function createSloppyServer() {
       inputSchema: {
         type: 'object',
         properties: {}
+      }
+    },
+    {
+      name: 'sloppy_autofix_code',
+      description: 'Automatically and surgically transforms sloppy AI code into pristine craft: replaces purple gradients with quiet surface elevation, replaces sparkles with semantic icons, tames unearned animations, grounds floating windows, and injects word budgeting.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          code: {
+            type: 'string',
+            description: 'The sloppy JSX/TSX/HTML code to automatically refactor'
+          },
+          path: {
+            type: 'string',
+            description: 'Optional file path to read, refactor, and audit'
+          },
+          look: {
+            type: 'string',
+            enum: ['linear', 'minimal', 'dark-hero', 'raycast', 'radix', 'blueprint', 'glass'],
+            description: 'Target design token look (default: "linear")',
+            default: 'linear'
+          },
+          groundFraming: {
+            type: 'boolean',
+            description: 'Whether to ground floating windows to stage edges (default: true)',
+            default: true
+          }
+        }
+      }
+    },
+    {
+      name: 'sloppy_get_archetype',
+      description: 'Retrieve flagship multi-library synthesized master archetypes that fuse the best of all 7 libraries (Stageshow, Kokonut UI, Motion Primitives, Magic UI, React Bits, shadcn, and Animate UI) into production-grade slop-free scenes.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          archetypeId: {
+            type: 'string',
+            description: 'Archetype identifier (e.g. "ai-agent-cockpit", "developer-platform-hero", "fintech-billing-suite"). Omit or pass "all" to list all available master archetypes.'
+          }
+        }
       }
     }
   ];
@@ -539,11 +584,100 @@ export function createSloppyServer() {
                     'react-bits': SLOPPY_COMPONENTS.filter(c => c.library === 'react-bits').length,
                     stageshow: SLOPPY_COMPONENTS.filter(c => c.library === 'stageshow').length
                   },
-                  availableLooks: Object.keys(LOOKS)
+                  availableLooks: Object.keys(LOOKS),
+                  synthesizedArchetypes: SYNTHESIZED_ARCHETYPES.map(a => a.id)
                 },
                 null,
                 2
               )
+            }
+          ]
+        };
+      }
+
+      if (name === 'sloppy_autofix_code') {
+        const inputArgs = args as { code?: string; path?: string; look?: any; groundFraming?: boolean };
+        let code = inputArgs.code;
+
+        if (!code && inputArgs.path) {
+          const resolvedPath = path.resolve(process.cwd(), inputArgs.path);
+          if (fs.existsSync(resolvedPath)) {
+            code = fs.readFileSync(resolvedPath, 'utf-8');
+          } else {
+            return {
+              content: [{ type: 'text', text: `File not found: ${resolvedPath}` }],
+              isError: true
+            };
+          }
+        }
+
+        if (!code) {
+          return {
+            content: [{ type: 'text', text: 'Please provide either "code" or a valid "path" to autofix.' }],
+            isError: true
+          };
+        }
+
+        const result = transformSlopToCraft(code, {
+          look: inputArgs.look || 'linear',
+          groundFraming: inputArgs.groundFraming !== false
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2)
+            }
+          ]
+        };
+      }
+
+      if (name === 'sloppy_get_archetype') {
+        const inputArgs = args as { archetypeId?: string };
+        const archetypeId = inputArgs.archetypeId?.trim();
+
+        if (!archetypeId || archetypeId === 'all') {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  SYNTHESIZED_ARCHETYPES.map(a => ({
+                    id: a.id,
+                    name: a.name,
+                    category: a.category,
+                    description: a.description,
+                    librariesUsed: a.librariesUsed,
+                    antiSlopMeasures: a.antiSlopMeasures,
+                    focalPoint: a.focalPoint
+                  })),
+                  null,
+                  2
+                )
+              }
+            ]
+          };
+        }
+
+        const archetype = getSynthesizedArchetype(archetypeId);
+        if (!archetype) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Archetype "${archetypeId}" not found. Available master archetypes: ${SYNTHESIZED_ARCHETYPES.map(a => a.id).join(', ')}`
+              }
+            ],
+            isError: true
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(archetype, null, 2)
             }
           ]
         };

@@ -43,3 +43,25 @@ export interface AuditOptions {
   filepath?: string;
   componentType?: 'illustration' | 'feature-card' | 'hero' | 'application' | 'bento';
 }
+
+export interface TransformOptions {
+  look?: 'linear' | 'minimal' | 'dark-hero' | 'raycast' | 'radix' | 'blueprint' | 'glass';
+  groundFraming?: boolean;
+  budgetWords?: boolean;
+}
+
+export interface TransformationItem {
+  type: string;
+  original: string;
+  replacement: string;
+  explanation: string;
+}
+
+export interface TransformResult {
+  originalCode: string;
+  transformedCode: string;
+  changesApplied: number;
+  transformations: TransformationItem[];
+  preAudit: AuditResult;
+  postAudit: AuditResult;
+}

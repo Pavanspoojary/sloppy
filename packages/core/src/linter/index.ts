@@ -1,6 +1,7 @@
 import { AuditOptions, AuditResult, SlopViolation, SlopViolationType } from './types.js';
 
 export * from './types.js';
+export * from './transform.js';
 
 export function auditCode(code: string, options: AuditOptions = {}): AuditResult {
   const violations: SlopViolation[] = [];

@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { examples, groups } from './catalog'
+import { SlopStudio } from './slop-studio'
 import './viewer.css'
 
 function Viewer() {
   const initial = new URLSearchParams(location.search).get('example')
+  const [viewMode, setViewMode] = useState<'catalog' | 'studio'>(() => 
+    new URLSearchParams(location.search).get('view') === 'studio' ? 'studio' : 'catalog'
+  )
   const [name, setName] = useState(examples.some(e => e.id === initial) ? initial! : examples[0].id)
   const [phone, setPhone] = useState(false)
   const [still, setStill] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -65,25 +69,68 @@ function Viewer() {
     const url = new URL(location.href); url.searchParams.set('example', name); history.replaceState(null, '', url)
   }, [name, revision, still])
   return <main className="pg" data-reduced-motion={still || undefined}>
-    <header className="pg-header"><a className="pg-brand" href="./">Stageshow</a><span className="pg-eyebrow">Playground</span></header>
-    <div className="pg-picker"><label htmlFor="example-choice">Example</label><select id="example-choice" value={name} onChange={e => setName(e.target.value)}>{groups.map(group => <optgroup key={group} label={group}>{examples.filter(e => e.group === group).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</optgroup>)}</select></div>
-    <section className="pg-preview" aria-label="Example preview">
-      <div className="pg-toolbar"><div className="pg-segment" aria-label="Preview width"><button aria-pressed={!phone} onClick={() => setPhone(false)}>Desktop</button><button aria-pressed={phone} onClick={() => setPhone(true)}>Phone</button></div><label className="pg-still"><input type="checkbox" checked={still} onChange={e => { motionOverride.current = true; setStill(e.target.checked) }} />Reduced motion</label></div>
-      <div className="pg-canvas" data-phone={phone || undefined} data-grid={selected.kind === 'Grid' || undefined}><iframe key={`${name}-${revision}-${still}`} ref={iframe} title={selected.name} src={source} style={{ height }} onLoad={() => send({ playing: playing && !still, speed, visible: visible.current })} /></div>
-      {error && <p role="alert">Preview stopped: {error}. Check the console, fix the example, then select Replay.</p>}
-      <div className="pg-transport"><div className="pg-buttons">
-        <button className="pg-play" data-playing={playing || undefined} disabled={transportDisabled} onClick={() => setPlaying(p => !p)} aria-label={playing ? 'Pause' : 'Play'}>
-          <svg className="pg-play-icon" viewBox="0 0 16 16" aria-hidden="true">
-            <path className="pg-play-icon-left" d={playing ? 'M4 3L6.5 3L6.5 13L4 13Z' : 'M5 3L9 5.5L9 10.5L5 13Z'} />
-            <path className="pg-play-icon-right" d={playing ? 'M9.5 3L12 3L12 13L9.5 13Z' : 'M9 5.5L13 8L13 8L9 10.5Z'} />
-          </svg>
-          <span className="pg-play-label" aria-hidden="true"><span className="pg-play-word">Play</span><span className="pg-pause-word">Pause</span></span>
+    <header className="pg-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <a className="pg-brand" href="./">Sloppy</a>
+        <span className="pg-eyebrow">The AI Slop UI Fixer</span>
+      </div>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button
+          style={{
+            padding: '5px 12px',
+            fontSize: '12px',
+            borderRadius: '6px',
+            border: '1px solid #3f3f46',
+            background: viewMode === 'catalog' ? '#27272a' : '#18181b',
+            color: viewMode === 'catalog' ? '#fff' : '#a1a1aa',
+            cursor: 'pointer'
+          }}
+          onClick={() => setViewMode('catalog')}
+        >
+          Gold Patterns (73+)
         </button>
-        <button disabled={transportDisabled} onClick={() => { setPlaying(false); send({ step: true }) }} title="Advance one frame">Step</button><button onClick={() => replay(n => n + 1)}>Replay</button>
-      </div><div className="pg-time"><output aria-label="Current time">{((still || staticScene ? 0 : elapsed) / 1000).toFixed(2)}<span>s</span></output><select aria-label="Playback speed" value={speed} disabled={transportDisabled} onChange={e => setSpeed(Number(e.target.value))}><option value={0.25}>¼×</option><option value={0.5}>½×</option><option value={1}>1×</option><option value={2}>2×</option></select></div></div>
-    </section>
-    <section className="pg-caption"><div><h2>{selected.name}</h2><p>{selected.note}</p></div><code>{name === 'contrasts' ? 'teaching/contrasts.tsx' : `examples/${name}/`}</code></section>
-    <footer className="pg-footer"><span>{still ? 'The reduced-motion poster is shown.' : staticScene ? 'This example is static.' : 'Pause playback to step through individual frames.'}</span></footer>
+        <button
+          style={{
+            padding: '5px 12px',
+            fontSize: '12px',
+            borderRadius: '6px',
+            border: '1px solid #38bdf8',
+            background: viewMode === 'studio' ? '#38bdf8' : 'rgba(56, 189, 248, 0.1)',
+            color: viewMode === 'studio' ? '#09090b' : '#38bdf8',
+            fontWeight: 600,
+            cursor: 'pointer'
+          }}
+          onClick={() => setViewMode('studio')}
+        >
+          Craft Studio (Auto-Fixer & 7 Libs)
+        </button>
+      </div>
+    </header>
+
+    {viewMode === 'studio' ? (
+      <SlopStudio />
+    ) : (
+      <>
+        <div className="pg-picker"><label htmlFor="example-choice">Example</label><select id="example-choice" value={name} onChange={e => setName(e.target.value)}>{groups.map(group => <optgroup key={group} label={group}>{examples.filter(e => e.group === group).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</optgroup>)}</select></div>
+        <section className="pg-preview" aria-label="Example preview">
+          <div className="pg-toolbar"><div className="pg-segment" aria-label="Preview width"><button aria-pressed={!phone} onClick={() => setPhone(false)}>Desktop</button><button aria-pressed={phone} onClick={() => setPhone(true)}>Phone</button></div><label className="pg-still"><input type="checkbox" checked={still} onChange={e => { motionOverride.current = true; setStill(e.target.checked) }} />Reduced motion</label></div>
+          <div className="pg-canvas" data-phone={phone || undefined} data-grid={selected.kind === 'Grid' || undefined}><iframe key={`${name}-${revision}-${still}`} ref={iframe} title={selected.name} src={source} style={{ height }} onLoad={() => send({ playing: playing && !still, speed, visible: visible.current })} /></div>
+          {error && <p role="alert">Preview stopped: {error}. Check the console, fix the example, then select Replay.</p>}
+          <div className="pg-transport"><div className="pg-buttons">
+            <button className="pg-play" data-playing={playing || undefined} disabled={transportDisabled} onClick={() => setPlaying(p => !p)} aria-label={playing ? 'Pause' : 'Play'}>
+              <svg className="pg-play-icon" viewBox="0 0 16 16" aria-hidden="true">
+                <path className="pg-play-icon-left" d={playing ? 'M4 3L6.5 3L6.5 13L4 13Z' : 'M5 3L9 5.5L9 10.5L5 13Z'} />
+                <path className="pg-play-icon-right" d={playing ? 'M9.5 3L12 3L12 13L9.5 13Z' : 'M9 5.5L13 8L13 8L9 10.5Z'} />
+              </svg>
+              <span className="pg-play-label" aria-hidden="true"><span className="pg-play-word">Play</span><span className="pg-pause-word">Pause</span></span>
+            </button>
+            <button disabled={transportDisabled} onClick={() => { setPlaying(false); send({ step: true }) }} title="Advance one frame">Step</button><button onClick={() => replay(n => n + 1)}>Replay</button>
+          </div><div className="pg-time"><output aria-label="Current time">{((still || staticScene ? 0 : elapsed) / 1000).toFixed(2)}<span>s</span></output><select aria-label="Playback speed" value={speed} disabled={transportDisabled} onChange={e => setSpeed(Number(e.target.value))}><option value={0.25}>¼×</option><option value={0.5}>½×</option><option value={1}>1×</option><option value={2}>2×</option></select></div></div>
+        </section>
+        <section className="pg-caption"><div><h2>{selected.name}</h2><p>{selected.note}</p></div><code>{name === 'contrasts' ? 'teaching/contrasts.tsx' : `examples/${name}/`}</code></section>
+        <footer className="pg-footer"><span>{still ? 'The reduced-motion poster is shown.' : staticScene ? 'This example is static.' : 'Pause playback to step through individual frames.'}</span></footer>
+      </>
+    )}
   </main>
 }
 export function mount() { createRoot(document.getElementById('root')!).render(<Viewer />) }

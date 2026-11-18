@@ -24,7 +24,8 @@ export default defineConfig({
       { find: /^(\.\.\/)+kit\/(.*)$/, replacement: `${kitPath}/$2` },
       { find: /^(\.\.\/)+assets\/(.*)$/, replacement: `${assetsPath}/$2` },
       { find: /^(\.\.\/)+examples\/(.*)$/, replacement: `${patternsPath}/$2` },
-      { find: '@sloppy/kit', replacement: kitPath }
+      { find: '@sloppy/kit', replacement: kitPath },
+      { find: '@sloppy/core', replacement: path.resolve(rootDir, 'packages/core/dist/index.js') }
     ]
   }
 })

@@ -3,12 +3,16 @@ import {
   getComponentById,
   getLook,
   getPatternById,
+  getSynthesizedArchetype,
   LOOKS,
   PATTERNS_CATALOG,
   searchAllComponents,
   searchPatterns,
+  searchSynthesizedArchetypes,
   SLOPPY_COMPONENTS,
-  SLOPPY_LIBRARIES
+  SLOPPY_LIBRARIES,
+  SYNTHESIZED_ARCHETYPES,
+  transformSlopToCraft
 } from '@sloppy/core';
 import { runServer } from '@sloppy/mcp';
 import { spawn } from 'child_process';
@@ -105,6 +109,105 @@ export async function runCli(args: string[]) {
       if (maxScore > 40) {
         process.exitCode = 1;
       }
+      break;
+    }
+
+    case 'fix': {
+      const target = args[1];
+      if (!target) {
+        console.error('[ERROR] Please specify a file to fix: sloppy fix <path> [--write] [--look <look>]');
+        process.exit(1);
+      }
+
+      const targetPath = path.resolve(process.cwd(), target);
+      if (!fs.existsSync(targetPath)) {
+        console.error(`[ERROR] File not found: ${targetPath}`);
+        process.exit(1);
+      }
+
+      const shouldWrite = args.includes('--write') || args.includes('-w');
+      const lookIdx = args.indexOf('--look');
+      const look = lookIdx !== -1 && args[lookIdx + 1] ? (args[lookIdx + 1] as any) : 'linear';
+
+      const originalCode = fs.readFileSync(targetPath, 'utf-8');
+      const result = transformSlopToCraft(originalCode, { look });
+
+      console.log(`\n======================================================`);
+      console.log(`SLOPPY: SURGICAL AI SLOP AUTO-FIXER`);
+      console.log(`Target: ${path.relative(process.cwd(), targetPath)}`);
+      console.log(`======================================================\n`);
+
+      console.log(`Slop Score: ${result.preAudit.slopScore}/100 -> ${result.postAudit.slopScore}/100`);
+      console.log(`Changes Applied: ${result.changesApplied}\n`);
+
+      if (result.transformations.length > 0) {
+        console.log(`--- Applied Transformations ---`);
+        result.transformations.forEach((t, i) => {
+          console.log(`${i + 1}. [${t.type}] ${t.explanation}`);
+          console.log(`   Before: "${t.original.slice(0, 60)}"`);
+          console.log(`   After:  "${t.replacement.slice(0, 60)}"\n`);
+        });
+      }
+
+      if (shouldWrite) {
+        fs.writeFileSync(targetPath, result.transformedCode, 'utf-8');
+        console.log(`[SUCCESS] File refactored and written in-place.`);
+      } else {
+        console.log(`[INFO] Dry-run complete. Run with "--write" (or "-w") to save changes.`);
+      }
+      break;
+    }
+
+    case 'create': {
+      const archetypeId = args[1];
+      if (!archetypeId) {
+        console.error('[ERROR] Please specify an archetype: sloppy create <archetypeId> [--dir <path>]');
+        console.log(`Available archetypes: ${SYNTHESIZED_ARCHETYPES.map(a => a.id).join(', ')}`);
+        process.exit(1);
+      }
+
+      const archetype = getSynthesizedArchetype(archetypeId);
+      if (!archetype) {
+        console.error(`[ERROR] Unknown archetype "${archetypeId}".`);
+        console.log(`Run "sloppy archetypes" to view available multi-library master archetypes.`);
+        process.exit(1);
+      }
+
+      const dirIdx = args.indexOf('--dir') !== -1 ? args.indexOf('--dir') : args.indexOf('--dest');
+      const customDir = dirIdx !== -1 && args[dirIdx + 1] ? args[dirIdx + 1] : 'src/components';
+      const destDir = path.resolve(process.cwd(), customDir);
+      fs.mkdirSync(destDir, { recursive: true });
+
+      const destFile = path.resolve(destDir, `${archetype.id}.tsx`);
+      fs.writeFileSync(destFile, archetype.tsxCode, 'utf-8');
+
+      console.log(`\n======================================================`);
+      console.log(`[SUCCESS] Created Master Archetype: ${archetype.name}`);
+      console.log(`Destination: ${path.relative(process.cwd(), destFile)}`);
+      console.log(`Libraries Unified: ${archetype.librariesUsed.join(', ')}`);
+      console.log(`======================================================\n`);
+      console.log(`Anti-Slop Craft Measures Enforced:`);
+      for (const m of archetype.antiSlopMeasures) {
+        console.log(`  - ${m}`);
+      }
+      console.log(`\nFocal Point: ${archetype.focalPoint}`);
+      break;
+    }
+
+    case 'archetypes': {
+      console.log(`\n======================================================`);
+      console.log(`SLOPPY SYNTHESIZED MASTER ARCHETYPES (${SYNTHESIZED_ARCHETYPES.length})`);
+      console.log(`Fusing the best of all 7 libraries without slop`);
+      console.log(`======================================================\n`);
+
+      for (const a of SYNTHESIZED_ARCHETYPES) {
+        console.log(`* ${a.id.padEnd(28)} [${a.category.toUpperCase()}]`);
+        console.log(`  Name:        ${a.name}`);
+        console.log(`  Description: ${a.description}`);
+        console.log(`  Libraries:   ${a.librariesUsed.join(' + ')}`);
+        console.log(`  Focal Point: ${a.focalPoint}\n`);
+      }
+      console.log(`To scaffold any archetype, run: sloppy create <archetypeId>`);
       break;
     }
 
@@ -304,15 +407,18 @@ SLOPPY: The AI Slop UI Fixer (MCP + Kit + Skill Engine)
 Combining: stageshow, shadcn, motion-primitives, magicui, react-bits, kokonutui, animate-ui
 
 Usage:
-  sloppy audit <file|dir>    Audit code or directory for AI slop anti-patterns
-  sloppy list [library]      List all components or filter by library
-  sloppy libs                Show the 7 integrated UI libraries and their design roles
-  sloppy add <componentId>   Install a component directly into your project
-  sloppy init                Scaffold the anti-slop React kit into ./src/kit/
-  sloppy looks               View available design looks and token scales
-  sloppy dev                 Launch visual playground on http://127.0.0.1:1355
-  sloppy mcp                 Start the stdio Model Context Protocol server
-  sloppy help                Show this help screen
+  sloppy audit <file|dir>     Audit code or directory for AI slop anti-patterns
+  sloppy fix <file> [--write] Surgically refactor AI slop in-place into clean craft
+  sloppy create <archetype>   Scaffold a unified multi-library master archetype
+  sloppy archetypes           List available multi-library master archetypes
+  sloppy list [library]       List all components or filter by library
+  sloppy libs                 Show the 7 integrated UI libraries and their design roles
+  sloppy add <componentId>    Install a component directly into your project
+  sloppy init                 Scaffold the anti-slop React kit into ./src/kit/
+  sloppy looks                View available design looks and token scales
+  sloppy dev                  Launch visual playground on http://127.0.0.1:1355
+  sloppy mcp                  Start the stdio Model Context Protocol server
+  sloppy help                 Show this help screen
 `);
       break;
     }
