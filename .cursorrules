@@ -1,0 +1,23 @@
+# Cursor AI Rules - Sloppy Repository
+
+## Senior Developer Standard & Ponytail Philosophy
+- **Primary Skill: Ponytail**: "The best code is the code you never wrote." Apply the Ponytail Ladder before authoring any code: YAGNI -> Existing Codebase -> Standard Library -> Native Platform Feature -> Existing Dependencies -> Minimal Form -> Boring Over Clever.
+- **Zero Speculative Code**: Write only what is directly requested. No premature abstractions, factories, or single-use wrapper classes.
+- **Professional Language**: All comments, documentation, and commit messages must be strictly professional and architecturally precise. Avoid colloquialisms, informal slang, and conversational filler.
+- **Strict Zero Emojis Policy**: Never generate emojis in code, UI, alert banners, documentation, or commit messages. Use clean SVG icons or semantic badges.
+
+## Zero-Tolerance Anti-Slop Enforcement
+- Whenever authoring or modifying UI components, ensure the output complies with Sloppy's Craft Rubric (Grade A+, minimum 95/100).
+- Prohibited:
+  - Purple/indigo gradient buttons and cards
+  - Sparkle icons (`LucideSparkles`) for AI
+  - Floating miniature windows unanchored to viewport edges (must bleed off >= 1 edge, cover >= 66% stage)
+  - Boxed card monotony (use 4-step surface elevation instead)
+  - Wall-of-text filler (strictly enforce 3–7 real strings; quiet placeholder bars elsewhere)
+  - Unearned animations (`animate-bounce`, `animate-pulse`, `animate-ping`)
+- Pre-delivery verification: Run `sloppy audit <file>` or `sloppy rubric <file>` to verify 0/100 slop.
+
+## Version Control & Commits
+- Enforce Conventional Commits: `<type>(<scope>): <imperative summary>`.
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`.
+- Imperative mood, lowercase, no trailing period.

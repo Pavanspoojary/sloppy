@@ -11,6 +11,9 @@
     "dev": "npm run dev --workspace=@sloppy/playground",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "node scripts/verify-archetypes.js",
+    "verify:commit": "node scripts/verify-commit-msg.js",
+    "verify:all": "npm run typecheck && npm run test",
     "mcp": "node packages/mcp/bin/sloppy-mcp.js",
     "audit": "node packages/cli/bin/sloppy.js audit",
     "sloppy": "node packages/cli/bin/sloppy.js"

@@ -131,3 +131,24 @@ sloppy dev
 5. **Ground the Framing**: Windows and phones must cover >= 66% of the stage and bleed off at least one edge.
 6. **Choreograph Caused Motion**: Use the `Act` API (`<Act on={clock} script={...}>`). Every motion must have a visible cause.
 7. **Certify with Rubric**: Run `sloppy rubric <file>` to verify Grade A+ (>=95/100) before declaring completion.
+
+---
+
+## Senior Engineering Directives
+
+### 1. Primary Policy: The Ponytail Senior Developer Rule
+*"The best code is the code you never wrote."*
+When editing, adding, or refactoring code in this repository or any project using Sloppy, always stop at the first rung of the Ponytail Ladder:
+- **YAGNI**: Omit speculative, unasked features.
+- **Existing Code**: Leverage primitives in `@sloppy/core` and `@sloppy/kit` before writing new helpers.
+- **Standard Library**: Prefer built-in language APIs over new external dependencies.
+- **Native Platform**: Use semantic HTML and modern CSS (`:has()`, `@container`) before custom wrapper components.
+- **Minimal Form**: 5 lines of direct, clean code are always superior to 50 lines of premature abstractions.
+
+### 2. Professional Tone & Zero Emojis
+- Maintain senior engineering rigor across all documentation, code comments, and commit messages.
+- Never use emojis in code, UI, alert banners, documentation, or commit messages. Rely on crisp typography, inline SVG icons, and semantic badges.
+
+### 3. Strict Conventional Commits
+- All commit messages must follow Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `perf:`, `ci:`) with imperative, professional subject lines. Run `node scripts/verify-commit-msg.js` before finalizing commits.
+

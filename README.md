@@ -136,6 +136,18 @@ slopy/
 
 ---
 
+## Engineering Standards & Quality Gate
+
+This repository enforces senior-level software engineering standards across all contributions, human and agentic:
+
+- **Primary Philosophy: Ponytail Senior Developer Policy**: *"The best code is the code you never wrote."* Every modification follows the Ponytail Ladder: YAGNI -> Existing Codebase -> Standard Library -> Native Platform Feature -> Existing Dependencies -> Minimal Form -> Boring Over Clever.
+- **Zero-Tolerance Anti-Slop Policy**: All UI outputs must achieve **0/100** slop score under `sloppy audit` and **Grade A+ (>=95/100, target 100/100)** on the 10-point Craft Rubric.
+- **Professional Wording & Zero Emojis**: All code comments, documentation, and commit messages maintain senior engineering precision. Emojis are strictly prohibited across all generated assets.
+- **Conventional Commits**: Enforced via pre-commit hooks and CI (`scripts/verify-commit-msg.js`). Format: `<type>(<scope>): <imperative summary>`.
+- **Automated CI Quality Gate**: GitHub Actions (`.github/workflows/ci.yml`) automatically compiles all packages, runs static typechecks, verifies all 10 master archetypes against the Craft Rubric, and validates PR commit messages.
+
+---
+
 ## License
 
 MIT License.

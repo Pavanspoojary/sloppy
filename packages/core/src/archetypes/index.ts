@@ -252,6 +252,10 @@ export function DeveloperPlatformHero() {
     tsxCode: `import React, { useState } from 'react';
 import { ArrowUpRight, ArrowDownLeft, Download } from 'lucide-react';
 
+const Bar = ({ className = 'w-20 h-2' }: { className?: string }) => (
+  <span className={\`inline-block rounded bg-neutral-800 \${className}\`} aria-hidden="true" />
+);
+
 export function FintechBillingSuite() {
   const [period, setPeriod] = useState('month');
 
@@ -311,21 +315,21 @@ export function FintechBillingSuite() {
             <tbody className="divide-y divide-neutral-800/60 font-mono">
               <tr>
                 <td className="py-3 px-4 text-neutral-300">tx_98214</td>
-                <td className="py-3 px-4 text-neutral-200 font-sans">Acme Cloud Corp</td>
+                <td className="py-3 px-4 text-neutral-200 font-sans font-medium">Acme Cloud Corp</td>
                 <td className="py-3 px-4"><span className="text-emerald-400">settled</span></td>
                 <td className="py-3 px-4 text-right text-white font-semibold">+$12,450.00</td>
               </tr>
               <tr>
-                <td className="py-3 px-4 text-neutral-300">tx_98215</td>
-                <td className="py-3 px-4 text-neutral-200 font-sans">Stripe Terminal API</td>
-                <td className="py-3 px-4"><span className="text-emerald-400">settled</span></td>
-                <td className="py-3 px-4 text-right text-white font-semibold">+$4,210.00</td>
+                <td className="py-3 px-4 text-neutral-500">tx_98215</td>
+                <td className="py-3 px-4"><Bar className="w-28 h-2 bg-neutral-800" /></td>
+                <td className="py-3 px-4"><span className="text-emerald-500/70">settled</span></td>
+                <td className="py-3 px-4 text-right text-neutral-400"><Bar className="w-16 h-2 bg-neutral-800 inline-block" /></td>
               </tr>
               <tr>
-                <td className="py-3 px-4 text-neutral-300">tx_98216</td>
-                <td className="py-3 px-4 text-neutral-200 font-sans">AWS Infra Reserve</td>
-                <td className="py-3 px-4"><span className="text-neutral-400">pending</span></td>
-                <td className="py-3 px-4 text-right text-neutral-300">+$1,890.00</td>
+                <td className="py-3 px-4 text-neutral-500">tx_98216</td>
+                <td className="py-3 px-4"><Bar className="w-20 h-2 bg-neutral-800" /></td>
+                <td className="py-3 px-4"><span className="text-neutral-500">pending</span></td>
+                <td className="py-3 px-4 text-right text-neutral-400"><Bar className="w-14 h-2 bg-neutral-800 inline-block" /></td>
               </tr>
             </tbody>
           </table>
@@ -493,6 +497,10 @@ export function ObservabilityTelemetry() {
     tsxCode: `import React, { useState } from 'react';
 import { Check } from 'lucide-react';
 
+const Bar = ({ className = 'w-20 h-2' }: { className?: string }) => (
+  <span className={\`inline-block rounded bg-neutral-800 \${className}\`} aria-hidden="true" />
+);
+
 export function SaasPricingMatrix() {
   const [annual, setAnnual] = useState(true);
 
@@ -500,8 +508,8 @@ export function SaasPricingMatrix() {
     <div className="w-full bg-[#09090b] text-neutral-100 p-8 flex flex-col items-center font-sans">
       <div className="w-full max-w-4xl space-y-6">
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold tracking-tight text-white">Simple, predictable pricing</h2>
-          <p className="text-xs text-neutral-400">Scale without surprise overage invoices.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-white">Predictable pricing</h2>
+          <p className="text-xs text-neutral-400">Scale without overage penalties.</p>
         </div>
 
         <div className="grid grid-cols-3 gap-4 items-stretch">
@@ -511,12 +519,12 @@ export function SaasPricingMatrix() {
               <span className="text-xs font-mono text-neutral-400 uppercase">Starter</span>
               <div className="text-2xl font-bold font-mono text-white">$0</div>
               <ul className="text-xs space-y-2 text-neutral-400 pt-3 border-t border-neutral-800">
-                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-neutral-400" /><span>3 Projects</span></li>
-                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-neutral-400" /><span>Community support</span></li>
+                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-neutral-500" /><Bar className="w-20 h-2 bg-neutral-800" /></li>
+                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-neutral-500" /><Bar className="w-24 h-2 bg-neutral-800" /></li>
               </ul>
             </div>
             <button className="w-full mt-6 py-1.5 rounded-lg border border-neutral-700 bg-neutral-800/50 text-xs text-neutral-200 hover:bg-neutral-800 transition-colors">
-              Get Started
+              Start Free
             </button>
           </div>
 
@@ -528,14 +536,14 @@ export function SaasPricingMatrix() {
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-300">popular</span>
               </div>
               <div className="text-3xl font-bold font-mono text-white">$49<span className="text-xs font-normal text-neutral-400">/mo</span></div>
-              <ul className="text-xs space-y-2 text-neutral-300 pt-3 border-t border-neutral-800">
-                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-emerald-400" /><span>Unlimited Projects</span></li>
-                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-emerald-400" /><span>Edge caching in 36 regions</span></li>
-                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-emerald-400" /><span>99.99% SLA uptime</span></li>
+              <ul className="text-xs space-y-2 text-neutral-300 pt-3 border-t border-neutral-800 font-mono">
+                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-emerald-400" /><span>Unlimited deployments</span></li>
+                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-emerald-400" /><span>Global edge network</span></li>
+                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-emerald-400" /><span>99.99% SLA</span></li>
               </ul>
             </div>
             <button className="w-full mt-6 py-2 rounded-lg bg-white text-neutral-900 font-medium text-xs hover:bg-neutral-100 transition-colors shadow-sm">
-              Start Free 14-Day Trial
+              Deploy Now
             </button>
           </div>
 
@@ -545,12 +553,12 @@ export function SaasPricingMatrix() {
               <span className="text-xs font-mono text-neutral-400 uppercase">Enterprise</span>
               <div className="text-2xl font-bold font-mono text-white">Custom</div>
               <ul className="text-xs space-y-2 text-neutral-400 pt-3 border-t border-neutral-800">
-                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-neutral-400" /><span>Dedicated cluster</span></li>
-                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-neutral-400" /><span>24/7 Phone support</span></li>
+                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-neutral-500" /><Bar className="w-24 h-2 bg-neutral-800" /></li>
+                <li className="flex items-center space-x-1.5"><Check className="w-3.5 h-3.5 text-neutral-500" /><Bar className="w-16 h-2 bg-neutral-800" /></li>
               </ul>
             </div>
             <button className="w-full mt-6 py-1.5 rounded-lg border border-neutral-700 bg-neutral-800/50 text-xs text-neutral-200 hover:bg-neutral-800 transition-colors">
-              Contact Sales
+              Contact
             </button>
           </div>
         </div>

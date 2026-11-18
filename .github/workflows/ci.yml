@@ -1,0 +1,62 @@
+name: CI Quality Gate & Anti-Slop Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality-gate:
+    name: Build, Typecheck & Craft Rubric Certification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Compile Monorepo Packages
+        run: npm run build
+
+      - name: Static Typecheck
+        run: npm run typecheck
+
+      - name: Verify Craft Rubric & Zero-Tolerance Anti-Slop Standard
+        run: npm test
+
+  commit-lint:
+    name: Conventional Commits & Professional Wording Validation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate PR Commit Messages
+        run: |
+          COMMITS=$(git log --no-merges origin/${{ github.base_ref }}..HEAD --pretty=format:"%H")
+          for COMMIT in $COMMITS; do
+            MSG=$(git log -1 --pretty=format:"%B" $COMMIT)
+            echo "Validating commit $COMMIT: $MSG"
+            TEMP_FILE=$(mktemp)
+            echo "$MSG" > "$TEMP_FILE"
+            node scripts/verify-commit-msg.js "$TEMP_FILE"
+            rm "$TEMP_FILE"
+          done
