@@ -1,4 +1,15 @@
-import { auditCode, getLook, getPatternById, LOOKS, PATTERNS_CATALOG, searchPatterns } from '@sloppy/core';
+import {
+  auditCode,
+  getComponentById,
+  getLook,
+  getPatternById,
+  LOOKS,
+  PATTERNS_CATALOG,
+  searchAllComponents,
+  searchPatterns,
+  SLOPPY_COMPONENTS,
+  SLOPPY_LIBRARIES
+} from '@sloppy/core';
 import { runServer } from '@sloppy/mcp';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
@@ -10,6 +21,7 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '../../../');
 const PATTERNS_DIR = path.resolve(ROOT_DIR, 'patterns');
 const KIT_DIR = path.resolve(ROOT_DIR, 'packages/kit');
+const COMPONENTS_DIR = path.resolve(ROOT_DIR, 'packages/components');
 const PLAYGROUND_DIR = path.resolve(ROOT_DIR, 'packages/playground');
 
 export async function runCli(args: string[]) {
@@ -97,51 +109,133 @@ export async function runCli(args: string[]) {
     }
 
     case 'list': {
+      const libFilter = args[1]?.toLowerCase();
+
+      if (libFilter && SLOPPY_LIBRARIES[libFilter]) {
+        console.log(`\n======================================================`);
+        console.log(`SLOPPY COMPONENTS: ${SLOPPY_LIBRARIES[libFilter].name.toUpperCase()}`);
+        console.log(`Author: ${SLOPPY_LIBRARIES[libFilter].author} | ${SLOPPY_LIBRARIES[libFilter].githubUrl}`);
+        console.log(`======================================================\n`);
+
+        const comps = SLOPPY_COMPONENTS.filter(c => c.library === libFilter);
+        for (const c of comps) {
+          console.log(`* ${c.id.padEnd(35)} [${c.category.toUpperCase()}] [${c.antiSlopRating.toUpperCase()}]`);
+          console.log(`  Name:        ${c.name}`);
+          console.log(`  Description: ${c.description}`);
+          console.log(`  Guidance:    ${c.antiSlopGuidance}\n`);
+        }
+        return;
+      }
+
       console.log(`\n======================================================`);
-      console.log(`SLOPPY PATTERN LIBRARY (${PATTERNS_CATALOG.length} Patterns)`);
+      console.log(`SLOPPY UNIFIED COMPONENT & PATTERN REGISTRY`);
+      console.log(`7 Integrated Libraries: stageshow, shadcn, motion-primitives, magicui, react-bits, kokonutui, animate-ui`);
       console.log(`======================================================\n`);
 
-      for (const p of PATTERNS_CATALOG) {
+      console.log(`--- Highlighted Curated Components ---`);
+      for (const c of SLOPPY_COMPONENTS) {
+        console.log(`* ${c.id.padEnd(35)} [${c.library.toUpperCase()}] [${c.category.toUpperCase()}]`);
+        console.log(`  ${c.description}`);
+        console.log(`  Guidance: ${c.antiSlopGuidance}\n`);
+      }
+
+      console.log(`--- Flagship Product Patterns (Stageshow) ---`);
+      for (const p of PATTERNS_CATALOG.slice(0, 8)) {
         const motionTag = p.hasMotion ? '[MOTION]' : '[STILL]';
-        console.log(`* ${p.id.padEnd(18)} ${motionTag.padEnd(9)} [${p.theme.toUpperCase()}] ${p.name}`);
-        console.log(`  Summary:     ${p.summary}`);
-        console.log(`  Focal Point: ${p.focalPoint}`);
-        console.log(`  Tags:        ${p.tags.join(', ')}\n`);
+        console.log(`* stageshow/${p.id.padEnd(25)} ${motionTag.padEnd(9)} [${p.theme.toUpperCase()}] ${p.name}`);
+        console.log(`  Focal Point: ${p.focalPoint}\n`);
+      }
+
+      console.log(`Tip: Filter by library with: sloppy list <stageshow|shadcn|motion-primitives|magicui|react-bits|kokonutui|animate-ui>`);
+      break;
+    }
+
+    case 'libs': {
+      console.log(`\n======================================================`);
+      console.log(`SLOPPY INTEGRATED LIBRARIES (7 Major Ecosystems)`);
+      console.log(`======================================================\n`);
+
+      for (const lib of Object.values(SLOPPY_LIBRARIES)) {
+        console.log(`* ${lib.name.toUpperCase()} (id: "${lib.id}")`);
+        console.log(`  Author:         ${lib.author}`);
+        console.log(`  Repository:     ${lib.githubUrl}`);
+        console.log(`  Description:    ${lib.description}`);
+        console.log(`  Anti-Slop Role: ${lib.antiSlopRole}`);
+        console.log(`  Core Strengths:`);
+        for (const s of lib.strengths) {
+          console.log(`    - ${s}`);
+        }
+        console.log();
       }
       break;
     }
 
     case 'add': {
-      const patternId = args[1];
-      if (!patternId) {
-        console.error('[ERROR] Please specify a pattern ID: sloppy add <pattern-id>');
+      const idOrPattern = args[1];
+      if (!idOrPattern) {
+        console.error('[ERROR] Please specify a component or pattern ID: sloppy add <library/component>');
         process.exit(1);
       }
 
-      const pattern = getPatternById(patternId);
-      const patternSourceDir = path.resolve(PATTERNS_DIR, patternId);
+      const cleanId = idOrPattern.trim();
+      const entry = getComponentById(cleanId);
+      const pattern = getPatternById(cleanId);
 
-      if (!fs.existsSync(patternSourceDir)) {
-        console.error(`[ERROR] Pattern "${patternId}" not found in library.`);
-        process.exit(1);
-      }
+      const dirIdx = args.indexOf('--dir') !== -1 ? args.indexOf('--dir') : args.indexOf('--dest');
+      const customDir = dirIdx !== -1 && args[dirIdx + 1] ? args[dirIdx + 1] : null;
 
-      const destDir = path.resolve(process.cwd(), 'src/components', patternId);
-      fs.mkdirSync(destDir, { recursive: true });
-
-      const files = fs.readdirSync(patternSourceDir);
-      for (const f of files) {
-        const src = path.join(patternSourceDir, f);
-        const dst = path.join(destDir, f);
-        if (fs.statSync(src).isFile()) {
-          fs.copyFileSync(src, dst);
+      if (entry) {
+        // Add component from packages/components/
+        const srcFile = path.resolve(COMPONENTS_DIR, entry.sourcePath);
+        if (!fs.existsSync(srcFile)) {
+          console.error(`[ERROR] Component source not found: ${srcFile}`);
+          process.exit(1);
         }
+
+        const destDir = customDir 
+          ? path.resolve(process.cwd(), customDir) 
+          : path.resolve(process.cwd(), 'src/components', entry.library);
+        fs.mkdirSync(destDir, { recursive: true });
+        const destFile = path.resolve(destDir, path.basename(srcFile));
+
+        fs.copyFileSync(srcFile, destFile);
+        console.log(`\n[SUCCESS] Installed ${entry.id} -> ${path.relative(process.cwd(), destFile)}`);
+        console.log(`\nAnti-Slop Design Guidance:`);
+        console.log(`  ${entry.antiSlopGuidance}`);
+        if (entry.dependencies.length > 0) {
+          console.log(`\nRequired Dependencies:`);
+          console.log(`  npm install ${entry.dependencies.join(' ')}`);
+        }
+        return;
       }
 
-      console.log(`[SUCCESS] Pattern "${patternId}" copied to ./src/components/${patternId}/`);
-      if (pattern) {
-        console.log(`Focal Point: ${pattern.focalPoint}`);
+      if (pattern || fs.existsSync(path.resolve(PATTERNS_DIR, cleanId))) {
+        // Add pattern from patterns/
+        const patternSourceDir = path.resolve(PATTERNS_DIR, cleanId);
+        const destDir = customDir
+          ? path.resolve(process.cwd(), customDir, cleanId)
+          : path.resolve(process.cwd(), 'src/components', cleanId);
+        fs.mkdirSync(destDir, { recursive: true });
+
+        const files = fs.readdirSync(patternSourceDir);
+        for (const f of files) {
+          const src = path.join(patternSourceDir, f);
+          const dst = path.join(destDir, f);
+          if (fs.statSync(src).isFile()) {
+            fs.copyFileSync(src, dst);
+          }
+        }
+
+        console.log(`\n[SUCCESS] Pattern "${cleanId}" installed to ${path.relative(process.cwd(), destDir)}/`);
+        if (pattern) {
+          console.log(`Focal Point: ${pattern.focalPoint}`);
+        }
+        return;
       }
+
+      console.error(`[ERROR] Item "${cleanId}" not found in catalog or patterns.`);
+      console.log(`Run "sloppy list" to search available components and patterns.`);
+      process.exit(1);
       break;
     }
 
@@ -207,11 +301,13 @@ export async function runCli(args: string[]) {
     default: {
       console.log(`
 SLOPPY: The AI Slop UI Fixer (MCP + Kit + Skill Engine)
+Combining: stageshow, shadcn, motion-primitives, magicui, react-bits, kokonutui, animate-ui
 
 Usage:
   sloppy audit <file|dir>    Audit code or directory for AI slop anti-patterns
-  sloppy list                List all 73+ curated patterns in library
-  sloppy add <patternId>     Copy a pattern directly into your project
+  sloppy list [library]      List all components or filter by library
+  sloppy libs                Show the 7 integrated UI libraries and their design roles
+  sloppy add <componentId>   Install a component directly into your project
   sloppy init                Scaffold the anti-slop React kit into ./src/kit/
   sloppy looks               View available design looks and token scales
   sloppy dev                 Launch visual playground on http://127.0.0.1:1355

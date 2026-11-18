@@ -7,12 +7,16 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import {
   auditCode,
+  getComponentById,
   getLook,
   getPatternById,
   getRulesByTopic,
   LOOKS,
   PATTERNS_CATALOG,
-  searchPatterns
+  searchAllComponents,
+  searchPatterns,
+  SLOPPY_COMPONENTS,
+  SLOPPY_LIBRARIES
 } from '@sloppy/core';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -23,12 +27,13 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '../../../');
 const PATTERNS_DIR = path.resolve(ROOT_DIR, 'patterns');
 const KIT_DIR = path.resolve(ROOT_DIR, 'packages/kit');
+const COMPONENTS_DIR = path.resolve(ROOT_DIR, 'packages/components');
 
 export function createSloppyServer() {
   const server = new Server(
     {
       name: 'sloppy-mcp',
-      version: '1.0.0'
+      version: '1.1.0'
     },
     {
       capabilities: {
@@ -60,8 +65,50 @@ export function createSloppyServer() {
       }
     },
     {
+      name: 'sloppy_search_components',
+      description: 'Search across 700+ UI components from all 7 major ecosystems (shadcn, motion-primitives, magicui, react-bits, kokonutui, animate-ui, and stageshow) by natural language query, library, or category, complete with anti-slop ratings and usage guidance.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'Search query (e.g. "button", "morphing dialog", "animated beam", "aurora background", "ai prompt", "table", "sliding number", "marquee")'
+          },
+          library: {
+            type: 'string',
+            enum: ['all', 'stageshow', 'shadcn', 'motion-primitives', 'magicui', 'react-bits', 'kokonutui', 'animate-ui'],
+            description: 'Filter by source library'
+          },
+          category: {
+            type: 'string',
+            enum: ['all', 'primitive', 'interaction', 'background', 'text-animation', 'product-shot', 'bento-grid', 'feedback', 'navigation', 'ai'],
+            description: 'Filter by component category'
+          },
+          limit: {
+            type: 'integer',
+            description: 'Maximum results to return (default: 20)',
+            default: 20
+          }
+        }
+      }
+    },
+    {
+      name: 'sloppy_get_component',
+      description: 'Fetch the full source code (TSX/JSX), required dependencies, and anti-slop design guidance for any component from any of the 7 libraries (shadcn, motion-primitives, magicui, react-bits, kokonutui, animate-ui, stageshow).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          componentId: {
+            type: 'string',
+            description: 'Component identifier (e.g. "motion-primitives/morphing-dialog", "magicui/border-beam", "shadcn/button", "kokonutui/ai-prompt", "react-bits/spotlight") or short name like "button" or "morphing-dialog"'
+          }
+        },
+        required: ['componentId']
+      }
+    },
+    {
       name: 'sloppy_search_patterns',
-      description: 'Search across 73+ curated gold patterns, product studies (Linear, Slack, Raycast, Figma, Notion, Spotify, Telegram, etc.), and layout archetypes.',
+      description: 'Search across 73+ curated gold product scenes (Linear, Slack, Raycast, Figma, Notion, Spotify, Telegram, etc.) and layout archetypes.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -165,8 +212,16 @@ export function createSloppyServer() {
       }
     },
     {
+      name: 'sloppy_list_libraries',
+      description: 'List all 7 integrated UI libraries (shadcn, motion-primitives, magicui, react-bits, kokonutui, animate-ui, stageshow) with their design roles, strengths, and anti-slop guidelines.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
       name: 'sloppy_list_catalog',
-      description: 'List all available patterns in the Sloppy library grouped by category with summary statistics.',
+      description: 'List summary statistics for the entire Sloppy ecosystem across all 7 component libraries and 73+ product patterns.',
       inputSchema: {
         type: 'object',
         properties: {}
@@ -214,6 +269,88 @@ export function createSloppyServer() {
             {
               type: 'text',
               text: JSON.stringify(result, null, 2)
+            }
+          ]
+        };
+      }
+
+      if (name === 'sloppy_search_components') {
+        const inputArgs = args as { query?: string; library?: string; category?: string; limit?: number };
+        const results = searchAllComponents(inputArgs.query || '', {
+          library: inputArgs.library,
+          category: inputArgs.category,
+          limit: inputArgs.limit || 20
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ count: results.length, components: results }, null, 2)
+            }
+          ]
+        };
+      }
+
+      if (name === 'sloppy_get_component') {
+        const inputArgs = args as { componentId: string };
+        const cleanId = inputArgs.componentId.trim();
+        const entry = getComponentById(cleanId);
+
+        let resolvedPath = '';
+        if (entry && entry.sourcePath) {
+          resolvedPath = path.resolve(COMPONENTS_DIR, entry.sourcePath);
+        } else {
+          // Dynamic fallback search in packages/components/
+          const parts = cleanId.split('/');
+          if (parts.length === 2) {
+            const lib = parts[0];
+            const comp = parts[1];
+            const direct = path.resolve(COMPONENTS_DIR, lib, `${comp}.tsx`);
+            if (fs.existsSync(direct)) resolvedPath = direct;
+          } else {
+            // Search all subdirectories
+            for (const lib of Object.keys(SLOPPY_LIBRARIES)) {
+              const cand = path.resolve(COMPONENTS_DIR, lib, `${cleanId}.tsx`);
+              if (fs.existsSync(cand)) {
+                resolvedPath = cand;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!resolvedPath || !fs.existsSync(resolvedPath)) {
+          return {
+            content: [{ type: 'text', text: `Component "${cleanId}" not found in components directory.` }],
+            isError: true
+          };
+        }
+
+        const sourceCode = fs.readFileSync(resolvedPath, 'utf8');
+        const cssPath = resolvedPath.replace(/\.tsx?$/, '.css');
+        const cssCode = fs.existsSync(cssPath) ? fs.readFileSync(cssPath, 'utf8') : undefined;
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  id: entry?.id || cleanId,
+                  name: entry?.name || path.basename(resolvedPath, path.extname(resolvedPath)),
+                  library: entry?.library || 'custom',
+                  category: entry?.category || 'primitive',
+                  antiSlopRating: entry?.antiSlopRating || 'restrained',
+                  antiSlopGuidance: entry?.antiSlopGuidance || 'Use with restraint: ensure one visual focal point and avoid rainbow gradients.',
+                  dependencies: entry?.dependencies || [],
+                  sourcePath: path.relative(COMPONENTS_DIR, resolvedPath),
+                  sourceCode,
+                  cssCode
+                },
+                null,
+                2
+              )
             }
           ]
         };
@@ -372,6 +509,17 @@ export function createSloppyServer() {
         };
       }
 
+      if (name === 'sloppy_list_libraries') {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(SLOPPY_LIBRARIES, null, 2)
+            }
+          ]
+        };
+      }
+
       if (name === 'sloppy_list_catalog') {
         return {
           content: [
@@ -379,13 +527,17 @@ export function createSloppyServer() {
               type: 'text',
               text: JSON.stringify(
                 {
+                  libraries: Object.keys(SLOPPY_LIBRARIES),
+                  totalCuratedComponents: SLOPPY_COMPONENTS.length,
                   totalPatterns: PATTERNS_CATALOG.length,
-                  categories: {
-                    gold: PATTERNS_CATALOG.filter(p => p.category === 'gold'),
-                    productStudies: PATTERNS_CATALOG.filter(p => p.category === 'product-study'),
-                    interactions: PATTERNS_CATALOG.filter(p => p.category === 'interaction'),
-                    bento: PATTERNS_CATALOG.filter(p => p.category === 'bento'),
-                    devices: PATTERNS_CATALOG.filter(p => p.category === 'device')
+                  componentsByLibrary: {
+                    shadcn: SLOPPY_COMPONENTS.filter(c => c.library === 'shadcn').length,
+                    'motion-primitives': SLOPPY_COMPONENTS.filter(c => c.library === 'motion-primitives').length,
+                    magicui: SLOPPY_COMPONENTS.filter(c => c.library === 'magicui').length,
+                    kokonutui: SLOPPY_COMPONENTS.filter(c => c.library === 'kokonutui').length,
+                    'animate-ui': SLOPPY_COMPONENTS.filter(c => c.library === 'animate-ui').length,
+                    'react-bits': SLOPPY_COMPONENTS.filter(c => c.library === 'react-bits').length,
+                    stageshow: SLOPPY_COMPONENTS.filter(c => c.library === 'stageshow').length
                   },
                   availableLooks: Object.keys(LOOKS)
                 },
@@ -416,5 +568,5 @@ export async function runServer() {
   const server = createSloppyServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  process.stderr.write('Sloppy MCP server running on stdio.\n');
+  process.stderr.write('Sloppy MCP server v1.1.0 running on stdio.\n');
 }

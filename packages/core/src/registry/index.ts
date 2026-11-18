@@ -260,3 +260,19 @@ export function getPatternById(id: string): PatternEntry | undefined {
   const clean = id.toLowerCase().trim();
   return PATTERNS_CATALOG.find(p => p.id === clean);
 }
+
+
+export * from './libraries.js';
+export * from './components.js';
+import { searchAllComponents } from './components.js';
+
+export function searchSloppyRegistry(query: string, options: { library?: string; category?: string; limit?: number } = {}) {
+  const compResults = searchAllComponents(query, options);
+  const patternResults = searchPatterns(query, { category: options.category, limit: options.limit });
+  
+  return {
+    components: compResults,
+    patterns: patternResults,
+    total: compResults.length + patternResults.length
+  };
+}
