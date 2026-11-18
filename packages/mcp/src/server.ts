@@ -7,6 +7,8 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import {
   auditCode,
+  createRepairPlan,
+  evaluateCraftRubric,
   getComponentById,
   getLook,
   getPatternById,
@@ -267,7 +269,50 @@ export function createSloppyServer() {
         properties: {
           archetypeId: {
             type: 'string',
-            description: 'Archetype identifier (e.g. "ai-agent-cockpit", "developer-platform-hero", "fintech-billing-suite"). Omit or pass "all" to list all available master archetypes.'
+            description: 'Archetype identifier (e.g. "ai-agent-cockpit", "developer-platform-hero", "fintech-billing-suite", "database-studio", "observability-telemetry", "saas-pricing-matrix", "mobile-island-companion", "creator-analytics-dashboard", "command-palette-raycast"). Omit or pass "all" to list all 10 available master archetypes.'
+          }
+        }
+      }
+    },
+    {
+      name: 'sloppy_evaluate_rubric',
+      description: 'Evaluates JSX/TSX code against the full 10-point Sloppy Craft Rubric: surface elevation, word budget, motion intentionality, focal hierarchy, icon authenticity, accent discipline, framing & bleeding, density, chrome integrity, and semantic accessibility. Returns score (0-100), letter grade (A+ to F), dimension scores, and SVG badge.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          code: {
+            type: 'string',
+            description: 'Source code content to evaluate against the craft rubric'
+          },
+          path: {
+            type: 'string',
+            description: 'Optional file path to read and evaluate'
+          },
+          strict: {
+            type: 'boolean',
+            description: 'Enable strict restraint and word budget auditing'
+          }
+        }
+      }
+    },
+    {
+      name: 'sloppy_plan_repairs',
+      description: 'Generates a structured, reviewable repair plan for sloppy code. Analyzes violations, categorizes patches by confidence (high/medium/low) and risk, separates auto-applicable fixes from manual review items, and projects score improvements before applying changes.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          code: {
+            type: 'string',
+            description: 'Source code content to generate repair plan for'
+          },
+          path: {
+            type: 'string',
+            description: 'Optional file path to read and plan repairs'
+          },
+          look: {
+            type: 'string',
+            description: 'Desired design token look (default: "linear")',
+            default: 'linear'
           }
         }
       }
@@ -678,6 +723,82 @@ export function createSloppyServer() {
             {
               type: 'text',
               text: JSON.stringify(archetype, null, 2)
+            }
+          ]
+        };
+      }
+
+      if (name === 'sloppy_evaluate_rubric') {
+        const inputArgs = args as { code?: string; path?: string; strict?: boolean };
+        let code = inputArgs.code;
+
+        if (!code && inputArgs.path) {
+          const resolvedPath = path.resolve(process.cwd(), inputArgs.path);
+          if (fs.existsSync(resolvedPath)) {
+            code = fs.readFileSync(resolvedPath, 'utf-8');
+          } else {
+            return {
+              content: [{ type: 'text', text: `File not found: ${resolvedPath}` }],
+              isError: true
+            };
+          }
+        }
+
+        if (!code) {
+          return {
+            content: [{ type: 'text', text: 'Please provide either "code" or a valid "path" to evaluate against the rubric.' }],
+            isError: true
+          };
+        }
+
+        const cert = evaluateCraftRubric(code, {
+          strict: inputArgs.strict,
+          filepath: inputArgs.path
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(cert, null, 2)
+            }
+          ]
+        };
+      }
+
+      if (name === 'sloppy_plan_repairs') {
+        const inputArgs = args as { code?: string; path?: string; look?: string };
+        let code = inputArgs.code;
+
+        if (!code && inputArgs.path) {
+          const resolvedPath = path.resolve(process.cwd(), inputArgs.path);
+          if (fs.existsSync(resolvedPath)) {
+            code = fs.readFileSync(resolvedPath, 'utf-8');
+          } else {
+            return {
+              content: [{ type: 'text', text: `File not found: ${resolvedPath}` }],
+              isError: true
+            };
+          }
+        }
+
+        if (!code) {
+          return {
+            content: [{ type: 'text', text: 'Please provide either "code" or a valid "path" to plan repairs.' }],
+            isError: true
+          };
+        }
+
+        const plan = createRepairPlan(code, {
+          look: inputArgs.look || 'linear',
+          filepath: inputArgs.path
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(plan, null, 2)
             }
           ]
         };
