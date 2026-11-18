@@ -88,12 +88,11 @@ export function AIAgentCockpit() {
             <div className="relative p-3 rounded-lg border border-neutral-700/80 bg-[#181820] space-y-2 overflow-hidden">
               {/* Magic UI Monochromatic Border Beam */}
               <div 
-                className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse" 
-                style={{ animationDuration: '3s' }} 
+                className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent" 
               />
               <div className="flex items-center justify-between text-xs">
                 <span className="font-medium text-white flex items-center space-x-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping mr-1" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mr-1" />
                   Code Synthesizer
                 </span>
                 <span className="text-[10px] text-cyan-300 font-mono">RUNNING</span>
