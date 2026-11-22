@@ -27,3 +27,8 @@ Before marking any UI task complete:
 ## 4. Conventional Commits
 - Always use Conventional Commits format: `<type>(<scope>): <subject>`.
 - Keep commit subjects concise, lowercase, imperative, and strictly professional.
+
+## 5. Continuous README & Documentation Maintenance
+- Always keep `README.md` and repository docs synchronized whenever features, flags, configurations, rules, or test suites are modified.
+- Never allow documentation drift; verify command snippets and tables match current behavior.
+

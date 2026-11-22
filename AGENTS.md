@@ -89,3 +89,13 @@ Any agent generating or editing user interface components within this repository
 ## 6. Multi-Agent Coordination
 
 OpenCode and Antigravity share this repository. Before starting work, read `docs/AGENT-COORDINATION.md`. It defines file ownership, the token and contrast contract, and the current work board. Claim a task there instead of rewriting another agent's files. The Refero Styles cache is a shared source of truth: derive looks with `node scripts/refero-looks.mjs` and verify them with `node --test test/looks.test.mjs`.
+
+---
+
+## 7. Continuous Documentation Maintenance
+
+Whenever modifying, adding, or removing features, CLI flags, configuration schemas, rules, MCP tools, or architecture components:
+- Immediately update `README.md` to accurately reflect the changes.
+- Ensure all usage examples, flag descriptions, command tables, and test metrics remain 100% synchronized with actual code behavior.
+- Document any new flags (e.g. `--format sarif`, `--watch`), configuration parameters, and detection rules.
+

@@ -75,6 +75,12 @@ Sloppy enforces a closed agent loop: **detect, plan, fix, verify, re-check**.
 # 1. Gate: Audit files against the slop threshold (exit 0 clean, 1 violations)
 sloppy check ./src --json --fail-on high --max-score 20
 
+# Export OASIS SARIF 2.1.0 for GitHub Code Scanning / CI security tab
+sloppy check ./src --format sarif > results.sarif
+
+# Real-time watch mode during development
+sloppy check ./src --watch
+
 # Declare the rendered surface when testing application screens or heroes
 sloppy check ./src/screens/Dashboard.tsx --type application --json
 
@@ -107,7 +113,7 @@ echo '<div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl 
 | Command | Usage | Description |
 |---|---|---|
 | `setup` | `sloppy setup [--write]` | All-in-one setup configuring MCP clients and linking Agent Skills. |
-| `check` | `sloppy check <paths...>` | Quality gate with machine-readable verdicts, exit codes, and next actions. |
+| `check` | `sloppy check <paths...> [--format sarif\|json] [--watch]` | Quality gate with machine-readable verdicts, SARIF export, live watch mode, exit codes, and next actions. |
 | `audit` | `sloppy audit <file\|dir>` | Detailed anti-pattern scan with line numbers, snippets, and remediations. |
 | `rubric` | `sloppy rubric <file> [--strict]` | 10-dimension craft rubric score (0-100) and certification grade. |
 | `plan` | `sloppy plan <file>` | Structured repair plan with confidence levels, risk ratings, and patch diffs. |
@@ -152,13 +158,21 @@ Every component is scored across 10 craft dimensions (0 to 10 points each, 100 p
 
 ## Model Context Protocol (MCP) Tools
 
-When connected via MCP, coding agents have access to 16 specialized tools:
+When connected via MCP, coding agents interact through 5 high-leverage primary verbs (with 11 granular aliases for backward compatibility):
 
-* `sloppy_check`: Primary gate entry point returning score, grade, violations, and nextActions.
-* `sloppy_fix`: Transforms sloppy code into clean craft with unified diffs and syntax validation.
+### Primary Agent Verbs
+* `sloppy_check`: Primary gate entry point returning score, grade, violations, SARIF data, and next actions.
+* `sloppy_plan`: Generates structured repair plans with patch diffs, confidence ratings, and risk levels.
+* `sloppy_fix`: Transforms sloppy code into clean craft with verified unified diffs and syntax validation.
+* `sloppy_catalog`: Unified registry querying components, patterns, master archetypes, and design looks.
+* `sloppy_rules`: Authoritative anti-slop rules, guidelines, craft rubric definitions, and surface budgets.
+
+<details>
+<summary>Granular Legacy MCP Handlers (11 Tools)</summary>
+
 * `sloppy_audit_code`: Deep static analysis reporting violations with line and column coordinates.
 * `sloppy_evaluate_rubric`: Evaluates code against the 10-point Craft Rubric with an SVG certification badge.
-* `sloppy_plan_repairs`: Generates structured repair plans with confidence and risk analysis.
+* `sloppy_plan_repairs`: Legacy alias for `sloppy_plan`.
 * `sloppy_get_archetype`: Retrieves any of the 10 multi-library master archetypes.
 * `sloppy_search_components`: Queries 757 components across 7 libraries (shadcn, magicui, motion-primitives, etc.).
 * `sloppy_get_component`: Retrieves source code, dependencies, and craft instructions for any component.
@@ -166,10 +180,10 @@ When connected via MCP, coding agents have access to 16 specialized tools:
 * `sloppy_get_pattern`: Fetches runnable pattern source, scoped CSS, and motion choreography scripts.
 * `sloppy_get_kit_primitives`: Provides ready-to-paste clean React primitives (`Stage`, `Window`, `Bar`, `Act`, `Ease`).
 * `sloppy_get_look`: Provides design tokens, surface steps, and CSS variables for curated and Refero looks.
-* `sloppy_get_rules`: Returns authoritative reference rulebooks (`craft`, `framing`, `motion`, `bento`, `word_budget`).
-* `sloppy_refactor_slop`: Generates guided refactoring proposals for legacy codebases.
 * `sloppy_list_libraries`: Lists integrated ecosystems and their specific anti-slop guidelines.
 * `sloppy_list_catalog`: Returns live catalog metrics and registered pattern statistics.
+
+</details>
 
 ---
 
@@ -192,6 +206,11 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npx sloppy check ./src --fail-on high --max-score 0
+      - run: npx sloppy check ./src --format sarif > results.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
       - run: npx sloppy rubric ./src/components/Hero.tsx --strict
 ```
 
@@ -256,7 +275,7 @@ sloppy/
 ├── patterns/          # 74 curated gold pattern directories
 ├── benchmarks/        # Real-world raw AI specimens (v0, Bolt, Lovable)
 ├── skills/sloppy/     # Universal agent skill definition (SKILL.md + references)
-└── test/              # 46 unit, rubric, config, benchmark, and MCP contract tests
+└── test/              # 50 unit, rubric, config, benchmark, and MCP contract tests
 ```
 
 ---
