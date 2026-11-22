@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { runServer, createSloppyServer } from '../dist/server.js';
 
+const legacyTools = process.argv.includes('--legacy-tools') || process.env.SLOPPY_LEGACY_TOOLS === '1';
+
 if (process.argv.includes('--test')) {
   try {
-    const server = createSloppyServer();
+    const server = createSloppyServer({ legacyTools });
     if (server) {
       console.log('Sloppy MCP server initialized successfully.');
       process.exit(0);
@@ -13,7 +15,7 @@ if (process.argv.includes('--test')) {
     process.exit(1);
   }
 } else {
-  runServer().catch((error) => {
+  runServer({ legacyTools }).catch((error) => {
     console.error('Fatal error in Sloppy MCP server:', error);
     process.exit(1);
   });

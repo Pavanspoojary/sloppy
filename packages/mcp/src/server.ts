@@ -35,8 +35,33 @@ const PATTERNS_DIR = path.resolve(ROOT_DIR, 'patterns');
 const KIT_DIR = path.resolve(ROOT_DIR, 'packages/kit');
 const COMPONENTS_DIR = path.resolve(ROOT_DIR, 'packages/components');
 
-export function createSloppyServer() {
-  const packageVersion = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, 'packages/mcp/package.json'), 'utf8')).version;
+function getPackageVersion(): string {
+  try {
+    return JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf8')).version;
+  } catch {
+    try {
+      return JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, 'packages/mcp/package.json'), 'utf8')).version;
+    } catch {
+      return '1.0.0';
+    }
+  }
+}
+
+export interface SloppyServerOptions {
+  legacyTools?: boolean;
+}
+
+export const PRIMARY_TOOL_NAMES = new Set([
+  'sloppy_check',
+  'sloppy_plan',
+  'sloppy_fix',
+  'sloppy_catalog',
+  'sloppy_rules'
+]);
+
+export function createSloppyServer(options: SloppyServerOptions = {}) {
+  const legacyTools = options.legacyTools ?? (process.env.SLOPPY_LEGACY_TOOLS === '1' || process.argv.includes('--legacy-tools'));
+  const packageVersion = getPackageVersion();
   const server = new Server(
     {
       name: 'sloppy-mcp',
@@ -206,14 +231,29 @@ export function createSloppyServer() {
       }
     },
     {
-      name: 'sloppy_get_rules',
-      description: 'Query detailed anti-slop guidelines and reference manuals (Craft & Restraint, Framing & Cropping, Motion & Choreography, Bento Grid Design, Word Budget).',
+      name: 'sloppy_rules',
+      description: 'Query authoritative anti-slop rules, guidelines, craft rubric definitions, and surface budgets (Craft & Restraint, Framing & Cropping, Motion & Choreography, Bento Grid Design, Word Budget).',
       inputSchema: {
         type: 'object',
         properties: {
           topic: {
             type: 'string',
-            enum: ['craft', 'framing', 'motion', 'bento', 'word_budget'],
+            enum: ['craft', 'framing', 'motion', 'bento', 'word_budget', 'all'],
+            description: 'Design topic to query (default: "craft")',
+            default: 'craft'
+          }
+        }
+      }
+    },
+    {
+      name: 'sloppy_get_rules',
+      description: 'Legacy alias for sloppy_rules. Query detailed anti-slop guidelines and reference manuals.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          topic: {
+            type: 'string',
+            enum: ['craft', 'framing', 'motion', 'bento', 'word_budget', 'all'],
             description: 'Design topic to query'
           }
         },
@@ -364,8 +404,12 @@ export function createSloppyServer() {
     }
   ];
 
+  const visibleTools = legacyTools
+    ? tools
+    : tools.filter((tool) => PRIMARY_TOOL_NAMES.has(tool.name));
+
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return { tools };
+    return { tools: visibleTools };
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -635,9 +679,9 @@ export function createSloppyServer() {
         };
       }
 
-      if (name === 'sloppy_get_rules') {
-        const inputArgs = args as { topic: string };
-        const rules = getRulesByTopic(inputArgs.topic);
+      if (name === 'sloppy_rules' || name === 'sloppy_get_rules') {
+        const inputArgs = (args || {}) as { topic?: string };
+        const rules = getRulesByTopic(inputArgs.topic || 'craft');
 
         return {
           content: [
@@ -888,10 +932,11 @@ export function createSloppyServer() {
   return server;
 }
 
-export async function runServer() {
-  const server = createSloppyServer();
+export async function runServer(options: SloppyServerOptions = {}) {
+  const server = createSloppyServer(options);
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  const version = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, 'packages/mcp/package.json'), 'utf8')).version;
-  process.stderr.write(`Sloppy MCP server v${version} running on stdio.\n`);
+  const version = getPackageVersion();
+  const legacyNotice = options.legacyTools ? ' (legacy tools enabled)' : '';
+  process.stderr.write(`Sloppy MCP server v${version} running on stdio${legacyNotice}.\n`);
 }

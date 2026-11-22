@@ -8,14 +8,22 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
+    "prepack": "npm run build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@sloppy/core": "*",
-    "@sloppy/mcp": "*",
-    "@sloppy/verify": "*"
+    "@sloppy/core": "^1.0.0",
+    "@sloppy/mcp": "^1.0.0",
+    "@sloppy/verify": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",

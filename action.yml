@@ -1,0 +1,67 @@
+name: 'Sloppy Anti-Slop Quality Gate'
+description: 'Enforce zero-tolerance AI UI anti-slop quality gates and generate SARIF annotations in CI.'
+author: 'Pavanspoojary'
+branding:
+  icon: 'shield-check'
+  color: 'purple'
+
+inputs:
+  path:
+    description: 'Path or directory of source files to audit'
+    required: false
+    default: '.'
+  fail-on:
+    description: 'Minimum severity threshold to fail the workflow (none, low, medium, high, critical)'
+    required: false
+    default: 'high'
+  max-score:
+    description: 'Maximum allowable slop score before failing (0-100)'
+    required: false
+    default: '0'
+  strict:
+    description: 'Enable strict restraint and word budget auditing (true/false)'
+    required: false
+    default: 'false'
+  upload-sarif:
+    description: 'Automatically upload SARIF report to GitHub Code Scanning'
+    required: false
+    default: 'true'
+  sarif-file:
+    description: 'File path to save the generated SARIF report'
+    required: false
+    default: 'sloppy-results.sarif'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Run Sloppy Quality Gate & Generate SARIF
+      shell: bash
+      id: run-sloppy
+      run: |
+        STRICT_FLAG=""
+        if [ "${{ inputs.strict }}" = "true" ]; then
+          STRICT_FLAG="--strict"
+        fi
+
+        # Generate SARIF report for GitHub Code Scanning
+        npx --yes sloppy@latest check "${{ inputs.path }}" \
+          --format sarif \
+          > "${{ inputs.sarif-file }}" || true
+
+        # Run quality gate to verify exit codes
+        npx --yes sloppy@latest check "${{ inputs.path }}" \
+          --fail-on "${{ inputs.fail-on }}" \
+          --max-score "${{ inputs.max-score }}" \
+          $STRICT_FLAG
+
+    - name: Upload SARIF to GitHub Code Scanning
+      if: ${{ inputs.upload-sarif == 'true' && (success() || failure()) }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.sarif-file }}
+        category: 'sloppy-ui-craft'

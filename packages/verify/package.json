@@ -8,6 +8,22 @@
     ".": "./verification.mjs",
     "./verification": "./verification.mjs"
   },
+  "files": [
+    "verification.mjs",
+    "browser.mjs",
+    "class-clash-core.mjs",
+    "class-clash.mjs",
+    "film-checks.mjs",
+    "film.mjs",
+    "jumps-core.mjs",
+    "jumps.mjs",
+    "layout-core.mjs",
+    "layout.mjs",
+    "motion-watch.mjs"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },

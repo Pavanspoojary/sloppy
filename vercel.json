@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm run build --workspace=@sloppy/core && npm run build --workspace=@sloppy/playground",
+  "outputDirectory": "packages/playground/dist",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

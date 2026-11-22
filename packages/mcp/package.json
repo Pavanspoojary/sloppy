@@ -8,14 +8,22 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
+    "prepack": "npm run build",
     "start": "node ./bin/sloppy-mcp.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "@sloppy/core": "*"
+    "@sloppy/core": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",

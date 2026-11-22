@@ -43,7 +43,17 @@ function surfaceType(args: string[]): SurfaceType | undefined {
   const value = args.includes('--type') ? args[args.indexOf('--type') + 1] : undefined;
   return ['illustration', 'feature-card', 'hero', 'application', 'bento'].includes(value || '') ? value as SurfaceType : undefined;
 }
-function cliVersion(): string { return JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, 'packages/cli/package.json'), 'utf8')).version; }
+function cliVersion(): string {
+  try {
+    return JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf8')).version;
+  } catch {
+    try {
+      return JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, 'packages/cli/package.json'), 'utf8')).version;
+    } catch {
+      return '1.0.0';
+    }
+  }
+}
 function collectFiles(targets: string[]): string[] {
   const found: string[] = [];
   const visit = (file: string) => {
@@ -888,7 +898,8 @@ export async function runCli(args: string[]) {
     }
 
     case 'mcp': {
-      await runServer();
+      const legacyTools = args.includes('--legacy-tools') || process.env.SLOPPY_LEGACY_TOOLS === '1';
+      await runServer({ legacyTools });
       break;
     }
 

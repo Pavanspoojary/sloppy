@@ -9,12 +9,16 @@ A deterministic anti-slop design engine, portable React kit, Model Context Proto
 Install Sloppy and configure your coding environment with one command:
 
 ```bash
+# Direct one-line setup (macOS & Linux)
 curl -fsSL https://raw.githubusercontent.com/Pavanspoojary/sloppy/main/scripts/install.sh | bash
+
+# Or execute cross-platform via npx (zero installation)
+npx sloppy@latest check ./src
 ```
 
 ### What Setup Configures Automatically
 1. **Developer CLI**: Compiles and installs the `sloppy` binary into `~/.local/bin/sloppy` (and symlinks into `/usr/local/bin/sloppy` if permitted).
-2. **MCP Integration**: Detects and registers the `@sloppy/mcp` stdio server in Cursor, VS Code, Claude Code, and Codex.
+2. **MCP Integration**: Detects and registers the `@sloppy/mcp` stdio server in Cursor, VS Code, Claude Code, and Codex. By default, it exposes the 5 primary verbs to minimize LLM token overhead.
 3. **Agent Skills**: Connects universal anti-slop skills and reference guidelines for autonomous agents in Antigravity and Claude Code.
 
 ### Building from Source
@@ -26,6 +30,20 @@ git clone https://github.com/Pavanspoojary/sloppy.git
 cd sloppy
 ./scripts/install.sh
 ```
+
+---
+
+## Automated Slop Remediation: Before & After
+
+Sloppy deterministically transforms raw generative AI output into grounded, high-craft interfaces:
+
+### 1. v0 Analytics Dashboard (Slop Score: 88/100 Grade F to 0/100 Grade A+)
+![v0 Benchmark Comparison](assets/v0-benchmark-comparison.svg)
+
+### 2. Bolt SaaS Pricing Matrix (Slop Score: 74/100 Grade D to 0/100 Grade A+)
+![Bolt Benchmark Comparison](assets/bolt-benchmark-comparison.svg)
+
+---
 
 ### Environment Configuration
 
@@ -166,14 +184,16 @@ Every component is scored across 10 craft dimensions (0 to 10 points each, 100 p
 
 ## Model Context Protocol (MCP) Integration
 
-Autonomous agents interact with Sloppy over stdio using 5 primary high-leverage tools (with 11 granular legacy handlers for compatibility):
+Autonomous agents interact with Sloppy over stdio using 5 primary high-leverage tools (gated to minimize token overhead on every turn):
 
-### Primary Agent Tools
+### Primary Agent Tools (5 Verbs)
 * `sloppy_check`: Primary gate entry point returning score, grade, violations, SARIF data, and next actions.
 * `sloppy_plan`: Generates structured repair plans with patch diffs, confidence ratings, and risk levels.
 * `sloppy_fix`: Transforms sloppy code into clean craft with verified unified diffs and syntax validation.
 * `sloppy_catalog`: Unified registry querying components, patterns, master archetypes, and design looks.
 * `sloppy_rules`: Authoritative anti-slop rules, guidelines, craft rubric definitions, and surface budgets.
+
+> Note: To minimize LLM context window overhead, Sloppy exposes only the 5 primary verbs by default. To expose all 16 granular legacy tools (`sloppy_audit_code`, `sloppy_evaluate_rubric`, `sloppy_get_archetype`, etc.), pass `--legacy-tools` to the server (`sloppy mcp --legacy-tools`) or set `SLOPPY_LEGACY_TOOLS=1`.
 
 ### Client Configuration
 
@@ -207,7 +227,23 @@ If running setup manually, add Sloppy to your agent configuration:
 
 ## CI/CD Quality Gate Integration
 
-Enforce zero-tolerance anti-slop standards in your GitHub Actions workflows:
+### Plug-and-Play GitHub Action (`action.yml`)
+
+Add zero-tolerance anti-slop enforcement with automated GitHub Code Scanning SARIF annotations:
+
+```yaml
+- name: Sloppy Anti-Slop Gate
+  uses: Pavanspoojary/sloppy@v1
+  with:
+    path: './src'
+    fail-on: 'high'
+    max-score: '0'
+    upload-sarif: 'true'
+```
+
+### Manual Workflow Configuration
+
+Alternatively, run Sloppy directly via npx in any custom CI environment:
 
 ```yaml
 name: Anti-Slop Quality Gate
@@ -283,6 +319,19 @@ Execute benchmarks:
 ```bash
 node --test test/benchmarks.test.mjs
 ```
+
+---
+
+## Slop Studio: Interactive Web Playground
+
+Sloppy includes an interactive comparison studio (`packages/playground`) for testing components, exploring the 74 gold patterns, and inspecting the 10 master archetypes live in the browser.
+
+* **Local development**: Run `sloppy dev` or `npm run dev` to launch on port 1355.
+* **Public deployment**: Deploy `packages/playground` with zero configuration to Vercel or Cloudflare Pages using the included `vercel.json`:
+  ```bash
+  npm run build
+  npx vercel --prod
+  ```
 
 ---
 
