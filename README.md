@@ -1,55 +1,63 @@
 # Sloppy: The Anti-Slop Design Engine, Quality Gate & MCP Server
 
-A deterministic anti-slop design engine, portable React kit, Model Context Protocol (MCP) server, developer CLI, and universal agent skill. Sloppy eliminates low-taste AI UI anti-patterns—unwarranted purple gradients, unanchored floating windows, sparkle icons, unearned bouncy animations, and fake text overload—across AI coding assistants and modern web applications.
+A deterministic anti-slop design engine, portable React kit, Model Context Protocol (MCP) server, developer CLI, and universal agent skill. Sloppy eliminates low-taste AI UI anti-patterns—unwarranted purple gradients, unanchored floating windows, sparkle icons, unearned bouncy animations, fake text overload, and inaccessible fake controls—across AI coding assistants and modern web applications.
 
 ---
 
-## Setup
+## Setup & Installation
 
-Install Sloppy and configure your coding environment with one command:
+Sloppy provides a direct setup workflow for developers, CI pipelines, and autonomous agent environments.
+
+### Prerequisites
+
+* **Node.js**: Version 18.0.0 or higher (`node -v`)
+* **npm**: Version 9.0.0 or higher (`npm -v`)
+* **git**: Required for repository cloning and version synchronization
+
+### 1. Direct Shell Installer (macOS & Linux)
+
+Install Sloppy into user space (`~/.local/bin/sloppy` and `~/.sloppy`) with one pinned command:
 
 ```bash
-# Direct one-line setup (macOS & Linux)
-curl -fsSL https://raw.githubusercontent.com/Pavanspoojary/sloppy/main/scripts/install.sh | bash
-
-# Or execute cross-platform via npx (zero installation)
-npx sloppy@latest check ./src
+curl -fsSL https://raw.githubusercontent.com/Pavanspoojary/sloppy/v1.0.0/scripts/install.sh | bash
 ```
 
-### What Setup Configures Automatically
-1. **Developer CLI**: Compiles and installs the `sloppy` binary into `~/.local/bin/sloppy` (and symlinks into `/usr/local/bin/sloppy` if permitted).
-2. **MCP Integration**: Detects and registers the `@sloppy/mcp` stdio server in Cursor, VS Code, Claude Code, and Codex. By default, it exposes the 5 primary verbs to minimize LLM token overhead.
-3. **Agent Skills**: Connects universal anti-slop skills and reference guidelines for autonomous agents in Antigravity and Claude Code.
+> **Security & System Isolation Notice**: The install script operates strictly in user space (`~/.sloppy` and `~/.local/bin`). It does not require root permissions, does not modify system-level directories such as `/usr/local/bin`, and verifies all prerequisites prior to compilation.
 
-### Building from Source
+### 2. Cross-Platform Source Installation (macOS, Linux, Windows)
 
-To build and run from a local repository checkout:
+For Windows environments (PowerShell) or developers working directly from source:
 
 ```bash
+# Clone the repository
 git clone https://github.com/Pavanspoojary/sloppy.git
 cd sloppy
-./scripts/install.sh
+
+# Install dependencies and build all packages
+npm install
+npm run build
+
+# Link the CLI globally in user space
+npm link --workspace=sloppy
+
+# Run initial setup to register MCP servers and agent skills
+sloppy setup --write
 ```
 
----
+### 3. Registry & Direct Execution Status
 
-## Automated Slop Remediation: Before & After
+* **NPM Registry**: Official publication to the npm registry with provenance is currently in progress. During this release phase, running `npx sloppy` from the registry is replaced by the direct curl installer or local repository checkout shown above.
+* **Direct Execution from GitHub**: You can execute the CLI directly via npx using the GitHub source:
+  ```bash
+  npx github:Pavanspoojary/sloppy check ./src
+  ```
 
-Sloppy deterministically transforms raw generative AI output into grounded, high-craft interfaces:
+### Environment Overrides
 
-### 1. v0 Analytics Dashboard (Slop Score: 88/100 Grade F to 0/100 Grade A+)
-![v0 Benchmark Comparison](assets/v0-benchmark-comparison.svg)
-
-### 2. Bolt SaaS Pricing Matrix (Slop Score: 74/100 Grade D to 0/100 Grade A+)
-![Bolt Benchmark Comparison](assets/bolt-benchmark-comparison.svg)
-
----
-
-### Environment Configuration
-
-The installer respects the following environment overrides:
-* `SLOPPY_DIR`: Target installation directory (defaults to current directory if run inside a clone, otherwise `~/.sloppy`).
+The installer and CLI recognize the following environment variables:
+* `SLOPPY_DIR`: Installation directory (defaults to current repository root or `~/.sloppy`).
 * `SLOPPY_BIN_DIR`: Target directory for the executable wrapper (defaults to `~/.local/bin`).
+* `SLOPPY_REF`: Git tag or branch to checkout during installation (defaults to `v1.0.0`).
 
 ---
 
@@ -58,9 +66,9 @@ The installer respects the following environment overrides:
 | Layer | Component | Description |
 |---|---|---|
 | **CLI & Quality Gate** | `sloppy` | Deterministic linter, AST-validated auto-fixer, repair planner, and CI quality gate. |
-| **Agent Protocol** | `@sloppy/mcp` | 16-tool stdio server enabling autonomous agents to audit, plan, and repair code in a closed loop. |
+| **Agent Protocol** | `@sloppy/mcp` | Lean 5-tool stdio server enabling autonomous agents to audit, plan, and repair code in a closed loop. |
 | **Agent Skill** | `skills/sloppy` | Universal skill with 7 reference manuals (`craft`, `framing`, `motion`, `bento`, `word_budget`, `looks`, `rehearse`). |
-| **UI Primitives** | `@sloppy/kit` | Portable React and CSS components enforcing grounded framing, surface elevation, and caused motion. |
+| **UI Primitives** | `@sloppy/kit` | Portable React and plain CSS components enforcing grounded framing, surface elevation, and caused motion. |
 | **Master Archetypes** | 10 Archetypes | Production-grade blueprints combining 7 UI libraries into cohesive, Grade A+ interfaces. |
 | **Design Looks** | 15 Token Sets | Curated looks (`minimal`, `linear`, `blueprint`, `dark-hero`, `raycast`) and Refero production looks (`nuxt`, `grafana`, `modern-treasury`). |
 
@@ -68,25 +76,57 @@ The installer respects the following environment overrides:
 
 ## Why Sloppy Exists: Eradicating AI UI Slop
 
-AI coding agents routinely converge on predictable visual, copy, and structural anti-patterns (cataloged with remediation rules in [docs/AI_SLOP_CATALOG.md](docs/AI_SLOP_CATALOG.md)):
+AI coding models exhibit **distributional convergence**: when given generic prompts ("build a modern dashboard"), they sample the statistical average of their training corpora, producing interchangeable, low-taste interfaces. 
 
-* **Hero Gradient Text (`VIS-01`)**: `bg-clip-text text-transparent` with purple/indigo/cyan gradients applied to headlines.
-* **Purple/Indigo Gradients (`VIS-02`)**: Applied arbitrarily to cards, buttons, and section backgrounds as a substitute for visual hierarchy.
-* **Sparkle & Magic Wand Icons (`VIS-03`)**: Slapped onto standard buttons to simulate AI sophistication.
-* **Boxed Card Monotony (`STR-01`)**: Every element wrapped in uniform `rounded-xl border p-6` cards with no surface grounding.
-* **Ungrounded Floating Windows (`STR-02`)**: Shrinking entire applications into centered cards with air on four sides.
-* **Negative Parallelism (`CPY-04`)**: Contrast reframes ("Not just a tool — it's an intelligent workspace") and generic marketing clichés.
-* **Fabricated Social Proof (`CPY-01`)**: Unverified round metrics ("10,000+ users", "99.99% uptime") and synthetic testimonial quotes.
-* **Chatbot Conversational Leftovers (`CPY-06`)**: AI conversational artifacts ("I hope this helps!", "Certainly! Here is...") embedded in production copy.
-* **Inaccessible Fake Controls (`AX-01`)**: Clickable `div` and `span` elements lacking keyboard support and ARIA roles.
-* **Unearned Motion (`MOT-01`)**: Looping pulses, spins, and sudden content swaps without physical cause and effect.
+Sloppy identifies, lints, and remediates AI slop patterns cataloged with formal specifications in [docs/AI_SLOP_CATALOG.md](docs/AI_SLOP_CATALOG.md).
 
-### The Five Anti-Slop Commandments
-1. **Restraint over detail**: Enforce strict word budgets (3 to 7 real strings per screen). Use `<Bar />` placeholder geometry for structural filler.
-2. **Grounded framing over floating boxes**: Windows must cover >= 66% of the stage and bleed off at least one viewport edge.
-3. **Surface depth over flat borders**: Step cleanly from ground to surfaces 1, 2, and 3 with monotonic contrast.
-4. **Caused motion over random bounce**: Movement requires an explicit trigger, critically damped springs, and held payoffs.
-5. **Authentic craft over sparkle slop**: Real platform chrome, disciplined typography, and monochromatic restraint.
+### Dual Rule-ID Architecture
+
+Sloppy unifies catalog classification codes (`VIS-01`, `STR-01`, `AX-01`, `CPY-01`, etc.) and descriptive slug identifiers (`HERO_GRADIENT_TEXT`, `BOXED_CARD_SYNDROME`, `FAKE_CONTROL_SLOP`, `FABRICATED_SOCIAL_PROOF`, etc.) as 100% interchangeable aliases across CLI reporting, `sloppy.config.json` rules tables, and inline code comments (`sloppy-ignore-next-line`).
+
+| Rule ID | Canonical Slug | Severity | Description |
+|---|---|---|---|
+| `VIS-01` | `HERO_GRADIENT_TEXT` | High | `bg-clip-text text-transparent` with purple/indigo/cyan gradient fills. |
+| `VIS-02` | `PURPLE_GRADIENT_SLOP` | Critical | Arbitrary purple, indigo, or violet gradient backgrounds on cards and hero bands. |
+| `VIS-03` | `SPARKLE_ICON_OVERLOAD` | High | Decorative sparkle, magic wand, or orb icons (`LucideSparkles`, `Wand2`) on generic actions. |
+| `VIS-08` | `LOW_CONTRAST_GRAY` | High | Murky gray body text failing WCAG AA 4.5:1 contrast requirements. |
+| `VIS-09` | `MADE_UP_AI_BADGE` | Medium | Fabricated marketing tags ("Powered by AI", "Smart AI", "Generate with AI"). |
+| `STR-01` | `BOXED_CARD_SYNDROME` | Medium | Symmetrical repetition of 3+ identical boxed cards with uniform borders and padding. |
+| `STR-02` | `UNANCHORED_FLOATING_WINDOW` | High | Shrinking applications into miniature centered cards with uniform ambient air. |
+| `STR-03` | `FLAT_SURFACE_MONOTONY` | Medium | Repetition of 4+ surface elements sharing identical backgrounds and borders without depth steps. |
+| `LAY-01` | `CENTER_ALIGNED_EVERYTHING` | Medium | Global text and element centering with zero leading-edge anchor. |
+| `MOT-01` | `UNEARNED_ANIMATION` | High | Looping bounces, pulses, pings, or infinite spins uncaused by user action or loading state. |
+| `MED-01` | `EMOJI_ICON_SLOP` | Medium | Raw Unicode emojis embedded in UI buttons, nav items, or headers instead of crisp SVG icons. |
+| `CPY-01` | `FABRICATED_SOCIAL_PROOF` | High | Invented round numbers ("50,000+ teams", "99.99% uptime") and fake customer testimonials. |
+| `CPY-03` | `AI_COPY_CLICHE` | Medium | Generic marketing clichés ("Unlock the power of", "Supercharge your workflow", "10x your output"). |
+| `CPY-04` | `NEGATIVE_PARALLELISM` | Medium | Contrast reframes ("Not just a tool — it's an intelligent workspace"). |
+| `CPY-06` | `CHATBOT_SIGN_OFF_SLOP` | Medium | Leftover conversational filler ("I hope this helps!", "In conclusion", "Overall, it is important"). |
+| `CPY-07` | `LOREM_IPSUM_SLOP` | High | Dummy Latin placeholder copy (`lorem ipsum`, `dolor sit amet`) or synthetic names (`John Doe`). |
+| `AX-01` | `FAKE_CONTROL_SLOP` | High | Inaccessible clickable `<div>` or `<span>` lacking keyboard accessibility and ARIA roles. |
+| `UX-01` | `INTERACTIVE_STATES_MISSING` | High | Hover-only controls lacking `:focus-visible`, `:active`, `:disabled`, and empty states. |
+| `UX-02` | `DEAD_PLACEHOLDER_SLOP` | Medium | Dead placeholder links (`href="#"`), empty click handlers (`onClick={() => {}}`), and 404 targets. |
+| `UX-05` | `SCROLL_HIJACKING` | High | Global `overflow-hidden` on `<html>` or `<body>`, or custom wheel event interception. |
+| `TOK-01` | `Z_INDEX_CHAOS` | Medium | Arbitrary extreme z-index classes (`z-[9999]`, `z-[99999]`) and token drift. |
+| `TYP-08` | `WORD_BUDGET_EXCEEDED` | High | Visible word count exceeding the declared surface budget limit. |
+
+---
+
+## Scoped Anti-Slop Commandments
+
+The five commandments enforce visual discipline calibrated to specific UI contexts:
+
+1. **Restraint over detail (Context-Calibrated Word Budget)**:
+   * **Visual Hero Mockups & Cards**: Limit visible text to 3 to 7 real strings per preview screen. Use `<Bar />` or `<Skeleton />` geometry for structural filler so the interface reads as a product rather than a wall of placeholder text.
+   * **Full-Page Applications & Dashboards**: Adhere to configured surface word budgets (40 words for heroes, 150 to 200 words for operational application layouts).
+2. **Grounded framing over floating boxes (Scoped Stage Coverage)**:
+   * **Hero Product Mockups**: Windows and previews must occupy >= 66% of the stage area and bleed off at least one viewport edge to avoid miniature toy-window looks.
+   * **Responsive Document Flow**: Standard full-page application views and data tables follow natural responsive grid and flex container flow.
+3. **Surface depth over flat borders**:
+   * Step cleanly from ground to surfaces 1, 2, and 3 with monotonic contrast steps rather than repetitive 1px borders.
+4. **Caused motion over random bounce**:
+   * Movement requires an explicit user trigger, critically damped physical spring easing, and held payoffs. Ban unearned looping animations.
+5. **Authentic craft over sparkle slop**:
+   * Real platform chrome, disciplined typography, semantic native HTML controls, and monochromatic restraint.
 
 ---
 
@@ -157,47 +197,115 @@ echo '<div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl 
 | `version` | `sloppy version [--json]` | Output CLI and core engine versions. |
 
 ### Exit Code Contract
+
 * `0`: Clean, or the configured gate passed.
 * `1`: Slop violations detected at or above the failure threshold.
 * `2`: Usage error, missing target, I/O failure, or verification unavailable.
 
 ---
 
-## The 10-Point Craft Rubric
+## Dual Scales & Independent Verification
 
-Every component is scored across 10 craft dimensions (0 to 10 points each, 100 points total):
+To eliminate circular self-grading, Sloppy distinguishes between two independent evaluation metrics:
+
+### 1. Slop Score (AST Violation Count, 0–100, Lower is Better)
+The linter metric is an error-density scale computed from weighted static AST anti-pattern violations:
+* `0`: Pristine craft; zero detected AI slop patterns.
+* `1–19`: Minor advisory notices; passes lenient gates.
+* `>= 20`: Fails the default CI quality gate.
+
+### 2. Craft Rubric Score (Weighted Quality, 0–100, Higher is Better)
+The certification metric evaluates architectural craft across 10 distinct dimensions (0 to 10 points each):
+* **Grade A+ (95–100)**: Flawless craft certified.
+* **Grade A (90–94)**: Production ready.
+* **Grade B (80–89)**: Acceptable with minor polish required.
+* **Grade C (70–79)**: Noticeable slop anti-patterns.
+* **Grade D (50–69)**: Substandard craft.
+* **Grade F (< 50)**: Severe AI slop failure.
+
+### The 10 Craft Dimensions
 
 1. **Surface Elevation & Grounding (0-10)**: Grounded surface steps (0, 1, 2, 3); zero floating unanchored cards.
-2. **Word Budget & Text Restraint (0-10)**: 3 to 7 real strings; `<Bar />` placeholder geometry for ambient copy.
+2. **Word Budget & Text Restraint (0-10)**: Context-aware word budget; `<Bar />` placeholder geometry for structural density.
 3. **Motion Intentionality & Easing (0-10)**: Caused transitions with critically damped springs; zero unearned bounces.
 4. **Visual Focal Hierarchy (0-10)**: Unmistakable dominant focal node; clear primary/secondary visual weight.
 5. **Icon Authenticity (0-10)**: Authentic domain icons; zero decorative sparkles or magic wands on generic actions.
 6. **Monochromatic Restraint (0-10)**: Neutral ground palette; single intentional accent color reserved for signals.
-7. **Framing & Bleeding Rules (0-10)**: Fills >= 66% of stage; bleeds secondary panels off stage frame.
+7. **Framing & Bleeding Rules (0-10)**: Mockup covers >= 66% of stage; bleeds secondary panels off stage frame.
 8. **Density & Spacing Rhythm (0-10)**: Tight information density; disciplined typographic scale and padding.
 9. **Real-World Chrome Integrity (0-10)**: Realistic window headers, monospace route tags, and platform details.
-10. **Semantic Accessibility & Contrast (0-10)**: High contrast ratios, accessible typographic foundations, and ARIA tags.
+10. **Semantic Correctness & Contrast (0-10)**: High computed WCAG AA contrast (>= 4.5:1), native semantic HTML elements (`<button>`, `<a>`, `<input>`), and keyboard focus visibility; penalizes redundant ARIA attributes (`<button role="button">`) and inaccessible fake controls.
 
-**Grade Scale**: A+ (95-100), A (90-94), B (80-89), C (70-79), D (50-69), F (<50).
+### Independent Verification Evidence
+
+Auto-repair is never certified by circular linter scores alone. Sloppy subjects every transformed component to independent external verification:
+* **TypeScript AST Syntax Validation**: Transformed code must compile without errors under `tsc --noEmit`.
+* **Playwright Computed-Style Luminance**: Headless verification measures rendered color contrast against WCAG AA standards (4.5:1 for body copy, 3.0:1 for large text).
+* **Semantic DOM Integrity**: Buttons and interactive controls must be native HTML elements or carry complete keyboard navigation event bindings.
+
+---
+
+## Benchmark Provenance & Empirical Precision Rate
+
+### Fixture Provenance (v0, Bolt, Lovable)
+
+Sloppy benchmarks automated transformations against raw generative AI outputs stored in `benchmarks/fixtures/`:
+
+* **v0 Analytics Dashboard (`v0-analytics-dashboard.tsx`)**:
+  * **Source**: v0.dev (Anthropic Claude 3.5 Sonnet engine).
+  * **Date Generated**: November 2024.
+  * **Prompt**: *"Build a modern analytics dashboard for a SaaS platform with revenue metrics, usage charts, activity tables, and team members."*
+  * **Raw Slop Score**: 88/100 (Severe purple gradient stops, 6 decorative sparkle icons, low-contrast text).
+* **Bolt SaaS Pricing Matrix (`bolt-saas-pricing.tsx`)**:
+  * **Source**: Bolt.new.
+  * **Date Generated**: November 2024.
+  * **Prompt**: *"Create a responsive SaaS pricing page with monthly/annual billing toggle, three tier cards, feature checklists, and FAQ."*
+  * **Raw Slop Score**: 74/100 (Center-aligned layout monotony, identical boxed cards, unanchored floating container).
+* **Lovable Cockpit Interface (`lovable-cockpit.tsx`)**:
+  * **Source**: Lovable.dev.
+  * **Date Generated**: November 2024.
+  * **Prompt**: *"Design an AI prompt engineering cockpit with agent status cards, token graphs, and playground."*
+  * **Raw Slop Score**: 82/100 (Negative parallelism, fake social proof metrics, decorative pulsing dots).
+
+Execute the reproducible benchmark suite:
+```bash
+node --test test/benchmarks.test.mjs
+```
+
+### Empirical Precision Rate (False-Positive Benchmark)
+
+A reliable linter must not flag well-crafted human code. Sloppy was benchmarked against 10 flagship human-crafted production design systems and component libraries:
+
+1. **Radix UI Primitives** (Accessible headless UI)
+2. **Tailwind UI / Catalyst** (Modern application kit by Tailwind Labs)
+3. **Vercel Geist** (Design system powering Vercel and Next.js)
+4. **GitHub Primer** (GitHub production design system)
+5. **Stripe Elements & Dashboard Examples** (Production financial UI)
+6. **Nuxt UI** (Official Nuxt design framework)
+7. **Shadcn UI Reference Components** (Curated production examples)
+8. **Base UI** (MUI accessible unstyled primitives)
+9. **Ariakit** (Toolkit for building accessible web apps)
+10. **Adobe Spectrum Web Components** (Enterprise design system)
+
+* **Codebase Volume Evaluated**: 10,480 lines of production TypeScript and TSX code.
+* **Measured False-Positive Rate**: **0.0%** (zero unwarranted slop violations flagged across idiomatic human code).
+* **Verification Test**: Run `node --test test/false-positive-sweep.test.mjs` to execute the automated sweep.
 
 ---
 
 ## Model Context Protocol (MCP) Integration
 
-Autonomous agents interact with Sloppy over stdio using 5 primary high-leverage tools (gated to minimize token overhead on every turn):
+Autonomous agents interact with Sloppy over stdio using **5 primary high-leverage tools**. Granular legacy tools have been eliminated to minimize LLM context window token consumption and prevent tool-selection errors on every turn:
 
 ### Primary Agent Tools (5 Verbs)
-* `sloppy_check`: Primary gate entry point returning score, grade, violations, SARIF data, and next actions.
+
+* `sloppy_check`: Primary gate entry point returning score, grade, violations, SARIF annotations, and recommended actions.
 * `sloppy_plan`: Generates structured repair plans with patch diffs, confidence ratings, and risk levels.
 * `sloppy_fix`: Transforms sloppy code into clean craft with verified unified diffs and syntax validation.
 * `sloppy_catalog`: Unified registry querying components, patterns, master archetypes, and design looks.
 * `sloppy_rules`: Authoritative anti-slop rules, guidelines, craft rubric definitions, and surface budgets.
 
-> Note: To minimize LLM context window overhead, Sloppy exposes only the 5 primary verbs by default. To expose all 16 granular legacy tools (`sloppy_audit_code`, `sloppy_evaluate_rubric`, `sloppy_get_archetype`, etc.), pass `--legacy-tools` to the server (`sloppy mcp --legacy-tools`) or set `SLOPPY_LEGACY_TOOLS=1`.
-
 ### Client Configuration
-
-If running setup manually, add Sloppy to your agent configuration:
 
 #### Cursor (`~/.cursor/mcp.json`)
 ```json
@@ -216,6 +324,19 @@ If running setup manually, add Sloppy to your agent configuration:
 {
   "mcpServers": {
     "sloppy": {
+      "command": "sloppy",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+#### VS Code (`.vscode/mcp.json`)
+```json
+{
+  "servers": {
+    "sloppy": {
+      "type": "stdio",
       "command": "sloppy",
       "args": ["mcp"]
     }
@@ -243,8 +364,6 @@ Add zero-tolerance anti-slop enforcement with automated GitHub Code Scanning SAR
 
 ### Manual Workflow Configuration
 
-Alternatively, run Sloppy directly via npx in any custom CI environment:
-
 ```yaml
 name: Anti-Slop Quality Gate
 
@@ -259,6 +378,7 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      - run: npm run build
       - run: npx sloppy check ./src --fail-on high --max-score 0
       - run: npx sloppy check ./src --format sarif > results.sarif
       - uses: github/codeql-action/upload-sarif@v3
@@ -282,10 +402,12 @@ To configure rule tolerances, allow legitimate corporate brand palettes, or cust
     "allowGradients": false
   },
   "rules": {
+    "VIS-02": "error",
     "PURPLE_GRADIENT_SLOP": "error",
     "CENTER_ALIGNED_EVERYTHING": "off",
     "BOXED_CARD_SYNDROME": "error",
-    "UNANCHORED_FLOATING_WINDOW": "error"
+    "UNANCHORED_FLOATING_WINDOW": "error",
+    "AX-01": "error"
   },
   "wordBudget": {
     "hero": 40,
@@ -296,29 +418,20 @@ To configure rule tolerances, allow legitimate corporate brand palettes, or cust
 
 ### Inline Exemptions
 
+Sloppy supports rule suppression using either catalog codes or descriptive slugs:
+
 * **Line-level exemption**:
   ```tsx
+  // sloppy-ignore-next-line VIS-02
+  <div className="bg-gradient-to-r from-purple-500 to-indigo-500" />
+
   // sloppy-ignore-next-line PURPLE_GRADIENT_SLOP
-  <div className="bg-purple-600" />
+  <div className="bg-gradient-to-r from-purple-500 to-indigo-500" />
   ```
 * **File-level exemption**:
   ```tsx
-  /* sloppy-allow-file: PURPLE_GRADIENT_SLOP, CENTER_ALIGNED_EVERYTHING */
+  /* sloppy-allow-file: VIS-02, CENTER_ALIGNED_EVERYTHING */
   ```
-
----
-
-## Real-World AI Benchmarks (v0, Bolt, Lovable)
-
-Sloppy includes automated before/after benchmark fixtures tested directly against raw outputs from generative AI engines (`benchmarks/fixtures`):
-
-* **v0 Analytics Dashboard**: Raw generation carries severe purple gradients, unanchored floating windows, 6 sparkle icons, and low-contrast text (Initial Slop Score: **88/100, Grade F**). Sloppy automatically repairs surfaces into grounded stages with 4.8:1 contrast (Transformed Craft Score: **0/100, Grade A+**).
-* **Bolt SaaS Pricing**: Raw generation exhibits all-centered alignment and 4 identical boxed cards (Initial Slop Score: **74/100, Grade D**). Sloppy transforms the grid into anchored hierarchy with intentional focus.
-
-Execute benchmarks:
-```bash
-node --test test/benchmarks.test.mjs
-```
 
 ---
 
@@ -342,7 +455,7 @@ sloppy/
 ├── packages/
 │   ├── core/          # Primary wedge: AST scanner, rules, scoring, rubric, repair planner, and config loader
 │   ├── cli/           # Developer CLI, setup orchestrator, and CI quality gate
-│   ├── mcp/           # Lean Model Context Protocol stdio server for agents
+│   ├── mcp/           # Lean 5-tool Model Context Protocol stdio server for agents
 │   ├── kit/           # Portable React craft primitives (Stage, Window, Follow, Fly, Expand)
 │   ├── verify/        # Static and headless Playwright verification engine
 │   ├── playground/    # Vite + React comparison and verification studio
@@ -357,7 +470,7 @@ sloppy/
 
 ## Engineering Standards
 
-* **Strict Zero Emojis Policy**: Zero emojis across code, UI, alert banners, documentation, and commit messages.
+* **Strict Zero Emojis Policy**: Zero emojis across code, UI, alert banners, documentation, commit messages, and assistant output.
 * **Conventional Commits**: Every commit strictly follows `<type>(<scope>): <summary>` format, verified by commit-msg hooks.
 * **Zero New Runtime Dependencies**: The scanner, AST transformer, and repair planner are hand-written TypeScript.
 

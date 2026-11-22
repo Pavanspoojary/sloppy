@@ -1,4 +1,4 @@
-import { AuditOptions, AuditResult, SlopViolation, SlopViolationType, SlopSeverity } from './types.js';
+import { AuditOptions, AuditResult, SlopViolation, SlopViolationType, SlopSeverity, CANONICAL_RULES, RULE_ALIASES } from './types.js';
 import { classTokens, getClasses, scanSource, sourceLocation, SourceTag } from './source-scan.js';
 import { loadSloppyConfig } from './config.js';
 
@@ -26,7 +26,11 @@ const advice: Record<SlopViolationType, string> = {
   NEGATIVE_PARALLELISM: 'Rewrite contrast reframes ("It\'s not just X, it\'s Y") as direct affirmative statements.',
   FABRICATED_SOCIAL_PROOF: 'Replace unverified round-number metrics or ratings with verified product data or explicit TODOs.',
   CHATBOT_SIGN_OFF_SLOP: 'Strip meta-commentary, AI assistant sign-offs, and filler introductions.',
-  FAKE_CONTROL_SLOP: 'Use semantic <button> or provide role="button", tabIndex={0}, and onKeyDown handler for keyboard accessibility.'
+  FAKE_CONTROL_SLOP: 'Use semantic <button> or provide role="button", tabIndex={0}, and onKeyDown handler for keyboard accessibility.',
+  LOREM_IPSUM_SLOP: 'Replace generic placeholder text (Lorem ipsum, John Doe) with authentic product copy or explicit placeholders.',
+  EMOJI_ICON_SLOP: 'Replace raw emojis in UI chrome with disciplined SVG icons or clean typographic labels.',
+  Z_INDEX_CHAOS: 'Enforce disciplined, layered stacking tokens rather than arbitrary extreme z-indexes.',
+  SCROLL_HIJACKING: 'Avoid global scroll locks or intercepting native wheel events; let viewport scrolling flow naturally.'
 };
 const purple = '(?:purple|violet|indigo|fuchsia)';
 function containsPurpleColor(value: string): boolean {
@@ -108,7 +112,10 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     else { parent.set(tag, openStack[openStack.length - 1]); if (!tag.selfClosing) openStack.push(tag); }
   }
   const ancestorsOf = (tag: SourceTag): SourceTag[] => { const found: SourceTag[] = []; let current = parent.get(tag); while (current) { found.push(current); current = parent.get(current); } return found; };
-  const push = (type: SlopViolationType, at: number, message: string, level?: SlopSeverity) => candidates.push({ type, severity: level ?? ({ PURPLE_GRADIENT_SLOP:'critical', SPARKLE_ICON_OVERLOAD:'high', UNEARNED_ANIMATION:'high', MADE_UP_AI_BADGE:'medium', BOXED_CARD_SYNDROME:'medium', UNANCHORED_FLOATING_WINDOW:'high', CENTER_ALIGNED_EVERYTHING:'medium', LOW_CONTRAST_GRAY:'high', FLAT_SURFACE_MONOTONY:'medium', WORD_BUDGET_EXCEEDED:'high', AI_COPY_CLICHE:'medium', DEAD_PLACEHOLDER_SLOP:'medium', HERO_GRADIENT_TEXT:'high', NEGATIVE_PARALLELISM:'medium', FABRICATED_SOCIAL_PROOF:'high', CHATBOT_SIGN_OFF_SLOP:'medium', FAKE_CONTROL_SLOP:'high' } as const)[type], at, message });
+  const push = (type: SlopViolationType, at: number, message: string, level?: SlopSeverity) => {
+    const defaultLevel = CANONICAL_RULES[type]?.defaultSeverity ?? 'medium';
+    candidates.push({ type, severity: level ?? defaultLevel, at, message });
+  };
   const tagClasses = tags.map(tag => ({ tag, tokens: getClasses(tag) }));
   const allowGradients = config?.brand?.allowGradients ?? false;
   // Gradient classes are grouped by element so gradient direction and stops can occur in any order.
@@ -151,6 +158,14 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   let spMatch: RegExpExecArray | null; while ((spMatch = socialProof.exec(visibleText))) { const at = code.indexOf(spMatch[0]); push('FABRICATED_SOCIAL_PROOF', Math.max(0, at), `Fabricated social proof metric "${spMatch[0].trim()}" detected.`); }
   const chatbotPhrases = /\b(?:I\s+hope\s+this\s+helps[!.]?|In\s+conclusion,\s+|Overall,\s+(?:it|this)\s+|Let\s+me\s+know\s+if\s+you\s+(?:need|have)|It['’]s\s+important\s+to\s+note\s+that)\b/igu;
   let cbMatch: RegExpExecArray | null; while ((cbMatch = chatbotPhrases.exec(visibleText))) { const at = code.indexOf(cbMatch[0]); push('CHATBOT_SIGN_OFF_SLOP', Math.max(0, at), `Leftover chatbot conversational phrasing "${cbMatch[0].trim()}" detected.`); }
+  const loremIpsum = /\b(?:lorem\s+ipsum|dolor\s+sit\s+amet|consectetur\s+adipiscing|sed\s+do\s+eiusmod|john\s+doe|jane\s+doe)\b/igu;
+  let liMatch: RegExpExecArray | null; while ((liMatch = loremIpsum.exec(visibleText))) { const at = code.indexOf(liMatch[0]); push('LOREM_IPSUM_SLOP', Math.max(0, at), `Placeholder copy or filler name "${liMatch[0].trim()}" detected.`); }
+  const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
+  let emojiMatch: RegExpExecArray | null;
+  while ((emojiMatch = emojiRegex.exec(visibleText))) {
+    const at = code.indexOf(emojiMatch[0]);
+    push('EMOJI_ICON_SLOP', Math.max(0, at), `Raw emoji "${emojiMatch[0]}" detected in UI text instead of an SVG icon.`);
+  }
   for (const match of code.matchAll(/\bhref\s*=\s*["']#["']/g)) { push('DEAD_PLACEHOLDER_SLOP', match.index ?? 0, 'Dead placeholder href="#" detected.'); }
   for (const match of code.matchAll(/\bonClick\s*=\s*\{\s*\(\s*\)\s*=>\s*\{\s*\}\s*\}/g)) { push('DEAD_PLACEHOLDER_SLOP', match.index ?? 0, 'Empty dead click handler onClick={() => {}} detected.'); }
   for (const tag of tags) {
@@ -195,6 +210,27 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   const surfaces = new Map<string, SourceTag[]>();
   for (const {tag,tokens} of tagClasses) { const bg = tokens.find(t => /^bg-/.test(t)), border = tokens.filter(t => /^border(?:-|$)/.test(t)).join(' '), rounded = tokens.filter(t => /^rounded(?:-|$)/.test(t)).join(' '), shadow = tokens.filter(t => /^shadow(?:-|$)/.test(t)).join(' '), parentKey = parent.get(tag)?.start ?? -1; if (bg && (border || rounded)) { const key = `${parentKey}|${bg}|${border}|${rounded}|${shadow}`; surfaces.set(key,[...(surfaces.get(key) || []),tag]); } }
   for (const group of surfaces.values()) if (group.length >= 4) { push('FLAT_SURFACE_MONOTONY', group[0].start, `${group.length} elements repeat the same background, border, and rounding without an elevation step.`); break; }
+  for (const { tag, tokens } of tagClasses) {
+    const extremeZ = tokens.find(t => /^z-(?:\[?(?:999+|1000+|99999)\]?)$/.test(t) || /^z-\[\d{4,}\]/.test(t));
+    if (extremeZ) {
+      push('Z_INDEX_CHAOS', tag.start, `Arbitrary escalated z-index "${extremeZ}" detected instead of disciplined stacking tokens.`);
+    }
+    const styleAttr = tag.attributes.get('style')?.value;
+    if (styleAttr && /zIndex\s*:\s*(?:9999|99999|10000)/i.test(styleAttr)) {
+      push('Z_INDEX_CHAOS', tag.start, 'Arbitrary high z-index in inline style detected.');
+    }
+  }
+  for (const tag of tags) {
+    if (tag.name === 'html' || tag.name === 'body') {
+      const tokens = getClasses(tag);
+      if (tokens.includes('overflow-hidden')) {
+        push('SCROLL_HIJACKING', tag.start, `Global overflow-hidden lock on <${tag.name}> disrupts native page scrolling.`);
+      }
+    }
+    if (tag.attributes.has('onWheel') || tag.attributes.has('onwheel')) {
+      push('SCROLL_HIJACKING', tag.start, 'Custom onWheel handler detected; risk of scroll hijacking or wheel interference.');
+    }
+  }
   // CSS and inline declaration text; comments are excluded using the scanner mask, while tag values retain authored strings.
   if (!allowGradients) {
     const gradients = /(?:linear|radial|conic)-gradient\([^)]*\)/ig;
@@ -216,20 +252,34 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   // `sloppy-allow-file` exempts named rules only, so reference specimens keep
   // protection against every other anti-pattern.
   const allowFile = allComments.map(c => c.text.match(/sloppy-allow-file\s*[:,]?\s*([A-Za-z0-9_,\s-]+)/)).find(Boolean);
-  const allowedRules = new Set((allowFile?.[1] ?? '').split(/[,\s]+/).filter(Boolean).map(name => name.replace(/-/g, '_').toUpperCase()));
+  const rawAllowed = (allowFile?.[1] ?? '').split(/[,\s]+/).filter(Boolean);
+  const allowedRules = new Set<string>();
+  for (const raw of rawAllowed) {
+    const norm = raw.trim().toUpperCase().replace(/-/g, '_');
+    const dashNorm = raw.trim().toUpperCase();
+    const resolved = RULE_ALIASES[norm] || RULE_ALIASES[dashNorm] || norm;
+    allowedRules.add(resolved);
+    const code = CANONICAL_RULES[resolved as SlopViolationType]?.ruleId;
+    if (code) allowedRules.add(code);
+  }
   const violations: SlopViolation[] = []; let suppressedCount = 0;
   for (const c of candidates.sort((a,b) => a.at-b.at || a.type.localeCompare(b.type))) {
-    const ruleOverride = config?.rules?.[c.type];
+    const ruleCode = CANONICAL_RULES[c.type]?.ruleId;
+    const ruleOverride = config?.rules?.[c.type] ?? (ruleCode ? config?.rules?.[ruleCode] : undefined);
     if (ruleOverride === 'off') { suppressedCount++; continue; }
     const loc = sourceLocation(scan, c.at), lineText = code.split('\n')[loc.line - 1] || '';
-    const ignored = ignoreFile || allowedRules.has(c.type) || allComments.some(comment => {
+    const ignored = ignoreFile || allowedRules.has(c.type) || (ruleCode && allowedRules.has(ruleCode)) || allComments.some(comment => {
       const cl = sourceLocation(scan,comment.at).line;
       if (cl + 1 === loc.line) {
         if (/sloppy-ignore-next-line/.test(comment.text)) {
           const specific = comment.text.match(/sloppy-ignore-next-line\s*[:,]?\s*([A-Za-z0-9_,\s-]+)/);
           if (!specific || !specific[1].trim()) return true;
-          const rules = specific[1].split(/[,\s]+/).map(r => r.replace(/-/g, '_').toUpperCase());
-          return rules.includes(c.type);
+          const rules: string[] = specific[1].split(/[,\s]+/).map(r => {
+            const norm = r.trim().toUpperCase().replace(/-/g, '_');
+            const dashNorm = r.trim().toUpperCase();
+            return RULE_ALIASES[norm] || RULE_ALIASES[dashNorm] || norm;
+          });
+          return rules.includes(c.type) || (ruleCode ? rules.includes(ruleCode) : false);
         }
         if (/sloppy-ignore-next/.test(comment.text)) return true;
       }
@@ -237,7 +287,17 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     });
     if (ignored) { suppressedCount++; continue; }
     const snippet = lineText.trim().slice(0,160);
-    violations.push({ id: `${c.type.toLowerCase()}-${c.at}`, type:c.type, severity:c.severity, line:loc.line, column:loc.column, snippet, message:c.message, recommendation:advice[c.type] });
+    violations.push({
+      id: `${(ruleCode || c.type).toLowerCase()}-${c.at}`,
+      ruleId: ruleCode || c.type,
+      type: c.type,
+      severity: c.severity,
+      line: loc.line,
+      column: loc.column,
+      snippet,
+      message: c.message,
+      recommendation: advice[c.type]
+    });
   }
   const totalWeight = violations.reduce((sum,v) => sum + severity[v.severity],0);
   const score = violations.length ? Math.max(0,Math.min(100,Math.round(100 * (1 - Math.exp(-totalWeight / 55))))) : 0;

@@ -87,9 +87,13 @@ export function evaluateCraftRubric(code: string, options: { strict?: boolean; f
   if (violations.some(v => v.type === 'DEAD_PLACEHOLDER_SLOP')) chromeScore -= 4;
   chromeScore = Math.max(0, chromeScore);
 
-  // Dimension 10: Semantic Foundation & Accessibility (0-10)
+  // Dimension 10: Semantic Correctness & Contrast (0-10)
   let a11yScore = 10;
   if (violations.some(v => v.type === 'LOW_CONTRAST_GRAY')) a11yScore -= 5;
+  if (violations.some(v => v.type === 'FAKE_CONTROL_SLOP')) a11yScore -= 4;
+  if (/<button[^>]*role=["']button["']|<a[^>]*role=["']link["']|<div[^>]*role=["']button["'][^>]*onClick(?!.*tabIndex)/i.test(code)) {
+    a11yScore -= 3;
+  }
   a11yScore = Math.max(0, a11yScore);
 
   const dimensions: CraftDimension[] = [
@@ -194,14 +198,14 @@ export function evaluateCraftRubric(code: string, options: { strict?: boolean; f
     },
     {
       id: 'semantic_contrast',
-      name: 'Semantic Foundation & Contrast',
+      name: 'Semantic Correctness & Contrast',
       score: a11yScore,
       maxScore: 10,
       weight: 1.0,
       status: a11yScore >= 9 ? 'flawless' : 'needs-attention',
       feedback: a11yScore >= 9 
-        ? 'High contrast ratio and accessible typographic foundations.' 
-        : 'Low-contrast gray text on gray backgrounds detected.'
+        ? 'High contrast ratio, semantic HTML controls, and keyboard focus visibility.' 
+        : 'Low-contrast text, inaccessible fake controls, or redundant ARIA attributes detected. Use native semantic HTML elements.'
     }
   ];
 

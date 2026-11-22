@@ -4,8 +4,8 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { ROOT } from './helpers.mjs';
 
-function startServer(extraArgs = []) {
-  const child = spawn(process.execPath, [path.join(ROOT, 'packages/mcp/bin/sloppy-mcp.js'), ...extraArgs], {
+function startServer() {
+  const child = spawn(process.execPath, [path.join(ROOT, 'packages/mcp/bin/sloppy-mcp.js')], {
     cwd: ROOT,
     stdio: ['pipe', 'pipe', 'pipe']
   });
@@ -69,7 +69,7 @@ function startServer(extraArgs = []) {
   return { child, send, waitFor, getStderr: () => stderr };
 }
 
-test('MCP server exposes only 5 primary tools by default to save context tokens', async (t) => {
+test('MCP server exposes strictly the 5 primary tools to save context tokens', async (t) => {
   const server = startServer();
   t.after(() => {
     server.child.kill('SIGTERM');
@@ -95,46 +95,17 @@ test('MCP server exposes only 5 primary tools by default to save context tokens'
 
   const list = await server.waitFor((message) => message.id === 2);
   assert.ok(Array.isArray(list.result.tools));
-  assert.equal(list.result.tools.length, 5, 'must expose exactly 5 primary tools by default');
+  assert.equal(list.result.tools.length, 5, 'must expose strictly 5 primary tools (YAGNI/Ponytail)');
 
   const names = new Set(list.result.tools.map((tool) => tool.name));
   for (const primary of ['sloppy_check', 'sloppy_plan', 'sloppy_fix', 'sloppy_catalog', 'sloppy_rules']) {
     assert.ok(names.has(primary), `missing primary MCP tool ${primary}`);
   }
 
-  // Verify legacy tools are hidden by default
-  assert.equal(names.has('sloppy_audit_code'), false, 'sloppy_audit_code must be hidden by default');
-  assert.equal(names.has('sloppy_evaluate_rubric'), false, 'sloppy_evaluate_rubric must be hidden by default');
-});
-
-test('MCP server exposes all legacy tools when --legacy-tools flag is passed', async (t) => {
-  const server = startServer(['--legacy-tools']);
-  t.after(() => {
-    server.child.kill('SIGTERM');
-  });
-
-  server.send({
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'initialize',
-    params: {
-      protocolVersion: '2024-11-05',
-      capabilities: {},
-      clientInfo: { name: 'sloppy-test', version: '1.0.0' }
-    }
-  });
-  await server.waitFor((message) => message.id === 1);
-  server.send({ jsonrpc: '2.0', method: 'notifications/initialized' });
-
-  server.send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
-  const list = await server.waitFor((message) => message.id === 2);
-  assert.ok(Array.isArray(list.result.tools));
-  assert.ok(list.result.tools.length >= 16, 'must expose full tool catalog with legacy tools enabled');
-
-  const names = new Set(list.result.tools.map((tool) => tool.name));
-  for (const required of ['sloppy_check', 'sloppy_fix', 'sloppy_audit_code', 'sloppy_evaluate_rubric', 'sloppy_rules', 'sloppy_get_rules']) {
-    assert.ok(names.has(required), `missing MCP tool ${required} in legacy mode`);
-  }
+  // Verify legacy bloat is eliminated
+  assert.equal(names.has('sloppy_audit_code'), false);
+  assert.equal(names.has('sloppy_evaluate_rubric'), false);
+  assert.equal(names.has('sloppy_search_components'), false);
 });
 
 test('MCP sloppy_check returns a machine-readable verdict', async (t) => {

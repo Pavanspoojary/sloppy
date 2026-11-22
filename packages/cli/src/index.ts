@@ -898,8 +898,7 @@ export async function runCli(args: string[]) {
     }
 
     case 'mcp': {
-      const legacyTools = args.includes('--legacy-tools') || process.env.SLOPPY_LEGACY_TOOLS === '1';
-      await runServer({ legacyTools });
+      await runServer();
       break;
     }
 

@@ -81,3 +81,95 @@ test('catches inaccessible clickable div without role (AX-01)', () => {
   const goodResult = auditCode(goodCode);
   assert.ok(!goodResult.violations.some(v => v.type === 'FAKE_CONTROL_SLOP'), 'Should not flag accessible div with role="button"');
 });
+
+test('catches placeholder and lorem ipsum copy (CPY-07)', () => {
+  const code = `
+    export function Profile() {
+      return (
+        <div>
+          <h3>John Doe</h3>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+        </div>
+      );
+    }
+  `;
+  const result = auditCode(code);
+  assert.ok(result.violations.some(v => v.type === 'LOREM_IPSUM_SLOP'), 'Should detect LOREM_IPSUM_SLOP');
+  const violation = result.violations.find(v => v.type === 'LOREM_IPSUM_SLOP');
+  assert.equal(violation.ruleId, 'CPY-07');
+});
+
+test('catches raw emojis as UI icons (MED-01)', () => {
+  const code = `
+    export function Actions() {
+      return (
+        <div>
+          <button className="px-4 py-2">🚀 Launch App</button>
+          <h1>🔥 Hot Features</h1>
+        </div>
+      );
+    }
+  `;
+  const result = auditCode(code);
+  assert.ok(result.violations.some(v => v.type === 'EMOJI_ICON_SLOP'), 'Should detect EMOJI_ICON_SLOP');
+  const violation = result.violations.find(v => v.type === 'EMOJI_ICON_SLOP');
+  assert.equal(violation.ruleId, 'MED-01');
+});
+
+test('catches arbitrary z-index escalation (TOK-01)', () => {
+  const code = `
+    export function Modal() {
+      return (
+        <div className="fixed inset-0 z-[9999] bg-black/50">
+          <div className="z-[99999] p-6">Modal Content</div>
+        </div>
+      );
+    }
+  `;
+  const result = auditCode(code);
+  assert.ok(result.violations.some(v => v.type === 'Z_INDEX_CHAOS'), 'Should detect Z_INDEX_CHAOS');
+  const violation = result.violations.find(v => v.type === 'Z_INDEX_CHAOS');
+  assert.equal(violation.ruleId, 'TOK-01');
+});
+
+test('catches scroll hijacking (UX-05)', () => {
+  const code = `
+    export function RootLayout({ children }) {
+      return (
+        <html className="overflow-hidden">
+          <body onWheel={(e) => e.preventDefault()}>
+            {children}
+          </body>
+        </html>
+      );
+    }
+  `;
+  const result = auditCode(code);
+  assert.ok(result.violations.some(v => v.type === 'SCROLL_HIJACKING'), 'Should detect SCROLL_HIJACKING');
+  const violation = result.violations.find(v => v.type === 'SCROLL_HIJACKING');
+  assert.equal(violation.ruleId, 'UX-05');
+});
+
+test('supports dual-scheme rule IDs in inline ignores (VIS-02 vs PURPLE_GRADIENT_SLOP)', () => {
+  const codeWithCode = `
+    export function Card() {
+      return (
+        // sloppy-ignore-next-line VIS-02
+        <div className="bg-gradient-to-r from-purple-500 to-indigo-500 p-4" />
+      );
+    }
+  `;
+  const result1 = auditCode(codeWithCode);
+  assert.ok(!result1.violations.some(v => v.type === 'PURPLE_GRADIENT_SLOP'), 'VIS-02 code should suppress PURPLE_GRADIENT_SLOP');
+
+  const codeWithSlug = `
+    export function Card() {
+      return (
+        // sloppy-ignore-next-line PURPLE_GRADIENT_SLOP
+        <div className="bg-gradient-to-r from-purple-500 to-indigo-500 p-4" />
+      );
+    }
+  `;
+  const result2 = auditCode(codeWithSlug);
+  assert.ok(!result2.violations.some(v => v.type === 'PURPLE_GRADIENT_SLOP'), 'PURPLE_GRADIENT_SLOP slug should suppress');
+});

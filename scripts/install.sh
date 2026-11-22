@@ -1,6 +1,28 @@
 #!/usr/bin/env bash
 set -e
 
+# Prerequisite verification
+if ! command -v git >/dev/null 2>&1; then
+  printf "Error: git is required but not installed. Please install git and re-run.\n" >&2
+  exit 1
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  printf "Error: Node.js is required but not found in PATH. Please install Node.js >= 18.0.0.\n" >&2
+  exit 1
+fi
+
+NODE_MAJOR=$(node -v | sed 's/v\([0-9]*\).*/\1/')
+if [ "$NODE_MAJOR" -lt 18 ]; then
+  printf "Error: Node.js version 18.0.0 or higher is required (found %s).\n" "$(node -v)" >&2
+  exit 1
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+  printf "Error: npm is required but not found in PATH. Please install npm >= 9.0.0.\n" >&2
+  exit 1
+fi
+
 # Detect if running from an existing repository clone
 if [ -z "$SLOPPY_DIR" ]; then
   if [ -f "./package.json" ] && grep -q '"name": "sloppy-monorepo"' "./package.json" 2>/dev/null; then
@@ -13,16 +35,18 @@ else
 fi
 
 BIN_DIR="${SLOPPY_BIN_DIR:-$HOME/.local/bin}"
+SLOPPY_REF="${SLOPPY_REF:-v1.0.0}"
 
 printf "[1/4] Preparing Sloppy environment in %s...\n" "$INSTALL_DIR"
 if [ "$INSTALL_DIR" != "$(pwd)" ]; then
   if [ -d "$INSTALL_DIR/.git" ]; then
     cd "$INSTALL_DIR"
-    git fetch origin main --quiet
-    git reset --hard origin/main --quiet
+    git fetch origin --tags --quiet
+    git checkout "$SLOPPY_REF" --quiet 2>/dev/null || git checkout main --quiet
   else
     rm -rf "$INSTALL_DIR"
-    git clone --depth 1 https://github.com/Pavanspoojary/sloppy.git "$INSTALL_DIR" --quiet
+    git clone --depth 1 --branch "$SLOPPY_REF" https://github.com/Pavanspoojary/sloppy.git "$INSTALL_DIR" --quiet 2>/dev/null || \
+      git clone --depth 1 https://github.com/Pavanspoojary/sloppy.git "$INSTALL_DIR" --quiet
     cd "$INSTALL_DIR"
   fi
 else
@@ -43,17 +67,12 @@ exec node "\$SLOPPY_DIR/packages/cli/bin/sloppy.js" "\$@"
 EOF
 chmod +x "$BIN_DIR/sloppy"
 
-# Also symlink into /usr/local/bin if writable
-if [ -w "/usr/local/bin" ] && [ ! -e "/usr/local/bin/sloppy" ]; then
-  ln -sf "$BIN_DIR/sloppy" "/usr/local/bin/sloppy" 2>/dev/null || true
-fi
-
 printf "[4/4] Configuring MCP servers and Agent Skills...\n"
 "$BIN_DIR/sloppy" setup --write
 
 printf "\n[INSTALLATION COMPLETE] Sloppy installed successfully.\n"
 printf "Executable: %s/sloppy\n" "$BIN_DIR"
-if [[ ":$PATH:" != *":$BIN_DIR:"* ]] && [[ ":$PATH:" != *":/usr/local/bin:"* ]]; then
+if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
   printf "\nNote: Add %s to your PATH if not already present:\n" "$BIN_DIR"
   printf "  export PATH=\"\$PATH:%s\"\n" "$BIN_DIR"
 fi
