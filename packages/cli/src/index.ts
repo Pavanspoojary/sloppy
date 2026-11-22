@@ -97,9 +97,10 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     if (json) emitJson({ version, ...(core ? { core } : {}) }); else console.log(version);
     return true;
   }
-  if (command === '--help' || (command === 'help' && args.includes('--help'))) { console.log('Usage: sloppy <command> [options]\nCommands: check, audit, plan, fix, rubric, verify, install-mcp, version, looks, archetypes, list, mcp'); return true; }
-  if (args.includes('--help') && ['check', 'fix', 'verify', 'install-mcp'].includes(command)) {
+  if (command === '--help' || (command === 'help' && args.includes('--help'))) { console.log('Usage: sloppy <command> [options]\nCommands: setup, check, audit, plan, fix, rubric, verify, install-mcp, version, looks, archetypes, list, mcp'); return true; }
+  if (args.includes('--help') && ['check', 'fix', 'verify', 'install-mcp', 'setup'].includes(command)) {
     const help: Record<string, string> = {
+      setup: 'Usage: sloppy setup [--write|-w] [--global|-g] [--json]',
       check: 'Usage: sloppy check <paths...> [--json] [--max-score <n>] [--fail-on <none|low|medium|high|critical>] [--min-grade <A+|A|B|C|D|F>] [--type <illustration|feature-card|hero|application|bento>] [--quiet]',
       fix: 'Usage: sloppy fix <file> [--diff|--check|--write] [--look <look>] [--json]\n       sloppy fix --stdin [--json]',
       verify: 'Usage: sloppy verify [target] [--json] (verification timeout: 15000ms)',
@@ -156,6 +157,112 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     config[key] ||= {}; config[key].sloppy = { command: 'npx', args: ['-y', 'sloppy', 'mcp'] };
     fs.writeFileSync(dest, `${JSON.stringify(config, null, 2)}\n`);
     if (json) emitJson({ client, written: true, path: dest }); else console.log(`Wrote ${dest}`); return true;
+  }
+  if (command === 'setup') {
+    const isGlobal = args.includes('--global') || args.includes('-g');
+    const shouldWrite = args.includes('--write') || args.includes('-w');
+    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+
+    const mcpResults: Array<{ client: string; path: string; status: string }> = [];
+    const skillResults: Array<{ target: string; path: string; status: string }> = [];
+
+    const mcpClients = [
+      { id: 'cursor', file: isGlobal ? path.join(homeDir, '.cursor/mcp.json') : path.join(process.cwd(), '.cursor/mcp.json'), key: 'mcpServers' },
+      { id: 'vscode', file: isGlobal ? path.join(homeDir, 'Library/Application Support/Code/User/globalStorage/mcp.json') : path.join(process.cwd(), '.vscode/mcp.json'), key: 'servers' },
+      { id: 'claude', file: isGlobal ? path.join(homeDir, '.claude.json') : path.join(process.cwd(), '.mcp.json'), key: 'mcpServers' }
+    ];
+
+    for (const client of mcpClients) {
+      try {
+        if (shouldWrite) {
+          fs.mkdirSync(path.dirname(client.file), { recursive: true });
+          let config: any = {};
+          if (fs.existsSync(client.file)) {
+            try { config = JSON.parse(fs.readFileSync(client.file, 'utf8')); } catch {}
+          }
+          config[client.key] = config[client.key] || {};
+          config[client.key].sloppy = { command: 'npx', args: ['-y', 'sloppy', 'mcp'] };
+          fs.writeFileSync(client.file, `${JSON.stringify(config, null, 2)}\n`);
+          mcpResults.push({ client: client.id, path: client.file, status: 'configured' });
+        } else {
+          mcpResults.push({ client: client.id, path: client.file, status: 'dry-run (pass --write to save)' });
+        }
+      } catch (err) {
+        mcpResults.push({ client: client.id, path: client.file, status: `error: ${(err as Error).message}` });
+      }
+    }
+
+    const codexFile = path.join(homeDir, '.codex/config.toml');
+    const codexSnippet = '[mcp_servers.sloppy]\ncommand = "npx"\nargs = ["-y", "sloppy", "mcp"]';
+    if (shouldWrite) {
+      try {
+        fs.mkdirSync(path.dirname(codexFile), { recursive: true });
+        let content = fs.existsSync(codexFile) ? fs.readFileSync(codexFile, 'utf8') : '';
+        content = content.replace(/\n?\[mcp_servers\.sloppy\][\s\S]*?(?=\n\[|$)/, '').trimEnd();
+        fs.writeFileSync(codexFile, `${content}${content ? '\n\n' : ''}${codexSnippet}\n`);
+        mcpResults.push({ client: 'codex', path: codexFile, status: 'configured' });
+      } catch (err) {
+        mcpResults.push({ client: 'codex', path: codexFile, status: `error: ${(err as Error).message}` });
+      }
+    } else {
+      mcpResults.push({ client: 'codex', path: codexFile, status: 'dry-run (pass --write to save)' });
+    }
+
+    const sourceSkillDir = path.resolve(ROOT_DIR, 'skills/sloppy');
+    const skillTargets = [
+      { name: 'Universal Agents', dir: path.join(homeDir, '.agents/skills/sloppy') },
+      { name: 'Antigravity', dir: path.join(homeDir, '.gemini/config/skills/sloppy') },
+      { name: 'Claude Code', dir: path.join(homeDir, '.claude/skills/sloppy') }
+    ];
+
+    if (fs.existsSync(sourceSkillDir)) {
+      for (const target of skillTargets) {
+        if (shouldWrite) {
+          try {
+            fs.mkdirSync(path.dirname(target.dir), { recursive: true });
+            if (!fs.existsSync(target.dir)) {
+              try {
+                fs.symlinkSync(sourceSkillDir, target.dir, 'dir');
+                skillResults.push({ target: target.name, path: target.dir, status: 'symlinked' });
+              } catch {
+                fs.cpSync(sourceSkillDir, target.dir, { recursive: true });
+                skillResults.push({ target: target.name, path: target.dir, status: 'copied' });
+              }
+            } else {
+              skillResults.push({ target: target.name, path: target.dir, status: 'already-installed' });
+            }
+          } catch (err) {
+            skillResults.push({ target: target.name, path: target.dir, status: `error: ${(err as Error).message}` });
+          }
+        } else {
+          skillResults.push({ target: target.name, path: target.dir, status: 'dry-run (pass --write to save)' });
+        }
+      }
+    }
+
+    const summary = {
+      ok: true,
+      mode: shouldWrite ? 'applied' : 'dry-run',
+      cli: { command: 'sloppy', status: 'available' },
+      mcp: mcpResults,
+      skills: skillResults,
+      instructions: shouldWrite ? 'Setup complete. Restart your editor or agent session to load Sloppy.' : 'Run with --write to apply configurations.'
+    };
+
+    if (json) {
+      emitJson(summary);
+    } else {
+      console.log('\n======================================================');
+      console.log('SLOPPY: ALL-IN-ONE SYSTEM SETUP');
+      console.log(`Mode: ${shouldWrite ? 'APPLIED (--write)' : 'DRY-RUN (pass --write to save)'}`);
+      console.log('======================================================\n');
+      console.log('1. Model Context Protocol (MCP) Clients:');
+      for (const m of mcpResults) console.log(`   - [${m.client.toUpperCase()}] ${m.status}: ${m.path}`);
+      console.log('\n2. Agent Skills:');
+      for (const s of skillResults) console.log(`   - [${s.target}] ${s.status}: ${s.path}`);
+      console.log(`\n${summary.instructions}\n`);
+    }
+    return true;
   }
   if (command === 'fix' && (args.includes('--stdin') || args.some(x => ['--diff', '--check', '--write', '-w'].includes(x)) || json)) {
     const chunks: Buffer[] = [];
@@ -718,6 +825,7 @@ SLOPPY: The AI Slop UI Fixer (MCP + Kit + Skill Engine)
 Combining: stageshow, shadcn, motion-primitives, magicui, react-bits, kokonutui, animate-ui
 
 Usage:
+  sloppy setup [--write|-w]     All-in-one setup: configure MCP clients and link Agent Skills
   sloppy check <paths...>       Gate files on slop score, severity, and craft grade
   sloppy audit <file|dir>     Audit code or directory for AI slop anti-patterns
   sloppy rubric <file>        Evaluate code against 10-point Craft Rubric (Grade A+ to F)

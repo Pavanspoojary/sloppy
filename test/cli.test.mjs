@@ -95,6 +95,16 @@ test('install-mcp writes an idempotent client configuration', () => {
   }
 });
 
+test('setup command emits structured dry-run payload', () => {
+  const run = runCli(['setup', '--json']);
+  assert.equal(run.status, 0, run.stderr);
+  const payload = parseJsonStdout(run);
+  assert.equal(payload.ok, true);
+  assert.equal(payload.mode, 'dry-run');
+  assert.ok(Array.isArray(payload.mcp));
+  assert.ok(Array.isArray(payload.skills));
+});
+
 test('fix --stdin transforms source without touching disk', () => {
   const source = '<div className="bg-gradient-to-r from-purple-500 to-indigo-600" />';
   const run = runCli(['fix', '--stdin', '--json'], { input: source });
