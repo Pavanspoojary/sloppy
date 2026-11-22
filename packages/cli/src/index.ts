@@ -58,6 +58,47 @@ function collectFiles(targets: string[]): string[] {
   for (const target of targets) visit(path.resolve(process.cwd(), target));
   return [...new Set(found)].sort();
 }
+function formatSarif(result: ReturnType<typeof checkFiles>) {
+  return {
+    $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
+    version: '2.1.0',
+    runs: [
+      {
+        tool: {
+          driver: {
+            name: 'Sloppy',
+            version: result.version,
+            informationUri: 'https://github.com/Pavanspoojary/sloppy',
+            rules: [
+              { id: 'PURPLE_GRADIENT_SLOP', name: 'PurpleGradientSlop', shortDescription: { text: 'Replace purple-family gradients with a restrained surface palette.' } },
+              { id: 'SPARKLE_ICON_OVERLOAD', name: 'SparkleIconOverload', shortDescription: { text: 'Replace decorative sparkle or magic-wand icons with authentic product icons.' } },
+              { id: 'UNANCHORED_FLOATING_WINDOW', name: 'UnanchoredFloatingWindow', shortDescription: { text: 'Let the frame fill its stage and bleed through at least one boundary.' } },
+              { id: 'BOXED_CARD_SYNDROME', name: 'BoxedCardSyndrome', shortDescription: { text: 'Vary surface hierarchy with layout and elevation instead of repeating identical cards.' } },
+              { id: 'AI_COPY_CLICHE', name: 'AiCopyCliche', shortDescription: { text: 'Replace generic AI marketing clichés with concrete product capabilities.' } },
+              { id: 'DEAD_PLACEHOLDER_SLOP', name: 'DeadPlaceholderSlop', shortDescription: { text: 'Connect buttons and links to real actions instead of dead href="#" or empty callbacks.' } },
+              { id: 'LOW_CONTRAST_GRAY', name: 'LowContrastGray', shortDescription: { text: 'Increase text and background contrast to meet WCAG AA standards.' } },
+              { id: 'UNEARNED_ANIMATION', name: 'UnearnedAnimation', shortDescription: { text: 'Animate only when user-caused or progress-linked; remove looping bounces.' } }
+            ]
+          }
+        },
+        results: result.files.flatMap(f => f.violations.map(v => ({
+          ruleId: v.type,
+          level: (v.severity === 'critical' || v.severity === 'high') ? 'error' : 'warning',
+          message: { text: `${v.message} ${v.recommendation}` },
+          locations: [
+            {
+              physicalLocation: {
+                artifactLocation: { uri: f.path },
+                region: { startLine: v.line, startColumn: v.column }
+              }
+            }
+          ]
+        })))
+      }
+    ]
+  };
+}
+
 function checkFiles(paths: string[], options: { maxScore: number; failOn: string; minGrade?: string; type?: 'illustration' | 'feature-card' | 'hero' | 'application' | 'bento' }) {
   const files = paths.map(file => {
     const code = fs.readFileSync(file, 'utf8');
@@ -116,19 +157,44 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       else if (args[i] === '--fail-on') { opts.failOn = args[++i]; if (!['none', ...severities].includes(opts.failOn)) { fail('--fail-on must be none, low, medium, high, or critical'); return true; } }
       else if (args[i] === '--min-grade') { opts.minGrade = args[++i]; if (!gradeOrder.includes(opts.minGrade)) { fail('--min-grade must be A+, A, B, C, D, or F'); return true; } }
       else if (args[i] === '--type') { const value = args[++i]; if (!['illustration', 'feature-card', 'hero', 'application', 'bento'].includes(value)) { fail('--type must be illustration, feature-card, hero, application, or bento'); return true; } }
+      else if (args[i] === '--format') { const fmt = args[++i]; if (fmt !== 'sarif' && fmt !== 'json') { fail('--format must be sarif or json'); return true; } }
+      else if (args[i] === '--sarif' || args[i] === '--watch' || args[i] === '-w') { /* recognized flag */ }
       else if (args[i].startsWith('-')) { if (args[i] !== '--json' && args[i] !== '--quiet') { fail(`Unknown check option: ${args[i]}`); return true; } }
       else paths.push(args[i]);
     }
-    if (!paths.length) { fail('Usage: sloppy check <path...> [--max-score <n>] [--fail-on <level>] [--min-grade <grade>] [--type <surface>]'); return true; }
+    if (!paths.length) { fail('Usage: sloppy check <path...> [--max-score <n>] [--fail-on <level>] [--min-grade <grade>] [--type <surface>] [--format <json|sarif>] [--watch]'); return true; }
     try {
-      const files = collectFiles(paths);
-      const result = checkFiles(files, opts);
-      if (json) emitJson(result);
-      else {
-        if (!args.includes('--quiet')) for (const f of result.files) console.log(`${f.isSlopFree ? 'PASS' : 'FAIL'} ${f.path} score=${f.score} grade=${f.grade} violations=${f.violations.length}`);
-        console.log(`Check ${result.ok ? 'passed' : 'failed'}: ${result.totals.files} files, ${result.totals.violations} violations, peak score ${result.score}, worst grade ${result.grade}`);
+      const isSarif = args.includes('--sarif') || (args.includes('--format') && args[args.indexOf('--format') + 1] === 'sarif');
+      const isWatch = args.includes('--watch') || args.includes('-w');
+      const runInspection = () => {
+        const files = collectFiles(paths);
+        const result = checkFiles(files, opts);
+        if (isSarif) emitJson(formatSarif(result));
+        else if (json) emitJson(result);
+        else {
+          if (!args.includes('--quiet')) for (const f of result.files) console.log(`${f.isSlopFree ? 'PASS' : 'FAIL'} ${f.path} score=${f.score} grade=${f.grade} violations=${f.violations.length}`);
+          console.log(`Check ${result.ok ? 'passed' : 'failed'}: ${result.totals.files} files, ${result.totals.violations} violations, peak score ${result.score}, worst grade ${result.grade}`);
+        }
+        if (!result.ok) process.exitCode = 1;
+        return result;
+      };
+
+      if (isWatch) {
+        console.log(`[SLOPPY WATCH] Watching ${paths.join(', ')} for changes...`);
+        runInspection();
+        for (const p of paths) {
+          try {
+            fs.watch(path.resolve(process.cwd(), p), { recursive: true }, () => {
+              console.clear();
+              console.log(`[SLOPPY WATCH] Reloaded at ${new Date().toLocaleTimeString()}`);
+              runInspection();
+            });
+          } catch {}
+        }
+        return true;
       }
-      if (!result.ok) process.exitCode = 1;
+
+      runInspection();
     } catch (error) {
       const message = `Check failed: ${(error as Error).message}`;
       if (json) emitJson({ version: cliVersion(), ok: false, error: message });

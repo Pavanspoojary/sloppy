@@ -10,7 +10,9 @@ export type SlopViolationType =
   | 'CENTER_ALIGNED_EVERYTHING'
   | 'MADE_UP_AI_BADGE'
   | 'LOW_CONTRAST_GRAY'
-  | 'FLAT_SURFACE_MONOTONY';
+  | 'FLAT_SURFACE_MONOTONY'
+  | 'AI_COPY_CLICHE'
+  | 'DEAD_PLACEHOLDER_SLOP';
 
 export interface SlopViolation {
   id: string;

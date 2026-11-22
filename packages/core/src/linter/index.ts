@@ -19,7 +19,9 @@ const advice: Record<SlopViolationType, string> = {
   CENTER_ALIGNED_EVERYTHING: 'Reserve centered alignment for focal content and vary alignment in supporting layout.',
   LOW_CONTRAST_GRAY: 'Increase text and background contrast to meet WCAG contrast thresholds.',
   FLAT_SURFACE_MONOTONY: 'Introduce a clear surface or elevation step among repeated sibling elements.',
-  WORD_BUDGET_EXCEEDED: 'Keep visible copy focused and replace secondary content with quiet placeholders.'
+  WORD_BUDGET_EXCEEDED: 'Keep visible copy focused and replace secondary content with quiet placeholders.',
+  AI_COPY_CLICHE: 'Replace generic AI copy clichés with concrete product capabilities and authentic metrics.',
+  DEAD_PLACEHOLDER_SLOP: 'Connect buttons and links to real actions or handlers instead of dead "#" or empty callback placeholders.'
 };
 const purple = '(?:purple|violet|indigo|fuchsia)';
 function containsPurpleColor(value: string): boolean {
@@ -101,7 +103,7 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     else { parent.set(tag, openStack[openStack.length - 1]); if (!tag.selfClosing) openStack.push(tag); }
   }
   const ancestorsOf = (tag: SourceTag): SourceTag[] => { const found: SourceTag[] = []; let current = parent.get(tag); while (current) { found.push(current); current = parent.get(current); } return found; };
-  const push = (type: SlopViolationType, at: number, message: string, level?: SlopSeverity) => candidates.push({ type, severity: level ?? ({ PURPLE_GRADIENT_SLOP:'critical', SPARKLE_ICON_OVERLOAD:'high', UNEARNED_ANIMATION:'high', MADE_UP_AI_BADGE:'medium', BOXED_CARD_SYNDROME:'medium', UNANCHORED_FLOATING_WINDOW:'high', CENTER_ALIGNED_EVERYTHING:'medium', LOW_CONTRAST_GRAY:'high', FLAT_SURFACE_MONOTONY:'medium', WORD_BUDGET_EXCEEDED:'high' } as const)[type], at, message });
+  const push = (type: SlopViolationType, at: number, message: string, level?: SlopSeverity) => candidates.push({ type, severity: level ?? ({ PURPLE_GRADIENT_SLOP:'critical', SPARKLE_ICON_OVERLOAD:'high', UNEARNED_ANIMATION:'high', MADE_UP_AI_BADGE:'medium', BOXED_CARD_SYNDROME:'medium', UNANCHORED_FLOATING_WINDOW:'high', CENTER_ALIGNED_EVERYTHING:'medium', LOW_CONTRAST_GRAY:'high', FLAT_SURFACE_MONOTONY:'medium', WORD_BUDGET_EXCEEDED:'high', AI_COPY_CLICHE:'medium', DEAD_PLACEHOLDER_SLOP:'medium' } as const)[type], at, message });
   const tagClasses = tags.map(tag => ({ tag, tokens: getClasses(tag) }));
   const allowGradients = config?.brand?.allowGradients ?? false;
   // Gradient classes are grouped by element so gradient direction and stops can occur in any order.
@@ -131,6 +133,10 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   const visibleText = textFromSource(code, scan.tags);
   const phrases = /Powered\s+by\s+AI|AI[- ]Powered|Smart\s+AI|Magical\s+AI|AI\s+Assistant|AI\s+Generated|Generate\s+with\s+AI|Supercharge\b[^.\n]{0,50}\bAI\b|\u{2728}/igu;
   let phrase: RegExpExecArray | null; while ((phrase = phrases.exec(visibleText))) { const at = code.indexOf(phrase[0]); push('MADE_UP_AI_BADGE', Math.max(0, at), `Made-up AI marketing phrase "${phrase[0]}" detected.`); }
+  const cliches = /\b(?:Unlock\s+the\s+power\s+of|Supercharge\s+your\s+(?:workflow|productivity|team|growth)|Seamless(?:ly)?\s+(?:integrate|connect|automate)|10x\s+your\s+(?:productivity|growth|output)|Revolutionize\s+the\s+way)\b/igu;
+  let clicheMatch: RegExpExecArray | null; while ((clicheMatch = cliches.exec(visibleText))) { const at = code.indexOf(clicheMatch[0]); push('AI_COPY_CLICHE', Math.max(0, at), `Generic AI marketing cliché "${clicheMatch[0]}" detected.`); }
+  for (const match of code.matchAll(/\bhref\s*=\s*["']#["']/g)) { push('DEAD_PLACEHOLDER_SLOP', match.index ?? 0, 'Dead placeholder href="#" detected.'); }
+  for (const match of code.matchAll(/\bonClick\s*=\s*\{\s*\(\s*\)\s*=>\s*\{\s*\}\s*\}/g)) { push('DEAD_PLACEHOLDER_SLOP', match.index ?? 0, 'Empty dead click handler onClick={() => {}} detected.'); }
   const cards = tagClasses.filter(({tokens}) => has(tokens,/^rounded(?:-|$)/) && has(tokens,/^border(?:-|$)/) && (tokens.some(t => spacingAtLeastFour(t,'p')) || (tokens.some(t => spacingAtLeastFour(t,'px')) && tokens.some(t => spacingAtLeastFour(t,'py')))) && (has(tokens,/^bg-/) || has(tokens,/^shadow-/)));
   if (cards.length >= (options.strict ? 3 : 4)) push('BOXED_CARD_SYNDROME', cards[0].tag.start, `Found ${cards.length} repeated boxed card elements.`);
   for (const {tag,tokens} of tagClasses) {

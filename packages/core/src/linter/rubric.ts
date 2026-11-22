@@ -43,6 +43,7 @@ export function evaluateCraftRubric(code: string, options: { strict?: boolean; f
   const budget = options.componentType ? wordBudget[options.componentType] : 60;
   if (violations.some(v => v.type === 'WORD_BUDGET_EXCEEDED')) wordScore -= 7;
   else if (audit.stats.estimatedWordCount > budget) wordScore -= 2;
+  if (violations.some(v => v.type === 'AI_COPY_CLICHE')) wordScore -= 3;
   wordScore = Math.max(0, wordScore);
 
   // Dimension 3: Motion Intentionality & Easing (0-10)
@@ -83,6 +84,7 @@ export function evaluateCraftRubric(code: string, options: { strict?: boolean; f
   // Dimension 9: Real-World Chrome Integrity (0-10)
   let chromeScore = 10;
   if (violations.some(v => v.type === 'MADE_UP_AI_BADGE')) chromeScore -= 6;
+  if (violations.some(v => v.type === 'DEAD_PLACEHOLDER_SLOP')) chromeScore -= 4;
   chromeScore = Math.max(0, chromeScore);
 
   // Dimension 10: Semantic Foundation & Accessibility (0-10)

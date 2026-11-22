@@ -126,6 +126,16 @@ test('fix --check exits 1 when changes are needed and 0 when clean', () => {
   assert.equal(parseJsonStdout(clean).changed, false);
 });
 
+test('check --format sarif outputs OASIS SARIF 2.1.0 JSON', () => {
+  const run = runCli(['check', fixture('slop-component.tsx'), '--format', 'sarif']);
+  assert.equal(run.status, 1);
+  const sarif = parseJsonStdout(run);
+  assert.equal(sarif.version, '2.1.0');
+  assert.ok(sarif.runs && sarif.runs.length > 0);
+  assert.equal(sarif.runs[0].tool.driver.name, 'Sloppy');
+  assert.ok(sarif.runs[0].results.length > 0);
+});
+
 test('verify reports honestly instead of printing a fake pass', () => {
   const run = runCli(['verify', 'https://127.0.0.1:1', '--json'], { timeout: 30000 });
   assert.equal(run.status, 2, `verification must fail closed, stdout=${run.stdout} stderr=${run.stderr}`);
