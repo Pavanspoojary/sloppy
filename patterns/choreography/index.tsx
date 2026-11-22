@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { Icon, Stage, type Act } from '../../kit'
+import { Icon, Stage, type Act } from '../kit'
 import './choreography.css'
 
 type Locale = { country: string; currency: string; price: string; method: string; fields: { label: string; value: string; half?: boolean }[] }

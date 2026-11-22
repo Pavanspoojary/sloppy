@@ -295,6 +295,52 @@ export function createSloppyServer() {
       }
     },
     {
+      name: 'sloppy_plan',
+      description: 'Generates a structured, reviewable repair plan for sloppy code with dry-run diff preview, categorized patches by confidence, and projected score improvements.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          code: {
+            type: 'string',
+            description: 'Source code content to generate repair plan for'
+          },
+          path: {
+            type: 'string',
+            description: 'Optional file path to read and plan repairs'
+          },
+          look: {
+            type: 'string',
+            description: 'Desired design token look (default: "linear")',
+            default: 'linear'
+          }
+        }
+      }
+    },
+    {
+      name: 'sloppy_catalog',
+      description: 'Unified lookup across all components, patterns, looks, archetypes, and kit primitives.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'Search query or keyword'
+          },
+          type: {
+            type: 'string',
+            enum: ['all', 'components', 'patterns', 'looks', 'archetypes'],
+            description: 'Filter category (default: "all")',
+            default: 'all'
+          },
+          limit: {
+            type: 'integer',
+            description: 'Maximum results to return (default: 20)',
+            default: 20
+          }
+        }
+      }
+    },
+    {
       name: 'sloppy_plan_repairs',
       description: 'Generates a structured, reviewable repair plan for sloppy code. Analyzes violations, categorizes patches by confidence (high/medium/low) and risk, separates auto-applicable fixes from manual review items, and projects score improvements before applying changes.',
       inputSchema: {
@@ -763,7 +809,33 @@ export function createSloppyServer() {
         };
       }
 
-      if (name === 'sloppy_plan_repairs') {
+      if (name === 'sloppy_catalog') {
+        const inputArgs = args as { query?: string; type?: string; limit?: number };
+        const q = inputArgs.query || '';
+        const limit = inputArgs.limit || 20;
+        const kind = inputArgs.type || 'all';
+
+        const components = (kind === 'all' || kind === 'components') ? searchAllComponents(q, { limit }) : [];
+        const patterns = (kind === 'all' || kind === 'patterns') ? searchPatterns(q, { limit }) : [];
+        const archetypes = (kind === 'all' || kind === 'archetypes') ? searchSynthesizedArchetypes(q) : [];
+        const looks = (kind === 'all' || kind === 'looks') ? Object.keys(LOOKS).filter(l => !q || l.includes(q.toLowerCase())) : [];
+
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              query: q,
+              totals: { components: components.length, patterns: patterns.length, archetypes: archetypes.length, looks: looks.length },
+              components: components.slice(0, 10).map(c => ({ id: c.id, name: c.name, library: c.library, category: c.category })),
+              patterns: patterns.slice(0, 10).map(p => ({ id: p.id, name: p.name, category: p.category })),
+              archetypes: archetypes.slice(0, 5).map(a => ({ id: a.id, name: a.name })),
+              looks
+            }, null, 2)
+          }]
+        };
+      }
+
+      if (name === 'sloppy_plan' || name === 'sloppy_plan_repairs') {
         const inputArgs = args as { code?: string; path?: string; look?: string };
         let code = inputArgs.code;
 

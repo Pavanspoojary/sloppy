@@ -1,10 +1,12 @@
 import { AuditOptions, AuditResult, SlopViolation, SlopViolationType, SlopSeverity } from './types.js';
 import { classTokens, getClasses, scanSource, sourceLocation, SourceTag } from './source-scan.js';
+import { loadSloppyConfig } from './config.js';
 
 export * from './types.js';
 export * from './transform.js';
 export * from './rubric.js';
 export * from './repair-planner.js';
+export * from './config.js';
 
 const severity: Record<SlopSeverity, number> = { critical: 40, high: 20, medium: 10, low: 4 };
 const advice: Record<SlopViolationType, string> = {
@@ -91,6 +93,7 @@ function textFromSource(code: string, tags: SourceTag[]): string {
 }
 
 export function auditCode(code: string, options: AuditOptions = {}): AuditResult {
+  const config = options.config || (options.filepath ? loadSloppyConfig(options.filepath) : null);
   const scan = scanSource(code), tags = scan.tags.filter(t => !t.closing), candidates: Array<{ type: SlopViolationType; severity: SlopSeverity; at: number; message: string }> = [];
   const parent = new Map<SourceTag, SourceTag | undefined>(), openStack: SourceTag[] = [];
   for (const tag of scan.tags) {
@@ -100,15 +103,18 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   const ancestorsOf = (tag: SourceTag): SourceTag[] => { const found: SourceTag[] = []; let current = parent.get(tag); while (current) { found.push(current); current = parent.get(current); } return found; };
   const push = (type: SlopViolationType, at: number, message: string, level?: SlopSeverity) => candidates.push({ type, severity: level ?? ({ PURPLE_GRADIENT_SLOP:'critical', SPARKLE_ICON_OVERLOAD:'high', UNEARNED_ANIMATION:'high', MADE_UP_AI_BADGE:'medium', BOXED_CARD_SYNDROME:'medium', UNANCHORED_FLOATING_WINDOW:'high', CENTER_ALIGNED_EVERYTHING:'medium', LOW_CONTRAST_GRAY:'high', FLAT_SURFACE_MONOTONY:'medium', WORD_BUDGET_EXCEEDED:'high' } as const)[type], at, message });
   const tagClasses = tags.map(tag => ({ tag, tokens: getClasses(tag) }));
+  const allowGradients = config?.brand?.allowGradients ?? false;
   // Gradient classes are grouped by element so gradient direction and stops can occur in any order.
   for (const { tag, tokens } of tagClasses) {
     const joined = tokens.join(' ');
-    if (/(?:bg-gradient-to-[\w-]+|bg-(?:radial|conic))/.test(joined) && new RegExp(`(?:from|via|to)-${purple}(?:-|\\b)|(?:from|via|to)-\\[#`, 'i').test(joined) && containsPurpleColor(joined)) push('PURPLE_GRADIENT_SLOP', tag.start, 'Purple-family gradient stop detected.');
-    const arbitrary = joined.match(/(?:bg-)?\[(?:linear|radial|conic)-gradient\([^\]]*\)\]/gi);
-    if (arbitrary?.some(containsPurpleColor)) push('PURPLE_GRADIENT_SLOP', tag.start, 'Arbitrary gradient contains a purple-family color.');
-    for (const attrName of ['style']) {
-      const attr = tag.attributes.get(attrName);
-      if (attr && /(?:linear|radial|conic)-gradient\(/i.test(attr.value) && containsPurpleColor(attr.value)) push('PURPLE_GRADIENT_SLOP', attr.valueStart, 'Inline gradient contains a purple-family color.');
+    if (!allowGradients) {
+      if (/(?:bg-gradient-to-[\w-]+|bg-(?:radial|conic))/.test(joined) && new RegExp(`(?:from|via|to)-${purple}(?:-|\\b)|(?:from|via|to)-\\[#`, 'i').test(joined) && containsPurpleColor(joined)) push('PURPLE_GRADIENT_SLOP', tag.start, 'Purple-family gradient stop detected.');
+      const arbitrary = joined.match(/(?:bg-)?\[(?:linear|radial|conic)-gradient\([^\]]*\)\]/gi);
+      if (arbitrary?.some(containsPurpleColor)) push('PURPLE_GRADIENT_SLOP', tag.start, 'Arbitrary gradient contains a purple-family color.');
+      for (const attrName of ['style']) {
+        const attr = tag.attributes.get(attrName);
+        if (attr && /(?:linear|radial|conic)-gradient\(/i.test(attr.value) && containsPurpleColor(attr.value)) push('PURPLE_GRADIENT_SLOP', attr.valueStart, 'Inline gradient contains a purple-family color.');
+      }
     }
     const animation = tokens.find(t => /^(?:animate-(?:bounce|pulse|ping|spin)|animate-\[[^\]]+\])$/.test(t) && (/^animate-(?:bounce|pulse|ping|spin)$/.test(t) || /infinite|\b(?:infinite|alternate)\b/i.test(t)));
     if (animation) {
@@ -156,12 +162,20 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   for (const {tag,tokens} of tagClasses) { const bg = tokens.find(t => /^bg-/.test(t)), border = tokens.filter(t => /^border(?:-|$)/.test(t)).join(' '), rounded = tokens.filter(t => /^rounded(?:-|$)/.test(t)).join(' '), shadow = tokens.filter(t => /^shadow(?:-|$)/.test(t)).join(' '), parentKey = parent.get(tag)?.start ?? -1; if (bg && (border || rounded)) { const key = `${parentKey}|${bg}|${border}|${rounded}|${shadow}`; surfaces.set(key,[...(surfaces.get(key) || []),tag]); } }
   for (const group of surfaces.values()) if (group.length >= 4) { push('FLAT_SURFACE_MONOTONY', group[0].start, `${group.length} elements repeat the same background, border, and rounding without an elevation step.`); break; }
   // CSS and inline declaration text; comments are excluded using the scanner mask, while tag values retain authored strings.
-  const gradients = /(?:linear|radial|conic)-gradient\([^)]*\)/ig;
-  for (const match of scan.masked.matchAll(gradients)) { const at = match.index ?? 0; if (containsPurpleColor(match[0]) && !candidates.some(v => v.type === 'PURPLE_GRADIENT_SLOP' && Math.abs(v.at - at) < 120)) push('PURPLE_GRADIENT_SLOP', at, 'CSS gradient contains a purple-family color.'); }
+  if (!allowGradients) {
+    const gradients = /(?:linear|radial|conic)-gradient\([^)]*\)/ig;
+    for (const match of scan.masked.matchAll(gradients)) {
+      const at = match.index ?? 0;
+      if (containsPurpleColor(match[0]) && !candidates.some(v => v.type === 'PURPLE_GRADIENT_SLOP' && Math.abs(v.at - at) < 120)) {
+        push('PURPLE_GRADIENT_SLOP', at, 'CSS gradient contains a purple-family color.');
+      }
+    }
+  }
   const text = visibleText;
   const wordCount = (text.match(/[\p{L}\p{N}]+(?:['’][\p{L}]+)?/gu) || []).length;
   const limits = { illustration:12, 'feature-card':18, hero:32, application:150, bento:40 } as const;
-  const threshold = options.componentType ? limits[options.componentType] : 60;
+  const configuredBudget = config?.wordBudget?.[options.componentType || 'default'];
+  const threshold = configuredBudget ?? (options.componentType ? limits[options.componentType] : (config?.wordBudget?.default ?? 60));
   if (wordCount > threshold && !tags.some(tag => /^(?:Bar|Skeleton|Placeholder)$/.test(tag.name.split('.').pop() || ''))) push('WORD_BUDGET_EXCEEDED', tags[0]?.start ?? 0, `Visible word budget exceeded: ${wordCount} words, limit ${threshold}.`);
   const allComments = [...code.matchAll(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g)].map(m => ({ text:m[0], at:m.index ?? 0 }));
   const ignoreFile = allComments.some(c => /sloppy-ignore-file/.test(c.text));
@@ -171,10 +185,21 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   const allowedRules = new Set((allowFile?.[1] ?? '').split(/[,\s]+/).filter(Boolean).map(name => name.replace(/-/g, '_').toUpperCase()));
   const violations: SlopViolation[] = []; let suppressedCount = 0;
   for (const c of candidates.sort((a,b) => a.at-b.at || a.type.localeCompare(b.type))) {
+    const ruleOverride = config?.rules?.[c.type];
+    if (ruleOverride === 'off') { suppressedCount++; continue; }
     const loc = sourceLocation(scan, c.at), lineText = code.split('\n')[loc.line - 1] || '';
     const ignored = ignoreFile || allowedRules.has(c.type) || allComments.some(comment => {
       const cl = sourceLocation(scan,comment.at).line;
-      return (/sloppy-ignore-next-line/.test(comment.text) && cl + 1 === loc.line) || (/sloppy-ignore-next/.test(comment.text) && cl + 1 === loc.line) || (/sloppy-ignore\s*(?:\*\/)?\s*$/.test(comment.text) && cl === loc.line);
+      if (cl + 1 === loc.line) {
+        if (/sloppy-ignore-next-line/.test(comment.text)) {
+          const specific = comment.text.match(/sloppy-ignore-next-line\s*[:,]?\s*([A-Za-z0-9_,\s-]+)/);
+          if (!specific || !specific[1].trim()) return true;
+          const rules = specific[1].split(/[,\s]+/).map(r => r.replace(/-/g, '_').toUpperCase());
+          return rules.includes(c.type);
+        }
+        if (/sloppy-ignore-next/.test(comment.text)) return true;
+      }
+      return /sloppy-ignore\s*(?:\*\/)?\s*$/.test(comment.text) && cl === loc.line;
     });
     if (ignored) { suppressedCount++; continue; }
     const snippet = lineText.trim().slice(0,160);

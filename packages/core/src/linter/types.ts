@@ -41,10 +41,33 @@ export interface AuditResult {
   remediationPlan: string[];
 }
 
+export type RuleSeverity = 'off' | 'warn' | 'error';
+
+export interface SloppyConfig {
+  strict?: boolean;
+  failOn?: SlopSeverity;
+  brand?: {
+    name?: string;
+    allowColors?: string[];
+    allowGradients?: boolean;
+  };
+  rules?: Partial<Record<SlopViolationType, RuleSeverity>>;
+  wordBudget?: {
+    illustration?: number;
+    'feature-card'?: number;
+    hero?: number;
+    application?: number;
+    bento?: number;
+    default?: number;
+  };
+  ignorePaths?: string[];
+}
+
 export interface AuditOptions {
   strict?: boolean;
   filepath?: string;
   componentType?: 'illustration' | 'feature-card' | 'hero' | 'application' | 'bento';
+  config?: SloppyConfig;
 }
 
 export interface TransformOptions {

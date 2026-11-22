@@ -195,23 +195,68 @@ jobs:
       - run: npx sloppy rubric ./src/components/Hero.tsx --strict
 ```
 
+### Enterprise Configuration (`sloppy.config.json`)
+
+To prevent false positives on legitimate brand palettes (e.g. corporate violet accents) and customize rule tolerances per repository, add `sloppy.config.json` or `.sloppyrc.json`:
+
+```json
+{
+  "strict": false,
+  "failOn": "high",
+  "brand": {
+    "name": "Acme",
+    "allowColors": ["purple-600", "violet-500", "#7c3aed"],
+    "allowGradients": false
+  },
+  "rules": {
+    "PURPLE_GRADIENT_SLOP": "error",
+    "CENTER_ALIGNED_EVERYTHING": "off",
+    "BOXED_CARD_SYNDROME": "error",
+    "UNANCHORED_FLOATING_WINDOW": "error"
+  },
+  "wordBudget": {
+    "hero": 40,
+    "application": 200
+  }
+}
+```
+
+Inline exemptions are also supported:
+* Line-level: `// sloppy-ignore-next-line PURPLE_GRADIENT_SLOP`
+* File-level: `/* sloppy-allow-file: PURPLE_GRADIENT_SLOP, CENTER_ALIGNED_EVERYTHING */`
+
 ---
 
-## Repository Structure
+## Real-World AI Benchmarks (v0, Bolt, Lovable)
+
+Sloppy includes automated before/after benchmark fixtures tested directly against raw outputs from generative AI engines (`benchmarks/fixtures`):
+
+* **v0 Analytics Dashboard**: Raw generation carries severe purple gradients, unanchored floating windows, 6 sparkle icons, and low-contrast text (Initial Slop Score: **88/100, Grade F**). Sloppy automatically repairs surfaces into grounded stages with 4.8:1 contrast (Transformed Craft Score: **0/100, Grade A+**).
+* **Bolt SaaS Pricing**: Raw generation exhibits all-centered alignment and 4 identical boxed cards (Initial Slop Score: **74/100, Grade D**). Sloppy transforms the grid into anchored hierarchy with intentional focus.
+
+Run benchmarks:
+```bash
+node --test test/benchmarks.test.mjs
+```
+
+---
+
+## Repository Structure & Architecture
 
 ```
-slopy/
+sloppy/
 ├── packages/
-│   ├── core/          # Anti-slop engine: scanner, rules, scoring, rubric, repair planner
-│   ├── kit/           # Portable React anti-slop primitives and motion API
-│   ├── mcp/           # Model Context Protocol stdio server
-│   ├── cli/           # Developer CLI, setup orchestrator, and quality gate
-│   ├── verify/        # Static and browser verification engine
-│   ├── components/    # 757 component source files across 7 UI libraries
-│   └── playground/    # Vite + React comparison and verification studio
+│   ├── core/          # The Primary Wedge: AST scanner, rules, scoring, rubric, repair planner, and config loader
+│   ├── cli/           # Developer CLI, setup orchestrator, and CI quality gate
+│   ├── mcp/           # Lean 5-verb Model Context Protocol stdio server for agents
+│   ├── kit/           # Reference Implementation: Portable React craft primitives (Stage, Window, Follow, Fly, Expand)
+│   ├── verify/        # Static and headless Playwright jump verification engine
+│   ├── playground/    # Vite + React comparison and verification studio
+│   └── components/    # Internal Research Corpus: 7 analyzed UI ecosystems (read-only reference)
 ├── patterns/          # 74 curated gold pattern directories
+├── benchmarks/        # Real-world raw AI specimens (v0, Bolt, Lovable)
 ├── skills/sloppy/     # Universal agent skill definition (SKILL.md + references)
-└── test/              # 42 unit, rubric, CLI, MCP, and verification contract tests
+└── test/              # 46 unit, rubric, config, benchmark, and MCP contract tests
 ```
 
 ---
