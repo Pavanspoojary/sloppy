@@ -22,20 +22,13 @@ curl -fsSL https://raw.githubusercontent.com/Pavanspoojary/sloppy/main/scripts/i
 
 ### Manual Clone & Contributor Setup
 
-If you prefer to clone and link manually:
+If you prefer to clone and set up manually:
 
 ```bash
 git clone https://github.com/Pavanspoojary/sloppy.git ~/.sloppy
 cd ~/.sloppy
 ./scripts/install.sh
 ```
-```
-
-* **Audit code directly**: `npx github:Pavanspoojary/sloppy check ./src`
-* **Scaffold React Kit**: `npx github:Pavanspoojary/sloppy init`
-* **Agent Skill only**: `npx skills add Pavanspoojary/sloppy --skill sloppy -g -a '*' -y`
-
-</details>
 
 ---
 
@@ -289,7 +282,6 @@ sloppy/
 
 ## Engineering Standards
 
-* **Ponytail Policy**: The best code is the code you never wrote. Prioritize YAGNI, existing primitives, standard library APIs, native platform CSS, minimal effective form, and boring over clever.
 * **Strict Zero Emojis Policy**: Zero emojis across code, UI, alert banners, documentation, and commit messages.
 * **Conventional Commits**: Every commit strictly follows `<type>(<scope>): <summary>` format, verified by commit-msg hooks.
 * **Zero New Runtime Dependencies**: The scanner, AST transformer, and repair planner are hand-written TypeScript.
