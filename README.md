@@ -9,15 +9,10 @@ A deterministic anti-slop design engine, portable React kit, Model Context Proto
 Run one single command to install and configure the entire Sloppy ecosystem across your machine:
 
 ```bash
-npx -y sloppy setup --write
+npx -y sloppy@latest setup --write
 ```
 
-*(Or install globally and run setup: `npm install -g sloppy && sloppy setup --write`)*
-
-### What this single command sets up:
-1. **Developer CLI**: Installs `sloppy` globally for instant terminal audits, syntax repairs, and CI/CD quality gates.
-2. **MCP Server**: Automatically registers `sloppy mcp` (16 tools) inside Cursor (`.cursor/mcp.json`), Claude (`.claude.json`), Codex (`~/.codex/config.toml`), and VS Code.
-3. **Universal Agent Skill**: Links the `sloppy` skill into `~/.agents/skills/sloppy`, `~/.gemini/config/skills/sloppy` (Antigravity), and `~/.claude/skills/sloppy`. Every coding agent immediately gains access to the 10-point craft rubric, design rules, and master archetypes.
+Using `npx -y sloppy@latest` guarantees you always run the freshest anti-slop rules, archetypes, and MCP tools directly on every execution without stale local caches or manual updates.
 
 ---
 
@@ -26,10 +21,11 @@ npx -y sloppy setup --write
 
 If you require fine-grained manual installation for specific environments:
 
-* **CLI only**: `npm install -g sloppy` (or zero-install: `npx sloppy check ./src`)
+* **Zero-install CLI execution**: `npx -y sloppy@latest check ./src`
+* **Global install** (if preferred): `npm install -g sloppy && sloppy setup --write`
 * **Agent Skill only**: `npx skills add Pavanspoojary/sloppy --skill sloppy -g -a '*' -y`
-* **MCP Server only**: `npx -y sloppy install-mcp --client cursor` (or `vscode`, `claude`, `codex`)
-* **React Kit into project**: `npx -y sloppy init`
+* **MCP Server only**: `npx -y sloppy@latest install-mcp --client cursor` (or `vscode`, `claude`, `codex`)
+* **React Kit into project**: `npx -y sloppy@latest init`
 
 </details>
 
