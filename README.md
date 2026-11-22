@@ -4,45 +4,31 @@ A deterministic anti-slop design engine, portable React kit, Model Context Proto
 
 ---
 
-## Direct Installation (Zero NPM Registration Needed)
+## Direct Installation (Standalone One-Line Installer)
 
-Install and configure the complete Sloppy ecosystem directly from GitHub with a single command (no npm publishing or registry accounts needed):
-
-### Option 1: Direct One-Line Installer (Recommended)
-Clones or updates into `~/.sloppy`, builds, links `sloppy` globally, and provisions MCP servers and Agent Skills:
+Install and configure the complete Sloppy ecosystem directly without npm registry accounts, global package manager pollution, or publishing friction:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Pavanspoojary/sloppy/main/scripts/install.sh | bash
 ```
 
-### Option 2: Direct Global Install via GitHub
-Installs directly from GitHub using npm's native git repository support:
-
-```bash
-npm install -g Pavanspoojary/sloppy && sloppy setup --write
-```
-
-### Option 3: Zero-Install via NPX directly from GitHub
-Run directly without installing anything permanent:
-
-```bash
-npx github:Pavanspoojary/sloppy setup --write
-```
+### What this standalone installer does:
+1. Clones/updates the repository into `~/.sloppy`.
+2. Compiles `@sloppy/core`, `@sloppy/mcp`, and the CLI locally with full workspace integrity.
+3. Installs a standalone executable binary directly into `~/.local/bin/sloppy` (and `/usr/local/bin/sloppy`).
+4. Automatically runs `sloppy setup --write`, registering MCP tools in Cursor, VS Code, Claude, and Codex, and linking Agent Skills across Antigravity and Claude Code.
 
 ---
 
-<details>
-<summary>Manual Clone & Local Development</summary>
+### Manual Clone & Contributor Setup
 
-For local development or contributors:
+If you prefer to clone and link manually:
 
 ```bash
-git clone https://github.com/Pavanspoojary/sloppy.git
-cd sloppy
-npm install
-npm run build
-npm link
-sloppy setup --write
+git clone https://github.com/Pavanspoojary/sloppy.git ~/.sloppy
+cd ~/.sloppy
+./scripts/install.sh
+```
 ```
 
 * **Audit code directly**: `npx github:Pavanspoojary/sloppy check ./src`
