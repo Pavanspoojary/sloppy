@@ -21,7 +21,12 @@ const advice: Record<SlopViolationType, string> = {
   FLAT_SURFACE_MONOTONY: 'Introduce a clear surface or elevation step among repeated sibling elements.',
   WORD_BUDGET_EXCEEDED: 'Keep visible copy focused and replace secondary content with quiet placeholders.',
   AI_COPY_CLICHE: 'Replace generic AI copy clichés with concrete product capabilities and authentic metrics.',
-  DEAD_PLACEHOLDER_SLOP: 'Connect buttons and links to real actions or handlers instead of dead "#" or empty callback placeholders.'
+  DEAD_PLACEHOLDER_SLOP: 'Connect buttons and links to real actions or handlers instead of dead "#" or empty callback placeholders.',
+  HERO_GRADIENT_TEXT: 'Replace gradient text with solid high-contrast typography, weight contrast, and intentional tracking.',
+  NEGATIVE_PARALLELISM: 'Rewrite contrast reframes ("It\'s not just X, it\'s Y") as direct affirmative statements.',
+  FABRICATED_SOCIAL_PROOF: 'Replace unverified round-number metrics or ratings with verified product data or explicit TODOs.',
+  CHATBOT_SIGN_OFF_SLOP: 'Strip meta-commentary, AI assistant sign-offs, and filler introductions.',
+  FAKE_CONTROL_SLOP: 'Use semantic <button> or provide role="button", tabIndex={0}, and onKeyDown handler for keyboard accessibility.'
 };
 const purple = '(?:purple|violet|indigo|fuchsia)';
 function containsPurpleColor(value: string): boolean {
@@ -103,7 +108,7 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     else { parent.set(tag, openStack[openStack.length - 1]); if (!tag.selfClosing) openStack.push(tag); }
   }
   const ancestorsOf = (tag: SourceTag): SourceTag[] => { const found: SourceTag[] = []; let current = parent.get(tag); while (current) { found.push(current); current = parent.get(current); } return found; };
-  const push = (type: SlopViolationType, at: number, message: string, level?: SlopSeverity) => candidates.push({ type, severity: level ?? ({ PURPLE_GRADIENT_SLOP:'critical', SPARKLE_ICON_OVERLOAD:'high', UNEARNED_ANIMATION:'high', MADE_UP_AI_BADGE:'medium', BOXED_CARD_SYNDROME:'medium', UNANCHORED_FLOATING_WINDOW:'high', CENTER_ALIGNED_EVERYTHING:'medium', LOW_CONTRAST_GRAY:'high', FLAT_SURFACE_MONOTONY:'medium', WORD_BUDGET_EXCEEDED:'high', AI_COPY_CLICHE:'medium', DEAD_PLACEHOLDER_SLOP:'medium' } as const)[type], at, message });
+  const push = (type: SlopViolationType, at: number, message: string, level?: SlopSeverity) => candidates.push({ type, severity: level ?? ({ PURPLE_GRADIENT_SLOP:'critical', SPARKLE_ICON_OVERLOAD:'high', UNEARNED_ANIMATION:'high', MADE_UP_AI_BADGE:'medium', BOXED_CARD_SYNDROME:'medium', UNANCHORED_FLOATING_WINDOW:'high', CENTER_ALIGNED_EVERYTHING:'medium', LOW_CONTRAST_GRAY:'high', FLAT_SURFACE_MONOTONY:'medium', WORD_BUDGET_EXCEEDED:'high', AI_COPY_CLICHE:'medium', DEAD_PLACEHOLDER_SLOP:'medium', HERO_GRADIENT_TEXT:'high', NEGATIVE_PARALLELISM:'medium', FABRICATED_SOCIAL_PROOF:'high', CHATBOT_SIGN_OFF_SLOP:'medium', FAKE_CONTROL_SLOP:'high' } as const)[type], at, message });
   const tagClasses = tags.map(tag => ({ tag, tokens: getClasses(tag) }));
   const allowGradients = config?.brand?.allowGradients ?? false;
   // Gradient classes are grouped by element so gradient direction and stops can occur in any order.
@@ -116,6 +121,11 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
       for (const attrName of ['style']) {
         const attr = tag.attributes.get(attrName);
         if (attr && /(?:linear|radial|conic)-gradient\(/i.test(attr.value) && containsPurpleColor(attr.value)) push('PURPLE_GRADIENT_SLOP', attr.valueStart, 'Inline gradient contains a purple-family color.');
+      }
+    }
+    if (tokens.includes('bg-clip-text') && (tokens.includes('text-transparent') || joined.includes('text-transparent'))) {
+      if (joined.includes('bg-gradient-') || joined.includes('bg-linear-') || (joined.includes('from-') && joined.includes('to-'))) {
+        push('HERO_GRADIENT_TEXT', tag.start, 'Hero gradient text (bg-clip-text with text-transparent and gradient) detected.');
       }
     }
     const animation = tokens.find(t => /^(?:animate-(?:bounce|pulse|ping|spin)|animate-\[[^\]]+\])$/.test(t) && (/^animate-(?:bounce|pulse|ping|spin)$/.test(t) || /infinite|\b(?:infinite|alternate)\b/i.test(t)));
@@ -135,8 +145,26 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   let phrase: RegExpExecArray | null; while ((phrase = phrases.exec(visibleText))) { const at = code.indexOf(phrase[0]); push('MADE_UP_AI_BADGE', Math.max(0, at), `Made-up AI marketing phrase "${phrase[0]}" detected.`); }
   const cliches = /\b(?:Unlock\s+the\s+power\s+of|Supercharge\s+your\s+(?:workflow|productivity|team|growth)|Seamless(?:ly)?\s+(?:integrate|connect|automate)|10x\s+your\s+(?:productivity|growth|output)|Revolutionize\s+the\s+way)\b/igu;
   let clicheMatch: RegExpExecArray | null; while ((clicheMatch = cliches.exec(visibleText))) { const at = code.indexOf(clicheMatch[0]); push('AI_COPY_CLICHE', Math.max(0, at), `Generic AI marketing cliché "${clicheMatch[0]}" detected.`); }
+  const negativeParallelism = /\b(?:not\s+just\s+[^,.!?\n]{2,40}[,—-]\s*(?:it['’]s|but)\b|\bnot\s+a\s+[^,.!?\n]{2,30}[,—-]\s*it['’]s\b)/igu;
+  let npMatch: RegExpExecArray | null; while ((npMatch = negativeParallelism.exec(visibleText))) { const at = code.indexOf(npMatch[0]); push('NEGATIVE_PARALLELISM', Math.max(0, at), `Negative parallelism copy cliché ("${npMatch[0].trim()}") detected.`); }
+  const socialProof = /\b(?:(?:(?:[1-9][0-9]{0,2}(?:,\d{3})+|\d+(?:\.\d+)?[kKMB])\+\s*(?:users?|customers?|teams?|companies|developers)|(?:99\.99?%|100%)\s*(?:uptime|guarantee)|Loved\s+by\s+(?:thousands|millions)|Rated\s+5(?:\.0)?\s*(?:\/|out\s+of)\s*5\s*stars?))\b/igu;
+  let spMatch: RegExpExecArray | null; while ((spMatch = socialProof.exec(visibleText))) { const at = code.indexOf(spMatch[0]); push('FABRICATED_SOCIAL_PROOF', Math.max(0, at), `Fabricated social proof metric "${spMatch[0].trim()}" detected.`); }
+  const chatbotPhrases = /\b(?:I\s+hope\s+this\s+helps[!.]?|In\s+conclusion,\s+|Overall,\s+(?:it|this)\s+|Let\s+me\s+know\s+if\s+you\s+(?:need|have)|It['’]s\s+important\s+to\s+note\s+that)\b/igu;
+  let cbMatch: RegExpExecArray | null; while ((cbMatch = chatbotPhrases.exec(visibleText))) { const at = code.indexOf(cbMatch[0]); push('CHATBOT_SIGN_OFF_SLOP', Math.max(0, at), `Leftover chatbot conversational phrasing "${cbMatch[0].trim()}" detected.`); }
   for (const match of code.matchAll(/\bhref\s*=\s*["']#["']/g)) { push('DEAD_PLACEHOLDER_SLOP', match.index ?? 0, 'Dead placeholder href="#" detected.'); }
   for (const match of code.matchAll(/\bonClick\s*=\s*\{\s*\(\s*\)\s*=>\s*\{\s*\}\s*\}/g)) { push('DEAD_PLACEHOLDER_SLOP', match.index ?? 0, 'Empty dead click handler onClick={() => {}} detected.'); }
+  for (const tag of tags) {
+    if (tag.name === 'div' || tag.name === 'span') {
+      const hasOnClick = tag.attributes.has('onClick') || tag.attributes.has('onclick');
+      if (hasOnClick) {
+        const role = tag.attributes.get('role')?.value?.toLowerCase();
+        const validRoles = ['button', 'tab', 'link', 'menuitem', 'option', 'switch', 'checkbox'];
+        if (!role || !validRoles.includes(role)) {
+          push('FAKE_CONTROL_SLOP', tag.start, `Inaccessible clickable <${tag.name}> lacks role="button" or keyboard accessibility.`);
+        }
+      }
+    }
+  }
   const cards = tagClasses.filter(({tokens}) => has(tokens,/^rounded(?:-|$)/) && has(tokens,/^border(?:-|$)/) && (tokens.some(t => spacingAtLeastFour(t,'p')) || (tokens.some(t => spacingAtLeastFour(t,'px')) && tokens.some(t => spacingAtLeastFour(t,'py')))) && (has(tokens,/^bg-/) || has(tokens,/^shadow-/)));
   if (cards.length >= (options.strict ? 3 : 4)) push('BOXED_CARD_SYNDROME', cards[0].tag.start, `Found ${cards.length} repeated boxed card elements.`);
   for (const {tag,tokens} of tagClasses) {

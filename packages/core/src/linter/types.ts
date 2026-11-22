@@ -12,7 +12,12 @@ export type SlopViolationType =
   | 'LOW_CONTRAST_GRAY'
   | 'FLAT_SURFACE_MONOTONY'
   | 'AI_COPY_CLICHE'
-  | 'DEAD_PLACEHOLDER_SLOP';
+  | 'DEAD_PLACEHOLDER_SLOP'
+  | 'HERO_GRADIENT_TEXT'
+  | 'NEGATIVE_PARALLELISM'
+  | 'FABRICATED_SOCIAL_PROOF'
+  | 'CHATBOT_SIGN_OFF_SLOP'
+  | 'FAKE_CONTROL_SLOP';
 
 export interface SlopViolation {
   id: string;

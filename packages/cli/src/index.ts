@@ -77,7 +77,12 @@ function formatSarif(result: ReturnType<typeof checkFiles>) {
               { id: 'AI_COPY_CLICHE', name: 'AiCopyCliche', shortDescription: { text: 'Replace generic AI marketing clichés with concrete product capabilities.' } },
               { id: 'DEAD_PLACEHOLDER_SLOP', name: 'DeadPlaceholderSlop', shortDescription: { text: 'Connect buttons and links to real actions instead of dead href="#" or empty callbacks.' } },
               { id: 'LOW_CONTRAST_GRAY', name: 'LowContrastGray', shortDescription: { text: 'Increase text and background contrast to meet WCAG AA standards.' } },
-              { id: 'UNEARNED_ANIMATION', name: 'UnearnedAnimation', shortDescription: { text: 'Animate only when user-caused or progress-linked; remove looping bounces.' } }
+              { id: 'UNEARNED_ANIMATION', name: 'UnearnedAnimation', shortDescription: { text: 'Animate only when user-caused or progress-linked; remove looping bounces.' } },
+              { id: 'HERO_GRADIENT_TEXT', name: 'HeroGradientText', shortDescription: { text: 'Replace gradient text with solid high-contrast typography.' } },
+              { id: 'NEGATIVE_PARALLELISM', name: 'NegativeParallelism', shortDescription: { text: 'Rewrite contrast reframes ("Not just X, it\'s Y") as direct affirmative statements.' } },
+              { id: 'FABRICATED_SOCIAL_PROOF', name: 'FabricatedSocialProof', shortDescription: { text: 'Replace unverified round-number metrics with verified product data or TODOs.' } },
+              { id: 'CHATBOT_SIGN_OFF_SLOP', name: 'ChatbotSignOffSlop', shortDescription: { text: 'Strip meta-commentary, AI assistant sign-offs, and filler introductions.' } },
+              { id: 'FAKE_CONTROL_SLOP', name: 'FakeControlSlop', shortDescription: { text: 'Use semantic <button> or provide role="button" and tabIndex for accessibility.' } }
             ]
           }
         },

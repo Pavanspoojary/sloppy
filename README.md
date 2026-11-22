@@ -46,12 +46,15 @@ If you require fine-grained manual installation for specific environments:
 
 ## Why Sloppy Exists: Eradicating AI UI Slop
 
-AI coding agents routinely converge on predictable visual anti-patterns:
+AI coding agents routinely converge on predictable visual, copy, and structural anti-patterns (documented in detail in [docs/AI_SLOP_CATALOG.md](docs/AI_SLOP_CATALOG.md)):
+* **Hero Gradient Text**: `bg-clip-text text-transparent` with purple/indigo/cyan gradients on headlines.
 * **Purple/Indigo Gradients**: Applied arbitrarily to cards and headers as a substitute for visual hierarchy.
 * **Sparkle & Magic Wand Icons**: Slapped onto standard buttons to simulate AI sophistication.
 * **Boxed Card Monotony**: Every element wrapped in uniform `rounded-xl border p-6` cards with no surface grounding.
 * **Ungrounded Floating Windows**: Shrinking entire applications into centered cards with air on four sides.
-* **Word Overload**: Generating walls of fake metrics and filler text instead of disciplined layout geometry.
+* **Negative Parallelism & Copy Clichés**: Contrast reframes ("Not just a tool — it's a platform") and generic tropes ("Unlock the power of", "Supercharge your workflow").
+* **Fabricated Social Proof**: Unverified metrics ("10,000+ users", "99.99% uptime") and synthetic testimonial quotes.
+* **Inaccessible Fake Controls**: Clickable `div` and `span` elements lacking keyboard support and ARIA roles.
 * **Unearned Motion**: Looping pulses, spins, and sudden content swaps without physical cause and effect.
 
 ### The Five Anti-Slop Commandments
@@ -271,7 +274,7 @@ sloppy/
 ├── patterns/          # 74 curated gold pattern directories
 ├── benchmarks/        # Real-world raw AI specimens (v0, Bolt, Lovable)
 ├── skills/sloppy/     # Universal agent skill definition (SKILL.md + references)
-└── test/              # 50 unit, rubric, config, benchmark, and MCP contract tests
+└── test/              # 55 unit, rubric, config, benchmark, and MCP contract tests
 ```
 
 ---

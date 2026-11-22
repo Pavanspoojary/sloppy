@@ -592,6 +592,8 @@ export function MobileIslandCompanion() {
         
         {/* Dynamic Island Pill */}
         <div 
+          role="button"
+          tabIndex={0}
           onClick={() => setExpanded(!expanded)}
           className={\`cursor-pointer bg-black text-white border border-neutral-800 transition-all duration-300 ease-out flex items-center justify-between \${
             expanded ? 'w-[290px] h-[72px] rounded-[28px] px-4' : 'w-[120px] h-[34px] rounded-full px-3'
