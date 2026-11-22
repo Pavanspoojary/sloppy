@@ -26,6 +26,8 @@ If any of these anti-patterns appear in your output, the code is considered brok
    - Never lock `html, body { overflow: hidden }` or intercept native wheel events. Let viewport scrolling flow naturally.
 7. **No Arbitrary Stacking Escalation (`TOK-01`)**:
    - Never write `z-[9999]` or `z-[99999]`. Use disciplined layers: `z-0` (canvas), `z-10` (sticky nav), `z-20` (dropdown), `z-50` (modal).
+8. **No Unsafe Chained Non-Null Assertions (`COD-06`)**:
+   - Never write `user!.profile!.address` or `item!.id`. Use optional chaining (`user?.profile?.address`) or defensive guards.
 
 ---
 
@@ -57,6 +59,11 @@ If any of these anti-patterns appear in your output, the code is considered brok
 8. **Banned: AI Narration Comments (`COD-01`)**:
    - Forbidden: `// Render the button`, `// Main container wrapper`, `// Return JSX`, and box-drawing ASCII divider banners.
    - Mandatory: Invariants and non-obvious technical bug workarounds only.
+9. **Banned: Low-Evidence TypeScript & Fabricated Safety (`COD-02`, `COD-03`, `COD-04`, `COD-05`)**:
+   - Forbidden: Chained type assertions (`as unknown as T`), unvalidated dynamic contract returns (`(): any`, `(): Promise<unknown>`), broad dictionary types (`Record<string, any>`), and conditional empty spreads (`...(cond ? { a } : {})`).
+   - Mandatory: Use explicit type guards, Zod schemas, bounded record keys, and optional property declarations.
+   - Strict inline suppression requires a written invariant rationale:
+     `// sloppy-ignore-next-line COD-02 -- Checked invariant: verified with Zod schema`
 
 ---
 

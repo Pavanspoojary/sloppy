@@ -25,7 +25,12 @@ export type SlopViolationType =
   | 'Z_INDEX_CHAOS'
   | 'SCROLL_HIJACKING'
   | 'AI_NARRATION_COMMENT_SLOP'
-  | 'STERILE_SURFACE_SLOP';
+  | 'STERILE_SURFACE_SLOP'
+  | 'CHAINED_TYPE_ASSERTION'
+  | 'UNVALIDATED_DYNAMIC_RETURN'
+  | 'BROAD_RECORD_SLOP'
+  | 'EMPTY_OBJECT_SPREAD'
+  | 'NON_NULL_ASSERTION_SLOP';
 
 export const CANONICAL_RULES: Record<SlopViolationType, { ruleId: string; title: string; defaultSeverity: SlopSeverity; tier: RuleTier }> = {
   HERO_GRADIENT_TEXT: { ruleId: 'VIS-01', title: 'Hero Gradient Text', defaultSeverity: 'high', tier: 'reflex' },
@@ -50,7 +55,12 @@ export const CANONICAL_RULES: Record<SlopViolationType, { ruleId: string; title:
   EMOJI_ICON_SLOP: { ruleId: 'MED-01', title: 'Raw Emojis as UI Icons', defaultSeverity: 'medium', tier: 'reflex' },
   Z_INDEX_CHAOS: { ruleId: 'TOK-01', title: 'Arbitrary Z-Index Escalation', defaultSeverity: 'medium', tier: 'floor' },
   AI_NARRATION_COMMENT_SLOP: { ruleId: 'COD-01', title: 'AI Narration Comment Slop', defaultSeverity: 'low', tier: 'finish' },
-  STERILE_SURFACE_SLOP: { ruleId: 'LIV-01', title: 'Sterile Surface & Missing Liveliness', defaultSeverity: 'low', tier: 'finish' }
+  STERILE_SURFACE_SLOP: { ruleId: 'LIV-01', title: 'Sterile Surface & Missing Liveliness', defaultSeverity: 'low', tier: 'finish' },
+  CHAINED_TYPE_ASSERTION: { ruleId: 'COD-02', title: 'Chained Type Assertion (as unknown as)', defaultSeverity: 'high', tier: 'reflex' },
+  UNVALIDATED_DYNAMIC_RETURN: { ruleId: 'COD-03', title: 'Unvalidated Contract Return (any/unknown)', defaultSeverity: 'medium', tier: 'reflex' },
+  BROAD_RECORD_SLOP: { ruleId: 'COD-04', title: 'Broad Dictionary Type (Record<string, any>)', defaultSeverity: 'medium', tier: 'reflex' },
+  EMPTY_OBJECT_SPREAD: { ruleId: 'COD-05', title: 'Conditional Empty Object Spread', defaultSeverity: 'low', tier: 'finish' },
+  NON_NULL_ASSERTION_SLOP: { ruleId: 'COD-06', title: 'Unsafe Chained Non-Null Assertion (!.)', defaultSeverity: 'medium', tier: 'floor' }
 };
 
 export const RULE_ALIASES: Record<string, SlopViolationType> = {
@@ -99,7 +109,17 @@ export const RULE_ALIASES: Record<string, SlopViolationType> = {
   'COD-01': 'AI_NARRATION_COMMENT_SLOP',
   'AI_NARRATION_COMMENT_SLOP': 'AI_NARRATION_COMMENT_SLOP',
   'LIV-01': 'STERILE_SURFACE_SLOP',
-  'STERILE_SURFACE_SLOP': 'STERILE_SURFACE_SLOP'
+  'STERILE_SURFACE_SLOP': 'STERILE_SURFACE_SLOP',
+  'COD-02': 'CHAINED_TYPE_ASSERTION',
+  'CHAINED_TYPE_ASSERTION': 'CHAINED_TYPE_ASSERTION',
+  'COD-03': 'UNVALIDATED_DYNAMIC_RETURN',
+  'UNVALIDATED_DYNAMIC_RETURN': 'UNVALIDATED_DYNAMIC_RETURN',
+  'COD-04': 'BROAD_RECORD_SLOP',
+  'BROAD_RECORD_SLOP': 'BROAD_RECORD_SLOP',
+  'COD-05': 'EMPTY_OBJECT_SPREAD',
+  'EMPTY_OBJECT_SPREAD': 'EMPTY_OBJECT_SPREAD',
+  'COD-06': 'NON_NULL_ASSERTION_SLOP',
+  'NON_NULL_ASSERTION_SLOP': 'NON_NULL_ASSERTION_SLOP'
 };
 
 export interface SlopViolation {
@@ -181,6 +201,8 @@ export interface AuditOptions {
   tier?: RuleTier;
   mode?: 'during' | 'after';
   report?: boolean;
+  codeOnly?: boolean;
+  compact?: boolean;
 }
 
 export interface TransformOptions {

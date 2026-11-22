@@ -109,6 +109,11 @@ Sloppy unifies catalog classification codes (`VIS-01`, `STR-01`, `AX-01`, `CPY-0
 | `TOK-01` | `Z_INDEX_CHAOS` | Medium | Arbitrary extreme z-index classes (`z-[9999]`, `z-[99999]`) and token drift. |
 | `TYP-08` | `WORD_BUDGET_EXCEEDED` | High | Visible word count exceeding the declared surface budget limit. |
 | `COD-01` | `AI_NARRATION_COMMENT_SLOP` | Low | AI narration comments (`// Render the button`, `// Main container`, section divider banners). |
+| `COD-02` | `CHAINED_TYPE_ASSERTION` | High | Fabricated type safety via chained assertions (`as unknown as T`, `as any as T`). |
+| `COD-03` | `UNVALIDATED_DYNAMIC_RETURN` | Medium | Unvalidated contract returns (`(): any`, `(): Promise<unknown>`) lacking schema guards. |
+| `COD-04` | `BROAD_RECORD_SLOP` | Medium | Broad dictionary types (`Record<string, any>`) erasing TypeScript safety boundaries. |
+| `COD-05` | `EMPTY_OBJECT_SPREAD` | Low | Conditional empty object spreads (`...(condition ? { key } : {})`). |
+| `COD-06` | `NON_NULL_ASSERTION_SLOP` | Medium | Unsafe chained non-null assertions (`foo!.bar!.baz`) bypassing defensive null checks. |
 | `LIV-01` | `STERILE_SURFACE_SLOP` | Low | Interactive controls lacking hover/focus/transition states, resulting in a sterile gray void. |
 
 ---
@@ -519,11 +524,11 @@ To configure rule tolerances, allow legitimate corporate brand palettes, or cust
 }
 ```
 
-### Inline Exemptions
+### Inline Exemptions & Invariant Rationale
 
 Sloppy supports rule suppression using either catalog codes or descriptive slugs:
 
-* **Line-level exemption**:
+* **Line-level exemption (Non-Strict Mode)**:
   ```tsx
   // sloppy-ignore-next-line VIS-02
   <div className="bg-gradient-to-r from-purple-500 to-indigo-500" />
@@ -531,10 +536,37 @@ Sloppy supports rule suppression using either catalog codes or descriptive slugs
   // sloppy-ignore-next-line PURPLE_GRADIENT_SLOP
   <div className="bg-gradient-to-r from-purple-500 to-indigo-500" />
   ```
+* **Strict Mode Invariant Requirement (`--strict`)**:
+  In `--strict` mode or CI gates, an explicit written invariant explanation (`-- <reason>`) of at least 5 characters is mandatory. Pragmas lacking rationale are rejected to prevent AI agents from lazily silencing errors:
+  ```tsx
+  // sloppy-ignore-next-line COD-02 -- Checked invariant: verified with Zod schema upstream
+  const user = rawData as unknown as User;
+
+  // sloppy-ignore-next-line VIS-01 -- Verified brand hero exception approved in PR #42
+  <h1 className="bg-gradient-to-r from-neutral-200 to-neutral-400 bg-clip-text text-transparent">
+  ```
 * **File-level exemption**:
   ```tsx
   /* sloppy-allow-file: VIS-02, CENTER_ALIGNED_EVERYTHING */
   ```
+
+---
+
+## AST & Lexical Scope: Analysis Boundaries
+
+To earn senior engineer and team trust in automated CI/CD pipelines, Sloppy clearly demarcates what its scanner evaluates versus what is intentionally delegated to compilers and runtime environments:
+
+### What Sloppy Resolves (Deterministic AST & Lexical Scope)
+* **Same-File Lexical Scope**: Resolves local variable assignments, function declarations, imports (`import { Sparkles as MagicIcon }`), and property bindings.
+* **JSX/HTML Structural Hierarchy**: Tracks parent-child tag trees, ancestor chains, element nesting depth, and accessible roles (`role="button"`, `tabIndex`).
+* **Wiring Graph Preservation**: Tracks active href targets, form inputs, event handlers (`onClick`, `onSubmit`), and text headings to ensure zero regressions during auto-fixes.
+* **Masked Code Scanning**: Masks string literals, JSX attribute strings, and comments with whitespace to ensure zero false positives on code rules (e.g. `Record<string, any>`, `as unknown as`, `!.`).
+* **Low-Evidence TypeScript Constructs**: Flags unsafe chained assertions (`as unknown as T`), ungrounded non-null assertions (`foo!.bar`), dynamic contract returns (`(): Promise<any>`), and broad dictionary types (`Record<string, any>`).
+
+### What Sloppy Intentionally Skips (Analysis Boundaries)
+* **Cross-File Type Inference**: Resolving types across external files or npm modules belongs to `tsc` / `oxlint`. Sloppy focuses on local syntax, structural ASTs, and visual UI rules.
+* **Dynamic Code Execution (`eval` / Runtime State)**: Sloppy never executes target source code during AST passes; all checks are static, idempotent, and sandboxed.
+* **Backend Network & Sockets**: Static verification runs fully offline without making outbound network requests or binding live server sockets.
 
 ---
 

@@ -8,6 +8,7 @@ import {
 import {
   auditCode,
   createRepairPlan,
+  detectProjectStack,
   evaluateCraftRubric,
   getRulesByTopic,
   LOOKS,
@@ -48,7 +49,9 @@ export const PRIMARY_TOOLS: Tool[] = [
         maxScore: { type: 'number', description: 'Maximum permitted slop score (default: 0)', default: 0 },
         failOn: { type: 'string', enum: ['none', 'low', 'medium', 'high', 'critical'], description: 'Minimum violation severity that fails the check (default: medium)', default: 'medium' },
         componentType: { type: 'string', enum: ['illustration', 'feature-card', 'hero', 'application', 'bento'], description: 'Rendered surface type; sets the visible word budget' },
-        strict: { type: 'boolean', description: 'Enable strict restraint thresholds' }
+        strict: { type: 'boolean', description: 'Enable strict restraint thresholds' },
+        codeOnly: { type: 'boolean', description: 'Audit low-evidence TypeScript code rules only (COD-01..06)' },
+        compact: { type: 'boolean', description: 'Return high-density token-optimized summary for coding agents' }
       }
     }
   },
@@ -97,7 +100,7 @@ export const PRIMARY_TOOLS: Tool[] = [
       properties: {
         topic: {
           type: 'string',
-          enum: ['craft', 'framing', 'motion', 'bento', 'word_budget', 'all'],
+          enum: ['craft', 'framing', 'motion', 'bento', 'word_budget', 'stack', 'all'],
           description: 'Design topic to query (default: "craft")',
           default: 'craft'
         }
@@ -135,6 +138,8 @@ export function createSloppyServer() {
           failOn?: 'none' | 'low' | 'medium' | 'high' | 'critical';
           componentType?: 'illustration' | 'feature-card' | 'hero' | 'application' | 'bento';
           strict?: boolean;
+          codeOnly?: boolean;
+          compact?: boolean;
         };
         let code = input.code;
         if (input.path) {
@@ -144,12 +149,34 @@ export function createSloppyServer() {
         }
         if (code === undefined) return { content: [{ type: 'text', text: 'Provide code or path.' }], isError: true };
 
-        const audit = auditCode(code, { filepath: input.path, componentType: input.componentType, strict: input.strict });
+        const audit = auditCode(code, {
+          filepath: input.path,
+          componentType: input.componentType,
+          strict: input.strict,
+          codeOnly: input.codeOnly
+        });
         const rubric = evaluateCraftRubric(code, { filepath: input.path, componentType: input.componentType, strict: input.strict });
         const rank = ['low', 'medium', 'high', 'critical'];
         const threshold = input.failOn === 'none' ? -1 : rank.indexOf(input.failOn || 'medium');
         const maxScore = input.maxScore ?? 0;
         const ok = audit.slopScore <= maxScore && !audit.violations.some((v) => threshold >= 0 && rank.indexOf(v.severity) >= threshold);
+
+        if (input.compact) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  ok,
+                  score: audit.slopScore,
+                  grade: rubric.grade,
+                  issues: audit.violations.map(v => `${v.tier}:${v.ruleId || v.type}@L${v.line}`)
+                })
+              }
+            ]
+          };
+        }
+
         const nextActions = [
           ...new Set(
             audit.violations.flatMap(() =>
@@ -264,6 +291,10 @@ export function createSloppyServer() {
 
       if (name === 'sloppy_rules' || name === 'sloppy_get_rules') {
         const inputArgs = (args || {}) as { topic?: string };
+        if (inputArgs.topic === 'stack') {
+          const stackResult = detectProjectStack();
+          return { content: [{ type: 'text', text: JSON.stringify(stackResult, null, 2) }] };
+        }
         const rules = getRulesByTopic(inputArgs.topic || 'craft');
         return { content: [{ type: 'text', text: JSON.stringify(rules, null, 2) }] };
       }

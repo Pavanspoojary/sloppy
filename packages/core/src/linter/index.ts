@@ -33,7 +33,12 @@ const advice: Record<SlopViolationType, string> = {
   Z_INDEX_CHAOS: 'Enforce disciplined, layered stacking tokens rather than arbitrary extreme z-indexes.',
   SCROLL_HIJACKING: 'Avoid global scroll locks or intercepting native wheel events; let viewport scrolling flow naturally.',
   AI_NARRATION_COMMENT_SLOP: 'Strip low-signal AI narration comments ("// Render...", section divider banners); preserve invariant and rationale comments.',
-  STERILE_SURFACE_SLOP: 'Add purposeful micro-interactions, hover states, or typographic depth to avoid sterile gray voids when eliminating slop.'
+  STERILE_SURFACE_SLOP: 'Add purposeful micro-interactions, hover states, or typographic depth to avoid sterile gray voids when eliminating slop.',
+  CHAINED_TYPE_ASSERTION: 'Avoid chained type assertions ("as unknown as T"); validate shapes with type guards or schema validators.',
+  UNVALIDATED_DYNAMIC_RETURN: 'Specify a concrete return type or runtime validator instead of returning unverified "any" or "unknown".',
+  BROAD_RECORD_SLOP: 'Define explicit property keys or bounded unions instead of broad "Record<string, any>" dictionaries.',
+  EMPTY_OBJECT_SPREAD: 'Use explicit optional properties instead of conditional empty object spreads ("...(cond ? { a } : {})").',
+  NON_NULL_ASSERTION_SLOP: 'Use optional chaining ("?.") or defensive null checks instead of chained non-null assertions ("!.").'
 };
 
 export function isAiNarrationComment(text: string): { isSlop: boolean; reason?: string } {
@@ -305,6 +310,41 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     }
   }
 
+  // COD-02: Chained type assertions (as unknown as T, as any as T)
+  const chainedTypeRegex = /\bas\s+(?:unknown|any)\s+as\b/g;
+  for (const match of scan.masked.matchAll(chainedTypeRegex)) {
+    const at = match.index ?? 0;
+    push('CHAINED_TYPE_ASSERTION', at, `Chained type assertion ("${match[0].trim()}") detected; use type guards or validated schemas.`);
+  }
+
+  // COD-03: Unvalidated contract return type (any / unknown)
+  const dynamicReturnRegex = /(?:(?:async\s+)?function(?:\s+[A-Za-z0-9_$]+)?\s*\([^)]*\)|(?:async\s+)?[A-Za-z0-9_$]+\s*\([^)]*\)|[A-Za-z0-9_$]+\s*=\s*(?:async\s*)?\([^)]*\))\s*:\s*(?:Promise<\s*(?:any|unknown)\s*>|(?:any|unknown)\b)(?:\s*=>|\s*\{)/g;
+  for (const match of scan.masked.matchAll(dynamicReturnRegex)) {
+    const at = match.index ?? 0;
+    push('UNVALIDATED_DYNAMIC_RETURN', at, `Unvalidated contract return type (${match[0].includes('any') ? 'any' : 'unknown'}) detected; specify a concrete shape or schema validator.`);
+  }
+
+  // COD-04: Broad Record<string, any/unknown>
+  const broadRecordRegex = /\bRecord<\s*string\s*,\s*(?:any|unknown)\s*>/g;
+  for (const match of scan.masked.matchAll(broadRecordRegex)) {
+    const at = match.index ?? 0;
+    push('BROAD_RECORD_SLOP', at, `Broad dictionary type "${match[0]}" erases type safety.`);
+  }
+
+  // COD-05: Conditional empty object spread: ...(cond ? { ... } : {})
+  const emptyObjectSpreadRegex = /\.\.\.\s*\([^\n?]+\?[\s\S]*?:\s*\{\s*\}\s*\)/g;
+  for (const match of scan.masked.matchAll(emptyObjectSpreadRegex)) {
+    const at = match.index ?? 0;
+    push('EMPTY_OBJECT_SPREAD', at, `Conditional empty object spread ("${match[0].trim().slice(0, 50)}") detected.`);
+  }
+
+  // COD-06: Chained non-null assertion (!.)
+  const nonNullRegex = /\b[A-Za-z0-9_$]+!\.[A-Za-z0-9_$]+/g;
+  for (const match of scan.masked.matchAll(nonNullRegex)) {
+    const at = match.index ?? 0;
+    push('NON_NULL_ASSERTION_SLOP', at, `Unsafe non-null assertion ("${match[0]}") detected; use optional chaining or defensive guard.`);
+  }
+
   const ignoreFile = allComments.some(c => /sloppy-ignore-file/.test(c.text));
   // `sloppy-allow-file` exempts named rules only, so reference specimens keep
   // protection against every other anti-pattern.
@@ -327,6 +367,9 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     const tier = CANONICAL_RULES[c.type]?.tier || 'reflex';
     if (options.floorOnly && tier !== 'floor') continue;
     if (options.tier && tier !== options.tier) continue;
+
+    const isCodeRule = ruleCode?.startsWith('COD-') || c.type.startsWith('COD_') || c.type === 'AI_NARRATION_COMMENT_SLOP' || c.type === 'CHAINED_TYPE_ASSERTION' || c.type === 'UNVALIDATED_DYNAMIC_RETURN' || c.type === 'BROAD_RECORD_SLOP' || c.type === 'EMPTY_OBJECT_SPREAD' || c.type === 'NON_NULL_ASSERTION_SLOP';
+    if (options.codeOnly && !isCodeRule) continue;
 
     const loc = sourceLocation(scan, c.at), lineText = code.split('\n')[loc.line - 1] || '';
     
@@ -352,22 +395,46 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     const rationale = inlineRationale || configRationale;
     const isOverruled = tier === 'reflex' && hasRationale;
 
+    const isStrict = Boolean(options.strict || config?.strict);
     const ignored = ignoreFile || allowedRules.has(c.type) || (ruleCode && allowedRules.has(ruleCode)) || allComments.some(comment => {
-      const cl = sourceLocation(scan,comment.at).line;
+      const cl = sourceLocation(scan, comment.at).line;
       if (cl + 1 === loc.line) {
         if (/sloppy-ignore-next-line/.test(comment.text)) {
-          const specific = comment.text.match(/sloppy-ignore-next-line\s*[:,]?\s*([A-Za-z0-9_,\s-]+)/);
-          if (!specific || !specific[1].trim()) return true;
-          const rules: string[] = specific[1].split(/[,\s]+/).map(r => {
+          const specific = comment.text.match(/sloppy-ignore-next-line\s*[:,]?\s*([A-Za-z0-9_,\s-]+?)(?:\s*(?:--|:)\s*(.+))?$/);
+          const rawRules = specific ? specific[1].trim() : '';
+          const ignoreRationale = specific?.[2]?.trim();
+
+          if (isStrict) {
+            // In strict mode, an explicit written invariant explanation (>= 5 chars) is mandatory
+            if (!ignoreRationale || ignoreRationale.length < 5) {
+              return false;
+            }
+          }
+
+          if (!rawRules) return true;
+          const rules: string[] = rawRules.split(/[,\s]+/).map(r => {
             const norm = r.trim().toUpperCase().replace(/-/g, '_');
             const dashNorm = r.trim().toUpperCase();
             return RULE_ALIASES[norm] || RULE_ALIASES[dashNorm] || norm;
           });
           return rules.includes(c.type) || (ruleCode ? rules.includes(ruleCode) : false);
         }
-        if (/sloppy-ignore-next/.test(comment.text)) return true;
+        if (/sloppy-ignore-next/.test(comment.text)) {
+          if (isStrict) {
+            const match = comment.text.match(/sloppy-ignore-next\s*(?:--|:)\s*(.+)$/);
+            if (!match || match[1].trim().length < 5) return false;
+          }
+          return true;
+        }
       }
-      return /sloppy-ignore\s*(?:\*\/)?\s*$/.test(comment.text) && cl === loc.line;
+      if (/sloppy-ignore\s*(?:\*\/)?\s*$/.test(comment.text) && cl === loc.line) {
+        if (isStrict) {
+          const match = comment.text.match(/sloppy-ignore\s*(?:--|:)\s*(.+?)(?:\*\/)?$/);
+          if (!match || match[1].trim().length < 5) return false;
+        }
+        return true;
+      }
+      return false;
     });
     if (ignored) { suppressedCount++; continue; }
     const snippet = lineText.trim().slice(0,160);
