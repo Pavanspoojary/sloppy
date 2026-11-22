@@ -1,0 +1,14 @@
+{
+  "name": "sloppy",
+  "version": "1.4.0",
+  "description": "Zero-tolerance AI slop UI fixer and craft certification engine",
+  "skills": [
+    "skills/sloppy",
+    "skills/sloppy-ui",
+    "skills/sloppy-copywriting",
+    "skills/sloppy-human",
+    "skills/sloppy-layoutmobile",
+    "skills/sloppy-code"
+  ],
+  "entrypoint": "skills/sloppy/SKILL.md"
+}

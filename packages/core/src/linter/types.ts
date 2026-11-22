@@ -23,7 +23,9 @@ export type SlopViolationType =
   | 'LOREM_IPSUM_SLOP'
   | 'EMOJI_ICON_SLOP'
   | 'Z_INDEX_CHAOS'
-  | 'SCROLL_HIJACKING';
+  | 'SCROLL_HIJACKING'
+  | 'AI_NARRATION_COMMENT_SLOP'
+  | 'STERILE_SURFACE_SLOP';
 
 export const CANONICAL_RULES: Record<SlopViolationType, { ruleId: string; title: string; defaultSeverity: SlopSeverity; tier: RuleTier }> = {
   HERO_GRADIENT_TEXT: { ruleId: 'VIS-01', title: 'Hero Gradient Text', defaultSeverity: 'high', tier: 'reflex' },
@@ -46,7 +48,9 @@ export const CANONICAL_RULES: Record<SlopViolationType, { ruleId: string; title:
   SCROLL_HIJACKING: { ruleId: 'UX-05', title: 'Scroll Hijacking & Wheel Interference', defaultSeverity: 'high', tier: 'floor' },
   FAKE_CONTROL_SLOP: { ruleId: 'AX-01', title: 'Inaccessible Fake Control', defaultSeverity: 'high', tier: 'floor' },
   EMOJI_ICON_SLOP: { ruleId: 'MED-01', title: 'Raw Emojis as UI Icons', defaultSeverity: 'medium', tier: 'reflex' },
-  Z_INDEX_CHAOS: { ruleId: 'TOK-01', title: 'Arbitrary Z-Index Escalation', defaultSeverity: 'medium', tier: 'floor' }
+  Z_INDEX_CHAOS: { ruleId: 'TOK-01', title: 'Arbitrary Z-Index Escalation', defaultSeverity: 'medium', tier: 'floor' },
+  AI_NARRATION_COMMENT_SLOP: { ruleId: 'COD-01', title: 'AI Narration Comment Slop', defaultSeverity: 'low', tier: 'finish' },
+  STERILE_SURFACE_SLOP: { ruleId: 'LIV-01', title: 'Sterile Surface & Missing Liveliness', defaultSeverity: 'low', tier: 'finish' }
 };
 
 export const RULE_ALIASES: Record<string, SlopViolationType> = {
@@ -89,9 +93,13 @@ export const RULE_ALIASES: Record<string, SlopViolationType> = {
   'VIS-09': 'MADE_UP_AI_BADGE',
   'MADE_UP_AI_BADGE': 'MADE_UP_AI_BADGE',
   'MED-01': 'EMOJI_ICON_SLOP',
-  'EMOJI_ICON_SLOP': 'EMOJI_ICON_SLOP',
+  'MED-01_EMOJI_ICON_SLOP': 'EMOJI_ICON_SLOP',
   'TOK-01': 'Z_INDEX_CHAOS',
-  'Z_INDEX_CHAOS': 'Z_INDEX_CHAOS'
+  'Z_INDEX_CHAOS': 'Z_INDEX_CHAOS',
+  'COD-01': 'AI_NARRATION_COMMENT_SLOP',
+  'AI_NARRATION_COMMENT_SLOP': 'AI_NARRATION_COMMENT_SLOP',
+  'LIV-01': 'STERILE_SURFACE_SLOP',
+  'STERILE_SURFACE_SLOP': 'STERILE_SURFACE_SLOP'
 };
 
 export interface SlopViolation {
@@ -107,6 +115,7 @@ export interface SlopViolation {
   recommendation: string;
   overruled?: boolean;
   overruleRationale?: string;
+  index?: number; // Sequential finding index (1, 2, 3...) for approval-gated fixes
 }
 
 export interface AuditResult {
@@ -135,6 +144,7 @@ export interface AuditResult {
   };
   summary: string;
   remediationPlan: string[];
+  reportPath?: string;
 }
 
 export type RuleSeverity = 'off' | 'warn' | 'error';
@@ -169,6 +179,8 @@ export interface AuditOptions {
   config?: SloppyConfig;
   floorOnly?: boolean;
   tier?: RuleTier;
+  mode?: 'during' | 'after';
+  report?: boolean;
 }
 
 export interface TransformOptions {
@@ -176,6 +188,7 @@ export interface TransformOptions {
   budgetWords?: boolean;
   filepath?: string;
   kept?: boolean;
+  only?: (number | string)[]; // Surgical list of violation indices (e.g. [1, 3, 5]) or rule IDs (e.g. ['VIS-02', 'COD-01'])
 }
 
 export interface TransformationItem {

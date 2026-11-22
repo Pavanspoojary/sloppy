@@ -108,6 +108,72 @@ Sloppy unifies catalog classification codes (`VIS-01`, `STR-01`, `AX-01`, `CPY-0
 | `UX-05` | `SCROLL_HIJACKING` | High | Global `overflow-hidden` on `<html>` or `<body>`, or custom wheel event interception. |
 | `TOK-01` | `Z_INDEX_CHAOS` | Medium | Arbitrary extreme z-index classes (`z-[9999]`, `z-[99999]`) and token drift. |
 | `TYP-08` | `WORD_BUDGET_EXCEEDED` | High | Visible word count exceeding the declared surface budget limit. |
+| `COD-01` | `AI_NARRATION_COMMENT_SLOP` | Low | AI narration comments (`// Render the button`, `// Main container`, section divider banners). |
+| `LIV-01` | `STERILE_SURFACE_SLOP` | Low | Interactive controls lacking hover/focus/transition states, resulting in a sterile gray void. |
+
+---
+
+## The 4-Way Architectural Proof: Why Bans Alone Create Sterile UI
+
+Stripping slop without aesthetic direction creates a lifeless, sterile page. Sloppy pairs negative enforcement gates with positive material design systems to achieve lively mastercraft:
+
+| Dimension | 1. Raw AI Slop | 2. Anti-Slop Bans Alone | 3. DESIGN.md Alone | 4. Sloppy (Bans + Material Direction) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Visual Palette** | Saturated purple/indigo gradients | Monotonous flat gray `#121212` | Brand typography & colors | Restrained neutral ground + 1 semantic accent |
+| **Card Layout** | 3 identical floating cards | 3 flat bordered cards | Styled but repetitive cards | Asymmetric bento grid + bleeding stage frame |
+| **Micro-Interactions** | Unearned infinite bouncy loops | Zero animations (static text) | Generic CSS transitions | Cause-driven transitions + hover depth |
+| **Copywriting** | "10x faster with magical AI" | Empty strings or missing text | Marketing claims in brand font | Concrete technical metrics + quiet `<Bar />` bars |
+| **Iconography** | Sparkles & magic wands everywhere | Zero icons (blank buttons) | Uncurated icon sets | Semantic Lucide icons (`Activity`, `Zap`, `Terminal`) |
+| **Overall Verdict** | **Grade D (55/100)**: Low-taste slop | **Grade B (82/100)**: Sterile gray void | **Grade C (74/100)**: Styled slop | **Grade A+ (100/100)**: Lively Mastercraft |
+
+---
+
+## Modular On-Demand Specialist Skills
+
+To preserve agent context windows while going deeper per domain, Sloppy splits into 1 core coordinator skill plus 5 on-demand specialists:
+
+| Skill | Directory | Primary Focus | Referenced Rule IDs |
+| :--- | :--- | :--- | :--- |
+| **`sloppy`** | `skills/sloppy/` | Master coordinator, CLI workflow, 3-tier severity gates, and wiring guard | All |
+| **`sloppy-ui`** | `skills/sloppy-ui/` | Surface elevation (Step 0 to 3), monochromatic ground, authentic icons | `VIS-01`, `VIS-02`, `VIS-03`, `VIS-08`, `LIV-01` |
+| **`sloppy-copywriting`** | `skills/sloppy-copywriting/` | Word budgets (3-7 words per item), negative parallelism, metric proof | `CPY-01`, `CPY-04`, `CPY-06`, `CPY-07`, `TYP-08` |
+| **`sloppy-human`** | `skills/sloppy-human/` | Engineering authenticity, real domain nouns, macOS chrome headers | `REAL_WORLD_CHROME_MISSING`, `AUTHENTIC_MICROCOPY` |
+| **`sloppy-layoutmobile`** | `skills/sloppy-layoutmobile/` | Responsive framing, stage coverage (>=66%), breaking boxed cards | `STR-01`, `STR-02`, `LAY-01`, `UX-05` |
+| **`sloppy-code`** | `skills/sloppy-code/` | Accessibility (`role`, `tabIndex`), zero dead callbacks, comment hygiene | `AX-01`, `UX-02`, `TOK-01`, `COD-01` |
+
+Install any skill individually via:
+```bash
+npx skills add Pavanspoojary/slopy -g
+```
+
+---
+
+## Approval-Gated Audits & Surgical Fixes (`--only`)
+
+Developers fear indiscriminate AI rewrites that scramble business logic. Sloppy introduces **During vs After approval gates**:
+
+1. **During Mode (Real-Time)**: Fast sub-30ms Floor checks run on file edit via editor hooks.
+2. **After Mode (Approval-Gated)**:
+   ```bash
+   # Generates audit-001-YYYY-MM-DD.md with numbered findings and pauses modifications:
+   sloppy audit ./src --mode after
+   ```
+3. **Surgical Fix Execution (`--only`)**:
+   ```bash
+   # Surgically repair only approved item numbers:
+   sloppy fix src/Card.tsx --only 1,3,5 --write
+   
+   # Or target specific rule IDs:
+   sloppy fix src/Card.tsx --only VIS-02,COD-01 --write
+   ```
+
+---
+
+## Native Plugin Doors & Standalone `sloppy.md`
+
+- **Native Plugin Doors**: Sloppy ships zero-overhead manifests for Claude Code (`.claude-plugin/`), Cursor (`.cursor-plugin/`), Codex (`.codex-plugin/`), and Cline (`.cline-plugin/`). Run `sloppy setup --write` to register all clients automatically.
+- **Standalone `sloppy.md`**: For chat-only users (ChatGPT, Claude.ai, v0, Bolt, DeepSeek), copy the standalone [sloppy.md](sloppy.md) prompt file directly into chat as system instructions. Zero CLI or Node.js installation required.
+
 
 ---
 

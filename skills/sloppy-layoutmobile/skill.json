@@ -1,0 +1,9 @@
+{
+  "name": "sloppy-layoutmobile",
+  "version": "1.4.0",
+  "description": "Specialist anti-slop skill for responsive viewport framing, breaking boxed card syndrome, and mobile density.",
+  "entry": "SKILL.md",
+  "author": "Pavanspoojary",
+  "repository": "https://github.com/Pavanspoojary/slopy",
+  "tags": ["layout", "mobile", "anti-slop", "responsive", "framing"]
+}

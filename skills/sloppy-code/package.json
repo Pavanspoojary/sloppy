@@ -1,0 +1,9 @@
+{
+  "name": "@sloppy/skill-code",
+  "version": "1.4.0",
+  "description": "Specialist anti-slop skill for React/TypeScript component architecture, accessibility semantics, and comment hygiene.",
+  "main": "SKILL.md",
+  "keywords": ["skill", "code-craft", "anti-slop", "accessibility", "comment-hygiene"],
+  "author": "Pavanspoojary",
+  "license": "MIT"
+}

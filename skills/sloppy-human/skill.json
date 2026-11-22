@@ -1,0 +1,9 @@
+{
+  "name": "sloppy-human",
+  "version": "1.4.0",
+  "description": "Specialist anti-slop skill for engineering authenticity, human touch, and concrete domain nouns.",
+  "entry": "SKILL.md",
+  "author": "Pavanspoojary",
+  "repository": "https://github.com/Pavanspoojary/slopy",
+  "tags": ["human-touch", "anti-slop", "authenticity", "microcopy"]
+}

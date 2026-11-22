@@ -1,6 +1,6 @@
 ---
 name: sloppy
-description: The ultimate AI slop UI fixer. Build believable, high-craft product illustrations, landing page heroes, feature cards, bento grids, and cursor walkthroughs in React and CSS without AI slop. Never use purple gradients, sparkle icons, floating miniature windows, unearned bouncy animations, or walls of fake text. Includes 3-tier severity gates (Floor/Reflex/Finish), wiring guard, multi-width verification, decoupled materials, an integrated MCP server, and a pure React anti-slop kit.
+description: The ultimate AI slop UI fixer. Build believable, high-craft product illustrations, landing page heroes, feature cards, bento grids, and cursor walkthroughs in React and CSS without AI slop. Never use purple gradients, sparkle icons, floating miniature windows, unearned bouncy animations, or walls of fake text. Includes 3-tier severity gates (Floor/Reflex/Finish), wiring guard, multi-width verification, decoupled materials, an integrated MCP server, approval-gated audits, and 5 on-demand specialist skills.
 metadata:
   version: 1.4.0
 ---
@@ -14,7 +14,21 @@ AI agents routinely generate "AI UI Slop":
 - Word overload: filling every row with fake numbers and text instead of disciplined word budgeting.
 - Unearned animations: spinning, bouncing, and sudden content swaps without cause-and-effect transitions.
 
-Sloppy eliminates AI slop by unifying 7 top-tier component ecosystems (Stageshow, shadcn/ui, Motion Primitives, Magic UI, React Bits, Kokonut UI, and Animate UI) with an automated surgical AST auto-fixer, 3-tier severity gates, wiring protection guard, multi-width rendering verification, 10 synthesized master archetypes, a 10-point Craft Rubric grading engine, a Model Context Protocol (MCP) server, and a developer CLI.
+Sloppy eliminates AI slop by unifying 7 top-tier component ecosystems (Stageshow, shadcn/ui, Motion Primitives, Magic UI, React Bits, Kokonut UI, and Animate UI) with an automated surgical AST auto-fixer, 3-tier severity gates, wiring protection guard, multi-width rendering verification, 10 synthesized master archetypes, a 10-point Craft Rubric grading engine, approval-gated audit reports, a Model Context Protocol (MCP) server, and 5 modular specialist skills.
+
+---
+
+## Modular On-Demand Specialist Skills
+
+To preserve agent context windows while providing deep, domain-specific guidance, Sloppy splits into 1 core coordinator skill plus 5 on-demand specialists:
+
+1. **`sloppy-ui`**: Surface elevation steps (0, 1, 2, 3), monochromatic neutrals, single semantic accent discipline, authentic Lucide icon replacement (`VIS-01`, `VIS-02`, `VIS-03`, `VIS-08`, `LIV-01`).
+2. **`sloppy-copywriting`**: Word budget enforcement (3-7 words per element), eliminating negative parallelism clichés, and preventing fabricated metrics (`CPY-01`, `CPY-04`, `CPY-06`, `CPY-07`, `TYP-08`).
+3. **`sloppy-human`**: Engineering authenticity, realistic domain nouns, authentic macOS chrome headers, and grounded error/empty states (`REAL_WORLD_CHROME_MISSING`, `AUTHENTIC_MICROCOPY`).
+4. **`sloppy-layoutmobile`**: Viewport framing (>=66% stage coverage, edge bleeding), breaking boxed card syndrome, responsive density, and mobile scroll protection (`STR-01`, `STR-02`, `LAY-01`, `UX-05`).
+5. **`sloppy-code`**: Component semantics, keyboard accessibility (`role="button"`, `tabIndex={0}`), zero dead placeholder callbacks, and comment hygiene pass (`AX-01`, `UX-02`, `TOK-01`, `COD-01`).
+
+Load specialist skills only when operating directly in their respective domains to save context tokens.
 
 ---
 
@@ -30,7 +44,16 @@ Sloppy categorizes all rules into three distinct enforcement tiers for painless 
    - Blocks CI by default, BUT passes if explicitly overruled with a written rationale in `sloppy.config.json` (under `"overrules": { "PURPLE_GRADIENT_SLOP": "Brand primary requirement" }`) or an inline comment:
      `// sloppy-override: PURPLE_GRADIENT_SLOP Client requested brand purple gradient`
 3. **Finish (Advisory Polish)**:
-   - Non-blocking suggestions: spacing rhythm, visual weight balance, and micro-alignment. Never blocks CI.
+   - Non-blocking suggestions: spacing rhythm, visual weight balance, comment hygiene (`COD-01`), and liveliness affordances (`LIV-01`). Never blocks CI.
+
+---
+
+## Approval-Gated Audits & Surgical Fixes (`--only`)
+
+Sloppy provides During vs After mode for developer control:
+- **During Mode (Real-Time)**: Sub-30ms checks run on file edit via editor hooks.
+- **After Mode (Approval-Gated)**: `sloppy audit <path> --mode after` generates a numbered audit report (`audit-001-YYYY-MM-DD.md`) and halts automated modifications until approved.
+- **Surgical Execution**: `sloppy fix <file> --only 1,3,5 --write` applies fixes ONLY to user-approved finding numbers or rule IDs (`--only VIS-02,COD-01`), guaranteeing zero unwanted code churn.
 
 ---
 

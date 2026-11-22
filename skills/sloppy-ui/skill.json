@@ -1,0 +1,9 @@
+{
+  "name": "sloppy-ui",
+  "version": "1.4.0",
+  "description": "Specialist anti-slop skill for visual design, surface hierarchy, and icon authenticity.",
+  "entry": "SKILL.md",
+  "author": "Pavanspoojary",
+  "repository": "https://github.com/Pavanspoojary/slopy",
+  "tags": ["ui", "craft", "design-system", "anti-slop", "surfaces"]
+}

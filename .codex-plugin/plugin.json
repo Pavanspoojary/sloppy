@@ -1,0 +1,6 @@
+{
+  "name": "sloppy",
+  "version": "1.4.0",
+  "description": "Zero-tolerance AI slop UI fixer for OpenAI Codex",
+  "skills": ["skills/sloppy"]
+}

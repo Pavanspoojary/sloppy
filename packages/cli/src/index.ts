@@ -328,12 +328,37 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       }
     }
 
+    const pluginDoorResults: Array<{ platform: string; path: string; status: string }> = [];
+    const pluginDoors = [
+      { platform: 'Claude Code', path: path.join(process.cwd(), '.claude-plugin/plugin.json'), content: { name: 'sloppy', version: '1.4.0', description: 'Zero-tolerance AI slop UI fixer and craft certification engine', skills: ['skills/sloppy', 'skills/sloppy-ui', 'skills/sloppy-copywriting', 'skills/sloppy-human', 'skills/sloppy-layoutmobile', 'skills/sloppy-code'], entrypoint: 'skills/sloppy/SKILL.md' } },
+      { platform: 'Cursor', path: path.join(process.cwd(), '.cursor-plugin/plugin.json'), content: { name: 'sloppy', version: '1.4.0', description: 'Zero-tolerance AI slop UI fixer for Cursor', rules: ['skills/sloppy/SKILL.md', 'skills/sloppy-ui/SKILL.md', 'skills/sloppy-copywriting/SKILL.md', 'skills/sloppy-human/SKILL.md', 'skills/sloppy-layoutmobile/SKILL.md', 'skills/sloppy-code/SKILL.md'] } },
+      { platform: 'OpenAI Codex', path: path.join(process.cwd(), '.codex-plugin/plugin.json'), content: { name: 'sloppy', version: '1.4.0', description: 'Zero-tolerance AI slop UI fixer for OpenAI Codex', skills: ['skills/sloppy'] } },
+      { platform: 'Cline', path: path.join(process.cwd(), '.cline-plugin/plugin.json'), content: { name: 'sloppy', version: '1.4.0', description: 'Zero-tolerance AI slop UI fixer for Cline', skills: ['skills/sloppy'] } }
+    ];
+
+    for (const door of pluginDoors) {
+      if (fs.existsSync(door.path)) {
+        pluginDoorResults.push({ platform: door.platform, path: door.path, status: 'active' });
+      } else if (shouldWrite) {
+        try {
+          fs.mkdirSync(path.dirname(door.path), { recursive: true });
+          fs.writeFileSync(door.path, `${JSON.stringify(door.content, null, 2)}\n`, 'utf8');
+          pluginDoorResults.push({ platform: door.platform, path: door.path, status: 'configured' });
+        } catch (err) {
+          pluginDoorResults.push({ platform: door.platform, path: door.path, status: `error: ${(err as Error).message}` });
+        }
+      } else {
+        pluginDoorResults.push({ platform: door.platform, path: door.path, status: 'dry-run (pass --write to save)' });
+      }
+    }
+
     const summary = {
       ok: true,
       mode: shouldWrite ? 'applied' : 'dry-run',
       cli: { command: 'sloppy', status: 'available' },
       mcp: mcpResults,
       skills: skillResults,
+      plugins: pluginDoorResults,
       instructions: shouldWrite ? 'Setup complete. Restart your editor or agent session to load Sloppy.' : 'Run with --write to apply configurations.'
     };
 
@@ -348,6 +373,8 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       for (const m of mcpResults) console.log(`   - [${m.client.toUpperCase()}] ${m.status}: ${m.path}`);
       console.log('\n2. Agent Skills:');
       for (const s of skillResults) console.log(`   - [${s.target}] ${s.status}: ${s.path}`);
+      console.log('\n3. Native Plugin Doors:');
+      for (const p of pluginDoorResults) console.log(`   - [${p.platform.toUpperCase()}] ${p.status}: ${p.path}`);
       console.log(`\n${summary.instructions}\n`);
     }
     return true;
@@ -355,9 +382,11 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
   if (command === 'fix' && (args.includes('--stdin') || args.some(x => ['--diff', '--check', '--write', '-w'].includes(x)) || json)) {
     const chunks: Buffer[] = [];
     const look = args.includes('--look') ? args[args.indexOf('--look') + 1] as any : undefined;
+    const onlyIdx = args.indexOf('--only');
+    const only = onlyIdx !== -1 && args[onlyIdx + 1] ? args[onlyIdx + 1].split(',').map(s => s.trim()) : undefined;
     if (args.includes('--stdin')) {
       for await (const chunk of process.stdin) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-      const original = Buffer.concat(chunks).toString('utf8'); const result = transformSlopToCraft(original, { look });
+      const original = Buffer.concat(chunks).toString('utf8'); const result = transformSlopToCraft(original, { look, only });
       const output = { changed: result.transformedCode !== original, changesApplied: result.changesApplied, isValidSyntax: result.isValidSyntax, transformedCode: result.transformedCode, unifiedDiff: result.unifiedDiff, postAudit: result.postAudit };
       if (json) emitJson(output); else process.stdout.write(result.transformedCode); return true;
     }
@@ -368,7 +397,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       fail(message); return true;
     }
     try {
-      const source = fs.readFileSync(file, 'utf8'); const result = transformSlopToCraft(source, { look, filepath: file });
+      const source = fs.readFileSync(file, 'utf8'); const result = transformSlopToCraft(source, { look, filepath: file, only });
       if ((args.includes('--write') || args.includes('-w')) && !result.isValidSyntax) { fail(`Refusing to write invalid syntax: ${result.syntaxErrors.map(error => error.message).join('; ')}`); return true; }
       if (args.includes('--write') || args.includes('-w')) fs.writeFileSync(file, result.transformedCode, 'utf8');
       if (args.includes('--diff') && !json) process.stdout.write(result.unifiedDiff);
@@ -502,11 +531,12 @@ export async function runCli(args: string[]) {
 
       const isFloorOnly = args.includes('--floor-only');
       const isStrict = args.includes('--strict');
+      const isAfterMode = (args.includes('--mode') && args[args.indexOf('--mode') + 1] === 'after') || args.includes('--report') || args.includes('--after');
       const tierIndex = args.indexOf('--tier');
       const targetTier = tierIndex !== -1 && args[tierIndex + 1] ? (args[tierIndex + 1] as any) : undefined;
 
       console.log(`\n======================================================`);
-      console.log(`SLOPPY: AI SLOP AUDIT REPORT ${isFloorOnly ? '[FLOOR-ONLY SCAN]' : '[3-TIER GATE]'}`);
+      console.log(`SLOPPY: AI SLOP AUDIT REPORT ${isAfterMode ? '[AFTER-MODE APPROVAL GATE]' : isFloorOnly ? '[FLOOR-ONLY SCAN]' : '[3-TIER GATE]'}`);
       console.log(`Auditing ${filesToAudit.length} file(s)...`);
       console.log(`======================================================\n`);
 
@@ -526,7 +556,9 @@ export async function runCli(args: string[]) {
           filepath: relPath,
           componentType: surfaceType(args),
           floorOnly: isFloorOnly,
-          tier: targetTier
+          tier: targetTier,
+          mode: isAfterMode ? 'after' : 'during',
+          report: isAfterMode
         });
 
         totalViolations += result.violations.length;
@@ -544,14 +576,21 @@ export async function runCli(args: string[]) {
           console.log(`--- ${relPath} ${statusBadge} (Score: ${result.slopScore}/100) ---`);
           for (const v of result.violations) {
             const loc = v.line ? `Line ${v.line}: ` : '';
+            const idxBadge = v.index ? `[#${v.index}] ` : '';
             const tierBadge = v.tier ? `[${v.tier.toUpperCase()}]` : '';
             const overruleNote = v.overruled ? ` (OVERRULED: "${v.overruleRationale}")` : '';
-            console.log(`  ${tierBadge} [${v.severity.toUpperCase()}] ${v.type}${overruleNote}`);
+            console.log(`  ${idxBadge}${tierBadge} [${v.severity.toUpperCase()}] ${v.type}${overruleNote}`);
             console.log(`    ${loc}${v.message}`);
             if (v.snippet) {
               console.log(`    Code: "${v.snippet.slice(0, 80)}"`);
             }
             console.log(`    Fix:  ${v.recommendation}\n`);
+          }
+          if (result.reportPath) {
+            console.log(`[SLOPPY AFTER-AUDIT] Numbered audit report generated: ${result.reportPath}`);
+            console.log(`Approval required before modifying code.`);
+            console.log(`To apply approved fixes surgically, run:`);
+            console.log(`  sloppy fix ${relPath} --only <numbers> --write\n`);
           }
         } else {
           console.log(`[PASS] ${relPath} - Zero AI slop detected (Score: 0/100)`);
@@ -596,17 +635,23 @@ export async function runCli(args: string[]) {
       const checkWiring = !args.includes('--no-kept');
       const lookIdx = args.indexOf('--look');
       const look = lookIdx !== -1 && args[lookIdx + 1] ? (args[lookIdx + 1] as any) : 'linear';
+      const onlyIdx = args.indexOf('--only');
+      const onlyParam = onlyIdx !== -1 && args[onlyIdx + 1] ? args[onlyIdx + 1].split(',').map(s => s.trim()) : undefined;
 
       const originalCode = fs.readFileSync(targetPath, 'utf-8');
       const result = transformSlopToCraft(originalCode, {
         look,
         kept: checkWiring,
-        filepath: path.relative(process.cwd(), targetPath)
+        filepath: path.relative(process.cwd(), targetPath),
+        only: onlyParam
       });
 
       console.log(`\n======================================================`);
       console.log(`SLOPPY: SURGICAL AI SLOP AUTO-FIXER`);
       console.log(`Target: ${path.relative(process.cwd(), targetPath)}`);
+      if (onlyParam) {
+        console.log(`Surgical Filter: Only applying fixes for [${onlyParam.join(', ')}]`);
+      }
       console.log(`======================================================\n`);
 
       if (result.wiringGuard) {

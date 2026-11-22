@@ -31,8 +31,43 @@ const advice: Record<SlopViolationType, string> = {
   LOREM_IPSUM_SLOP: 'Replace generic placeholder text (Lorem ipsum, John Doe) with authentic product copy or explicit placeholders.',
   EMOJI_ICON_SLOP: 'Replace raw emojis in UI chrome with disciplined SVG icons or clean typographic labels.',
   Z_INDEX_CHAOS: 'Enforce disciplined, layered stacking tokens rather than arbitrary extreme z-indexes.',
-  SCROLL_HIJACKING: 'Avoid global scroll locks or intercepting native wheel events; let viewport scrolling flow naturally.'
+  SCROLL_HIJACKING: 'Avoid global scroll locks or intercepting native wheel events; let viewport scrolling flow naturally.',
+  AI_NARRATION_COMMENT_SLOP: 'Strip low-signal AI narration comments ("// Render...", section divider banners); preserve invariant and rationale comments.',
+  STERILE_SURFACE_SLOP: 'Add purposeful micro-interactions, hover states, or typographic depth to avoid sterile gray voids when eliminating slop.'
 };
+
+export function isAiNarrationComment(text: string): { isSlop: boolean; reason?: string } {
+  const trimmed = text.trim();
+  if (/sloppy-ignore|sloppy-allow|sloppy-override|@sloppy|eslint|@ts-|istanbul|prettier/i.test(trimmed)) {
+    return { isSlop: false };
+  }
+  if (/^(?:\/\/|\/\*)\s*(?:invariant|workaround|safari|firefox|chrome|ios|android|todo|fixme|note|hack|perf|see:?|ref:?)\b/i.test(trimmed)) {
+    return { isSlop: false };
+  }
+  if (/^(?:\/\/|\/\*)\s*[-=_*#~]{5,}\s*(?:[A-Za-z0-9_\s-]*\s*[-=_*#~]{5,})?\s*\*?\/?$/.test(trimmed)) {
+    return { isSlop: true, reason: 'Decorative divider banner comment' };
+  }
+  const singleLineMatch = trimmed.match(/^\/\/\s*([^\n]+)$/);
+  if (singleLineMatch) {
+    const content = singleLineMatch[1].trim();
+    const narrationPatterns = [
+      /^(?:render|rendering)\s+(?:the\s+)?(?:header|footer|sidebar|card|modal|button|table|view|content|page|component|jsx|ui|elements?|container|wrapper|section|icons?)\b/i,
+      /^(?:returns?|return\s+the)\s+(?:jsx|component|ui|elements?|view)\b/i,
+      /^(?:main\s+|outer\s+|inner\s+|content\s+|card\s+|modal\s+|page\s+)?(?:container|wrapper|layout|body|section)\s*(?:div|element|view)?$/i,
+      /^(?:state\s+management|define\s+state|component\s+state|state\s+variables?|hooks?\s+setup)\b/i,
+      /^(?:handle|handling)\s+(?:click|submit|change|events?|actions?|input)\b/i,
+      /^(?:helper|utility)\s+(?:functions?|methods?)\b/i,
+      /^(?:props|interfaces?|types?)\s+(?:definition|declaration)?$/i,
+      /^(?:sub-?components?|child\s+components?)\b/i
+    ];
+    for (const pat of narrationPatterns) {
+      if (pat.test(content)) {
+        return { isSlop: true, reason: `AI narration comment: "${content}"` };
+      }
+    }
+  }
+  return { isSlop: false };
+}
 const purple = '(?:purple|violet|indigo|fuchsia)';
 function containsPurpleColor(value: string): boolean {
   if (new RegExp(`\\b${purple}\\b`, 'i').test(value)) return true;
@@ -249,6 +284,27 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   const threshold = configuredBudget ?? (options.componentType ? limits[options.componentType] : (config?.wordBudget?.default ?? 60));
   if (wordCount > threshold && !tags.some(tag => /^(?:Bar|Skeleton|Placeholder)$/.test(tag.name.split('.').pop() || ''))) push('WORD_BUDGET_EXCEEDED', tags[0]?.start ?? 0, `Visible word budget exceeded: ${wordCount} words, limit ${threshold}.`);
   const allComments = [...code.matchAll(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g)].map(m => ({ text:m[0], at:m.index ?? 0 }));
+
+  // COD-01: AI narration comments and decorative section divider banners
+  for (const comment of allComments) {
+    const check = isAiNarrationComment(comment.text);
+    if (check.isSlop) {
+      push('AI_NARRATION_COMMENT_SLOP', comment.at, `${check.reason || 'AI narration comment detected.'}`);
+    }
+  }
+
+  // LIV-01: Sterile surface and missing liveliness check
+  const interactiveControls = tags.filter(t => t.name === 'button' || (t.name === 'a' && t.attributes.has('href')));
+  if (interactiveControls.length >= 2) {
+    const hasMicroInteractions = interactiveControls.some(ctrl => {
+      const tokens = getClasses(ctrl);
+      return tokens.some(t => /^(?:hover:|focus:|active:|transition-|duration-|ease-)/.test(t));
+    });
+    if (!hasMicroInteractions) {
+      push('STERILE_SURFACE_SLOP', interactiveControls[0].start, 'Interactive controls lack hover, focus, or transition affordances, creating a sterile interface.');
+    }
+  }
+
   const ignoreFile = allComments.some(c => /sloppy-ignore-file/.test(c.text));
   // `sloppy-allow-file` exempts named rules only, so reference specimens keep
   // protection against every other anti-pattern.
@@ -330,6 +386,13 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
       overruleRationale: rationale
     });
   }
+
+  // Assign sequential 1-based index to all findings for approval-gated surgical fixes
+  let findingIdx = 1;
+  for (const v of violations) {
+    v.index = findingIdx++;
+  }
+
   const activeViolations = violations.filter(v => !v.overruled);
   const totalWeight = activeViolations.reduce((sum,v) => sum + severity[v.severity],0);
   const score = activeViolations.length ? Math.max(0,Math.min(100,Math.round(100 * (1 - Math.exp(-totalWeight / 55))))) : 0;
@@ -357,6 +420,19 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     summary = `Craft approved with ${overruledViolations.length} justified override(s) and ${finishViolations.length} finish suggestion(s).`;
   }
 
+  let reportPath: string | undefined;
+  if (options.report || options.mode === 'after') {
+    reportPath = generateAuditReport(options.filepath || 'specimen.tsx', violations, {
+      slopScore: score,
+      passedFloor,
+      passedReflex,
+      floorViolations,
+      reflexViolations,
+      finishViolations,
+      overruledViolations
+    });
+  }
+
   return {
     filepath: options.filepath,
     slopScore: score,
@@ -382,6 +458,82 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
       suppressedCount
     },
     summary,
-    remediationPlan
+    remediationPlan,
+    reportPath
   };
+}
+
+export function generateAuditReport(
+  filepath: string,
+  violations: SlopViolation[],
+  meta: {
+    slopScore: number;
+    passedFloor: boolean;
+    passedReflex: boolean;
+    floorViolations: SlopViolation[];
+    reflexViolations: SlopViolation[];
+    finishViolations: SlopViolation[];
+    overruledViolations: SlopViolation[];
+  }
+): string {
+  const dateStr = new Date().toISOString().split('T')[0];
+  const filename = `audit-001-${dateStr}.md`;
+  let reportPath = filename;
+
+  const lines: string[] = [
+    `# Sloppy Numbered Audit Report (After-Mode Approval Gate)`,
+    ``,
+    `- **Date**: ${dateStr}`,
+    `- **Target File**: \`${filepath}\``,
+    `- **Slop Score**: ${meta.slopScore}/100`,
+    `- **Floor Gates**: ${meta.floorViolations.length} blockers (${meta.passedFloor ? 'PASSED' : 'FAILED - CI BLOCKER'})`,
+    `- **Reflex Gates**: ${meta.reflexViolations.length} AI defaults (${meta.overruledViolations.length} justified with written rationale)`,
+    `- **Finish Polish**: ${meta.finishViolations.length} advisory suggestions`,
+    ``,
+    `---`,
+    ``,
+    `## Numbered Audit Findings`,
+    ``
+  ];
+
+  if (violations.length === 0) {
+    lines.push(`Zero AI slop detected. The codebase meets certified craft standards.`);
+  } else {
+    lines.push(`| Item | Tier | Rule | Location | Code Snippet | Remedy |`);
+    lines.push(`| :--- | :--- | :--- | :--- | :--- | :--- |`);
+    for (const v of violations) {
+      const idx = v.index || 1;
+      const tierBadge = v.tier ? v.tier.toUpperCase() : 'REFLEX';
+      const loc = v.line ? `Line ${v.line}` : '-';
+      const snippet = (v.snippet || '').replace(/\|/g, '\\|').slice(0, 50);
+      const rec = (v.recommendation || '').replace(/\|/g, '\\|');
+      lines.push(`| **#${idx}** | \`${tierBadge}\` | \`${v.ruleId}\` (${v.type}) | ${loc} | \`${snippet}\` | ${rec} |`);
+    }
+
+    lines.push(``);
+    lines.push(`---`);
+    lines.push(``);
+    lines.push(`## Approval-Gated Fix Execution`);
+    lines.push(``);
+    lines.push(`Approval is required before modifying code. Review findings above, then execute:`);
+    lines.push(``);
+    lines.push(`\`\`\`bash`);
+    lines.push(`# Surgically auto-fix only approved item numbers:`);
+    lines.push(`sloppy fix ${filepath} --only 1,2 --write`);
+    lines.push(``);
+    lines.push(`# Or fix by specific rule IDs:`);
+    lines.push(`sloppy fix ${filepath} --only VIS-02,COD-01 --write`);
+    lines.push(`\`\`\``);
+  }
+
+  try {
+    const cwd = typeof process !== 'undefined' && process.cwd ? process.cwd() : '/';
+    const fs = (globalThis as any).process?.getBuiltinModule ? (globalThis as any).process.getBuiltinModule('node:fs') : null;
+    const pathMod = (globalThis as any).process?.getBuiltinModule ? (globalThis as any).process.getBuiltinModule('node:path') : null;
+    if (fs && pathMod) {
+      reportPath = pathMod.resolve(cwd, filename);
+      fs.writeFileSync(reportPath, lines.join('\n') + '\n', 'utf8');
+    }
+  } catch {}
+  return reportPath;
 }

@@ -1,0 +1,9 @@
+{
+  "name": "@sloppy/skill-ui",
+  "version": "1.4.0",
+  "description": "Specialist anti-slop skill for visual design, surface hierarchy, and icon authenticity.",
+  "main": "SKILL.md",
+  "keywords": ["skill", "ui-craft", "anti-slop", "surfaces", "icons"],
+  "author": "Pavanspoojary",
+  "license": "MIT"
+}

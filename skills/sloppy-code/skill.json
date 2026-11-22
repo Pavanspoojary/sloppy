@@ -1,0 +1,9 @@
+{
+  "name": "sloppy-code",
+  "version": "1.4.0",
+  "description": "Specialist anti-slop skill for React/TypeScript component architecture, accessibility semantics, and comment hygiene.",
+  "entry": "SKILL.md",
+  "author": "Pavanspoojary",
+  "repository": "https://github.com/Pavanspoojary/slopy",
+  "tags": ["code-craft", "anti-slop", "accessibility", "comment-hygiene"]
+}
