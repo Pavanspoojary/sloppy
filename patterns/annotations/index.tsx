@@ -1,3 +1,4 @@
+/* sloppy-allow-file: WORD_BUDGET_EXCEEDED. Full product-screen reproduction with real product copy. */
 import { useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Connector, Follow, Icon, Stage, States, type Act, type Rect } from '../../kit'
 import './annotations.css'

@@ -1,3 +1,4 @@
+/* sloppy-allow-file: WORD_BUDGET_EXCEEDED. Lesson pages carry instructional copy, not product marketing copy. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { Phone, Stage, Window } from '../kit'
 import './scenes.css'

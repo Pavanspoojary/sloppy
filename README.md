@@ -1,153 +1,213 @@
 # Sloppy: The AI Slop UI Fixer
 
-A unified anti-slop design engine, React kit, 73+ pattern library, Model Context Protocol (MCP) server, and universal Agent Skill designed to stop AI agents from generating low-taste, generic "AI slop" UI.
+A deterministic anti-slop design engine, React kit, pattern library, Model Context Protocol (MCP) server, and universal agent skill. It exists to stop AI coding agents from shipping low-taste, generic interface slop.
+
+Sloppy is designed for a closed agent loop: **detect, plan, fix, verify, re-check**. Every command that a quality gate depends on returns a machine-readable verdict and a correct process exit code.
 
 ---
 
 ## Why Sloppy Exists
 
-When AI coding agents (Claude, Cursor, Copilot, Gemini CLI, Devin, v0) generate user interfaces, they routinely fall into the same predictable AI slop anti-patterns:
-- **Purple & Indigo Gradients**: Mindlessly applying `bg-gradient-to-r from-purple-500 to-indigo-600` on random cards and buttons.
-- **Sparkle Overload**: Slapping `LucideSparkles` on any and every interface element.
-- **Boxed Card Monotony**: Wrapping every single object in identical `rounded-xl border p-6 bg-card` containers with zero hierarchical depth.
-- **Floating Ungrounded Windows**: Shrinking an entire application into a tiny card with uniform air on all 4 sides instead of deliberate cropping or bleeding.
-- **Word Overload**: Filling every row with fake numbers and robotic copy instead of disciplined word budgeting (3–7 key strings, calm placeholder bars elsewhere).
-- **Unearned Animations**: Arbitrary spinning, bouncing, or sudden content swaps without cause-and-effect transitions.
+AI coding agents reliably converge on the same interface anti-patterns:
 
-Sloppy cures this by combining **Stageshow's** craft principles and React kit into an agent-first ecosystem.
+- **Purple and indigo gradients** applied to cards and buttons without intent.
+- **Sparkle icons** used as a stand-in for capability.
+- **Boxed card monotony**: every datum wrapped in an identical rounded, bordered container.
+- **Ungrounded floating windows** shrunk to a thumbnail with equal air on all four sides.
+- **Word overload**: fabricated metrics and robotic copy in every row instead of a disciplined word budget.
+- **Unearned motion**: looping bounce, pulse, and ping animations with no cause.
+
+Sloppy detects these patterns across multi-line JSX, inline styles, and Tailwind arbitrary values, then applies a conservative, syntax-validated repair.
 
 ---
 
-## The 5 Anti-Slop Commandments
+## The Five Anti-Slop Commandments
 
-1. **Restraint Over Detail (The 3–7 Word Budget)**:
-   Count the real strings on screen: usually 3 to 7. Use real words only on what the story is about. Use quiet placeholder bars (`<Bar />`) for the rest. Filling every row with fake numbers makes an interface look synthetic.
-2. **Grounded Framing Over Floating Boxes**:
-   The window, card, or phone must fill at least two-thirds of the stage and run off at least one edge. Never float a shrunken window with air on all four sides. Crop aggressively to the panel where the action happens; let non-focal filler bleed off the edge.
-3. **Surface Depth Over Flat Cards**:
-   Do not wrap every element in identical bordered cards. Step from the page ground to surface 1, surface 2, and surface 3 using quiet grays or true dark steps. Reserve the accent color for one intentional signal.
-4. **Caused Motion Over Random Animation**:
-   Never add unearned spinning, pulsing, or bouncy keyframes (`animate-bounce`). A cursor moves with purpose, presses with visible feedback, and triggers a state transition. Animate the relationship, not just the object. The payoff must hold for 2–3 seconds for comfortable reading.
-5. **Authentic Craft Over Sparkle Slop**:
-   Zero purple/indigo gradients. Zero sparkles (`LucideSparkles`) for AI. Use genuine product chrome, real typography hierarchy, and quiet confidence.
+1. **Restraint over detail.** Count real strings: usually three to seven. Use `<Bar />` for filler. Fabricated data reads as synthetic.
+2. **Grounded framing over floating boxes.** A window or phone fills at least two thirds of the stage and bleeds off at least one edge. Crop to the panel where the action happens.
+3. **Surface depth over flat cards.** Step from ground to surface 1, 2, and 3. Reserve the accent color for one intentional signal.
+4. **Caused motion over random animation.** A cursor moves with purpose, presses with feedback, and triggers a transition. The payoff holds for two to three seconds.
+5. **Authentic craft over sparkle slop.** No purple gradients, no magic-wand icons. Real chrome, real typography hierarchy, quiet confidence.
 
 ---
 
 ## Quick Start
 
-### 1. Install CLI Globally
 ```bash
+# Run without installing
+npx sloppy check ./src/components
+
+# Install the CLI
 npm install -g sloppy
-# or run directly with npx
-npx sloppy help
+sloppy check ./src
 ```
 
-### 2. Audit Code for AI Slop
+### The agent loop
+
 ```bash
-# Scan a single file
-sloppy audit ./src/components/Hero.tsx
+# 1. Gate: exit 0 clean, 1 violations, 2 usage error
+sloppy check ./src --json --fail-on high --max-score 20
 
-# Scan an entire directory
-sloppy audit ./src/
+# Declare the rendered surface when the default word budget is too tight
+sloppy check ./src/screens/Dashboard.tsx --type application --json
+
+# 2. Plan: per-patch confidence, risk, exact snippets, and a projected score
+sloppy plan ./src/components/Hero.tsx --json
+
+# 3. Review the exact diff before touching the file
+sloppy fix ./src/components/Hero.tsx --diff
+
+# 4. Apply only validated output
+sloppy fix ./src/components/Hero.tsx --write --json
+
+# 5. Re-check. Never claim clean without a fresh result.
+sloppy check ./src/components/Hero.tsx --json
 ```
 
-### 3. Add a Gold Anti-Slop Pattern
+### Piping source through the fixer
+
 ```bash
-# List all 73+ curated patterns
-sloppy list
-
-# Add a pattern (e.g. Linear, AI Chat without sparkles, Payout Flow)
-sloppy add linear
-sloppy add ai-chat
+echo '<div className="bg-gradient-to-r from-purple-500 to-indigo-600" />' \
+  | sloppy fix --stdin --json
 ```
 
-### 4. Scaffold the Anti-Slop Kit into Your Project
-```bash
-sloppy init
-# Installs pure React + CSS primitives into ./src/kit/
+---
+
+## Commands
+
+| Command | Purpose |
+|---|---|
+| `sloppy check [paths]` | Quality gate with correct exit codes and `nextActions` for agents. Accepts `--type` to set the word budget. |
+| `sloppy audit <path>` | Detect anti-patterns with line, column, snippet, and remediation. |
+| `sloppy rubric <path>` | Score against the 10-dimension Craft Rubric (Grade A+ to F). |
+| `sloppy plan <path>` | Structured repair plan with confidence, risk, and projected score. |
+| `sloppy fix <path>` | Syntax-validated autofix. Supports `--diff`, `--check`, `--stdin`, `--write`. |
+| `sloppy verify <target>` | Honest verification. Fails closed when a browser is unavailable. |
+| `sloppy install-mcp --client <id>` | Write MCP configuration for Cursor, VS Code, Claude, or Codex. |
+| `sloppy create <archetype>` | Scaffold a multi-library master archetype. |
+| `sloppy list [library]` | List curated components and patterns. |
+| `sloppy init` | Install the React kit into `./src/kit/`. |
+| `sloppy looks` | Print design tokens for each curated look. |
+| `sloppy dev` | Launch the visual playground on `http://127.0.0.1:1355`. |
+| `sloppy version` | Report CLI and core versions. |
+
+### Exit code contract
+
+| Code | Meaning |
+|---|---|
+| `0` | Clean, or the configured gate passed. |
+| `1` | Violations at or above the configured threshold. |
+| `2` | Usage error, missing path, I/O failure, or verification unavailable. |
+
+In `--json` mode, stdout contains exactly one JSON document. Diagnostics go to stderr. This is deliberate: agents should be able to parse the result without stripping banners.
+
+### Ignore pragmas
+
+```tsx
+// sloppy-ignore-next-line
+const brandGradient = 'bg-gradient-to-r from-purple-500 to-indigo-600';
 ```
 
-### 5. Launch the Visual Playground
-```bash
-sloppy dev
-# Opens local catalog viewer and teaching comparison studio on http://127.0.0.1:1355
+Also supported: `// sloppy-ignore-file`, `/* sloppy-ignore-next */`, and a rule-scoped exemption that keeps every other check active:
+
+```css
+/* sloppy-allow-file: PURPLE_GRADIENT_SLOP. Gradient artwork is the specimen, not a marketing surface. */
 ```
+
+`estimatedWordCount` counts only rendered JSX text and single string literals. Type signatures, comments, and callback bodies are never counted as visible copy.
 
 ---
 
 ## MCP Server Integration
 
-Sloppy includes a first-class Model Context Protocol (MCP) server. Configure it in your agent settings (e.g. `~/.gemini/config/mcp_config.json`, Claude Desktop, or Cursor):
+Sloppy ships a Model Context Protocol server over stdio. The server teaches the closed loop in its instructions, exposes `sloppy_check` and `sloppy_fix` for agents, and never writes to disk unless a tool caller passes `write: true`.
+
+```bash
+sloppy install-mcp --client cursor
+sloppy install-mcp --client vscode
+sloppy install-mcp --client claude
+sloppy install-mcp --client codex
+```
+
+Or configure manually:
 
 ```json
 {
   "mcpServers": {
     "sloppy": {
-      "command": "sloppy-mcp",
-      "args": []
+      "command": "npx",
+      "args": ["-y", "sloppy", "mcp"]
     }
   }
 }
 ```
 
-### Exposed MCP Tools
+### Agent-facing tools
 
 | Tool | Description |
 |---|---|
-| `sloppy_audit_code` | Scans JSX/TSX/CSS for AI slop anti-patterns with severity scores and remediation diffs. |
-| `sloppy_search_patterns` | Searches across 73+ gold patterns and product studies (Linear, Slack, Raycast, Figma, etc.). |
-| `sloppy_get_pattern` | Fetches full runnable TSX, scoped CSS, and motion choreography for any pattern ID. |
-| `sloppy_get_kit_primitives` | Retrieves drop-in React/CSS primitives (`Stage`, `Window`, `Phone`, `Bento`, `Cursor`, `Act`, `Bar`). |
-| `sloppy_get_look` | Returns design tokens, surface depth layers, border tokens, and CSS variables for 7+ looks. |
-| `sloppy_get_rules` | Queries specific anti-slop guidelines (`craft`, `framing`, `motion`, `bento`, `word_budget`). |
-| `sloppy_refactor_slop` | Automated code refactoring guide that transforms sloppy components into clean Stageshow UI. |
-| `sloppy_list_catalog` | Lists all available patterns in the Sloppy library grouped by category. |
+| `sloppy_check` | Returns `{ ok, score, grade, violations, nextActions }` for an audit-and-fix loop. |
+| `sloppy_fix` | Returns transformed source, unified diff, syntax validity, and post-fix audit. Dry-run by default. |
+| `sloppy_audit_code` | Full audit with severity, location, and remediation. |
+| `sloppy_evaluate_rubric` | Ten-dimension craft certification with SVG badge. |
+| `sloppy_plan_repairs` | Structured patch plan with confidence and risk. |
+| `sloppy_refactor_slop` | Guided refactoring recipe for a specific slop score and target look. |
+| `sloppy_search_components` | Search the curated component catalog by query, library, or category. |
+| `sloppy_get_component` | Fetch component source, dependencies, and anti-slop guidance. |
+| `sloppy_search_patterns` | Search curated product patterns by query, category, or theme. |
+| `sloppy_get_pattern` | Fetch pattern source, CSS, and motion choreography. |
+| `sloppy_get_kit_primitives` | Fetch drop-in React primitives (`Stage`, `Window`, `Phone`, `Bento`, `Cursor`, `Act`, `Bar`). |
+| `sloppy_get_look` | Fetch design tokens and surface steps for a curated look. |
+| `sloppy_get_rules` | Query the craft, framing, motion, bento, and word-budget rulebooks. |
+| `sloppy_get_archetype` | Fetch a synthesized multi-library master archetype. |
+| `sloppy_list_libraries` | List integrated libraries with their anti-slop role. |
+| `sloppy_list_catalog` | Report accurate catalog statistics computed at runtime. |
 
 ---
 
-## Monorepo Architecture
+## Repository Contents
 
 ```
 slopy/
 ├── packages/
-│   ├── core/              # Anti-slop engine: rules, linter, tokens, pattern registry
-│   ├── kit/               # The portable React anti-slop UI & motion kit
-│   ├── mcp/               # Model Context Protocol server (stdio & stream)
-│   ├── cli/               # Developer CLI (sloppy audit, init, add, dev, mcp)
-│   ├── verify/            # Perceptual & geometric verification engine
-│   └── playground/        # Interactive Vite + React catalog & comparison viewer
-├── patterns/              # 73+ curated gold patterns, product studies, teaching pairs
-├── skills/
-│   └── sloppy/            # Universal Agent Skill definition (SKILL.md)
-└── README.md
+│   ├── core/          # Anti-slop engine: scanner, rules, scoring, rubric, repair planner
+│   ├── kit/           # Portable React anti-slop primitives and motion API
+│   ├── mcp/           # Model Context Protocol server (stdio)
+│   ├── cli/           # Developer CLI and agent gate
+│   ├── verify/        # Honest static and browser verification engine
+│   ├── components/    # 757 component source files across 7 libraries
+│   └── playground/    # Vite + React catalog and comparison studio
+├── patterns/          # 74 curated pattern directories
+├── docs/              # Agent coordination and Refero integration contract
+├── skills/sloppy/     # Universal agent skill definition
+└── test/              # Audit, fix, CLI, MCP, and verification contract tests
 ```
 
----
-
-## Design Looks & Token Palettes
-
-- **minimal**: Quiet grays, high restraint, calm editorial contrast.
-- **linear**: Disciplined dark mode, micro-borders, deep blacks, refined purple accent used strictly for signals.
-- **radix**: Accessible, systematic, clean slate styling based on Radix UI token hierarchy.
-- **raycast**: Stark command-palette focus, high contrast, crisp shadows, red/orange signal accents.
-- **blueprint**: Architectural, engineering-grade monospace style with blueprint cyan accents.
-- **glass**: Translucent frosted glass over subtle gradient underlay with soft specular border highlights.
-- **dark-hero**: True black background with high elevation steps, emerald/cyan accents, and laser focus.
+Curated catalog today: 31 registered component entries, 20 catalogued patterns, and 10 synthesized master archetypes. Statistics are reported from runtime data rather than hardcoded marketing numbers.
 
 ---
 
-## Engineering Standards & Quality Gate
+## Design Looks
 
-This repository enforces senior-level software engineering standards across all contributions, human and agentic:
+Hand-authored looks: `minimal`, `linear`, `radix`, `raycast`, `blueprint`, `glass`, `dark-hero`.
 
-- **Primary Philosophy: Ponytail Senior Developer Policy**: *"The best code is the code you never wrote."* Every modification follows the Ponytail Ladder: YAGNI -> Existing Codebase -> Standard Library -> Native Platform Feature -> Existing Dependencies -> Minimal Form -> Boring Over Clever.
-- **Zero-Tolerance Anti-Slop Policy**: All UI outputs must achieve **0/100** slop score under `sloppy audit` and **Grade A+ (>=95/100, target 100/100)** on the 10-point Craft Rubric.
-- **Professional Wording & Zero Emojis**: All code comments, documentation, and commit messages maintain senior engineering precision. Emojis are strictly prohibited across all generated assets.
-- **Conventional Commits**: Enforced via pre-commit hooks and CI (`scripts/verify-commit-msg.js`). Format: `<type>(<scope>): <imperative summary>`.
-- **Automated CI Quality Gate**: GitHub Actions (`.github/workflows/ci.yml`) automatically compiles all packages, runs static typechecks, verifies all 10 master archetypes against the Craft Rubric, and validates PR commit messages.
+Refero-sourced production looks: `nuxt`, `linearity`, `grafana`, `modern-treasury`, `milanote`, `bunny`, `heptabase`, `glyphs`.
+
+Every look defines a background, three surface steps, border tokens, typography, and one accent reserved for signals. Refero looks carry the source site, URL, and style id so an agent can audit provenance instead of guessing. Run `sloppy looks` to print the full token table, or `node scripts/refero-looks.mjs <brand>` to derive tokens from the local Refero cache.
+
+---
+
+## Engineering Standards
+
+- **Ponytail policy**: the best code is the code you never wrote. YAGNI, reuse, standard library, native platform, existing dependencies, minimal effective form, boring over clever.
+- **Zero-tolerance anti-slop gate**: UI output must reach `0/100` under `sloppy check` and Grade A+ (minimum 95/100) under `sloppy rubric`.
+- **Zero new runtime dependencies** for detection and repair. The scanner, syntax validator, and diff engine are hand-written TypeScript.
+- **No fabricated results**: `sloppy verify` fails closed and never prints a PASS it did not compute.
+- **Conventional Commits**, enforced by pre-commit hooks and CI.
+- **Tests before claims**: `npm test` runs the archetype rubric gate and the audit, fix, CLI, MCP, and verification contract suites.
 
 ---
 
 ## License
 
-MIT License.
+MIT.

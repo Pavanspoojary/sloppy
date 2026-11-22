@@ -20,9 +20,9 @@ Sloppy eliminates AI slop by unifying 7 top-tier component ecosystems (Stageshow
 
 ## The 7 Integrated UI Ecosystems
 
-Sloppy unifies 700+ components and 73+ gold patterns into a single anti-slop catalog:
+Sloppy unifies 757 component source files across 7 libraries and 74 gold pattern directories into a single anti-slop catalog:
 
-1. **Stageshow (`stageshow`)**: Grounded product framing, cursor choreography, anti-slop primitives (`Stage`, `Window`, `Act`, `Ease`, `Bar`), and 73+ gold product patterns.
+1. **Stageshow (`stageshow`)**: Grounded product framing, cursor choreography, anti-slop primitives (`Stage`, `Window`, `Act`, `Ease`, `Bar`), and 74 gold product pattern directories.
 2. **shadcn/ui (`shadcn`)**: Essential, accessible Radix-based UI building blocks (Button, Dialog, Table, Popover) anchored to surface depth steps.
 3. **Motion Primitives (`motion-primitives`)**: Physics-based micro-interactions (Morphing Dialog, Sliding Number, Expandable Tabs) with disciplined damping.
 4. **Magic UI (`magicui`)**: Restrained marketing hero elements (max 1 beam/glow, opacity < 0.15, zero purple sparkle combos).
@@ -71,19 +71,20 @@ Grade scale: **A+ (95-100)**, **A (90-94)**, **B (80-89)**, **C (70-79)**, **D (
 
 When working in an agentic coding environment (Antigravity, Claude Code, Cursor, OpenHands), you have direct access to the `sloppy` MCP tools:
 
+- `sloppy_check`: Audit-and-gate loop entry point. Returns `{ ok, score, grade, violations, nextActions }` with `componentType` for the visible word budget.
 - `sloppy_evaluate_rubric`: Evaluates code against the full 10-point Craft Rubric, returning letter grade (A+ to F), dimension scores, and SVG badge.
-- `sloppy_plan_repairs`: Generates structured repair plan with confidence levels (high/medium/low), risk ratings, and AST-level repair items.
-- `sloppy_autofix_code`: Automatically transforms sloppy AI code into clean craft, returning refactored code and detailed diff.
+- `sloppy_plan_repairs`: Generates a structured repair plan with confidence levels (high/medium/low), risk ratings, exact patch snippets, and a unified diff.
+- `sloppy_fix`: Transforms sloppy AI code into clean craft with syntax validation, a unified diff, and a post-fix audit. It is a dry run unless `write: true`.
 - `sloppy_get_archetype`: Retrieve any of the 10 multi-library synthesized master archetypes.
-- `sloppy_search_components`: Search across 700+ components across all 7 libraries by query, library, or category.
+- `sloppy_search_components`: Search 31 curated component entries spanning 757 source files across all 7 libraries by query, library, or category.
 - `sloppy_get_component`: Retrieve full source code (TSX/JSX), dependencies, and anti-slop craft guidance for any component ID.
 - `sloppy_list_libraries`: List all 7 integrated UI libraries with descriptions, strengths, and specific anti-slop rules.
 - `sloppy_list_catalog`: Inspect overall ecosystem statistics across components, libraries, looks, and patterns.
 - `sloppy_audit_code`: Scan JSX/TSX/CSS files or snippets to detect AI slop with line numbers and severity scores.
-- `sloppy_search_patterns`: Search 73+ curated gold patterns and real-product studies.
+- `sloppy_search_patterns`: Search 74 curated gold patterns and real-product studies.
 - `sloppy_get_pattern`: Fetch complete, runnable TSX code, scoped CSS, and motion choreography scripts.
 - `sloppy_get_kit_primitives`: Retrieve ready-to-paste clean React/CSS primitives (`Stage`, `Window`, `Phone`, `Bento`, `Cursor`, `Act`, `Ease`, `Bar`, `Pill`, `Badge`).
-- `sloppy_get_look`: Get design tokens, color scales, surface steps, border radii, and CSS variables for curated looks (`minimal`, `linear`, `radix`, `raycast`, `blueprint`, `glass`, `dark-hero`).
+- `sloppy_get_look`: Get design tokens, color scales, surface steps, typography, provenance, and CSS variables for curated looks (`minimal`, `linear`, `radix`, `raycast`, `blueprint`, `glass`, `dark-hero`) and Refero-sourced production looks (`nuxt`, `linearity`, `grafana`, `modern-treasury`, `milanote`, `bunny`, `heptabase`, `glyphs`).
 - `sloppy_get_rules`: Query detailed reference manuals (`craft`, `framing`, `motion`, `bento`, `word_budget`).
 - `sloppy_refactor_slop`: Guided refactoring proposals.
 
@@ -125,7 +126,7 @@ sloppy dev
 ## 7-Step Anti-Slop Workflow
 
 1. **Medium and Place**: Decide medium (still illustration or animated demo with cursor) and size (720x340 for hero beside copy, 960x480 for full-width hero, 440x320 for feature card). Design at 1:1 scale.
-2. **Choose a Look**: Query `sloppy_get_look` for tokens (`linear`, `minimal`, `raycast`, `radix`, `blueprint`, `glass`, `dark-hero`).
+2. **Choose a Look**: Query `sloppy_get_look` for tokens. Hand-authored looks are `linear`, `minimal`, `raycast`, `radix`, `blueprint`, `glass`, `dark-hero`. Refero-sourced production looks are `nuxt`, `linearity`, `grafana`, `modern-treasury`, `milanote`, `bunny`, `heptabase`, `glyphs`.
 3. **Select Foundations or Archetype**: Query `sloppy_search_components` or scaffold one of the 10 master archetypes via `sloppy create <archetype>`.
 4. **Apply Word Budget**: Count the real strings (keep between 3 and 7). Use `<Bar />` for filler.
 5. **Ground the Framing**: Windows and phones must cover >= 66% of the stage and bleed off at least one edge.

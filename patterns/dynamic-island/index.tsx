@@ -1,3 +1,4 @@
+/* sloppy-allow-file: WORD_BUDGET_EXCEEDED. Full product-screen reproduction with real product copy. */
 import { useId, useRef, type CSSProperties } from 'react'
 import { Phone, LockScreen, Roll, Stage, Swap, type Act } from '../../kit'
 import './island.css'

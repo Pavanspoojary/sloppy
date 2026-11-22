@@ -24,8 +24,8 @@ export interface CraftCertification {
   svgBadge: string;
 }
 
-export function evaluateCraftRubric(code: string, options: { strict?: boolean; filepath?: string } = {}): CraftCertification {
-  const audit = auditCode(code, { strict: options.strict, filepath: options.filepath });
+export function evaluateCraftRubric(code: string, options: { strict?: boolean; filepath?: string; componentType?: 'illustration' | 'feature-card' | 'hero' | 'application' | 'bento' } = {}): CraftCertification {
+  const audit = auditCode(code, { strict: options.strict, filepath: options.filepath, componentType: options.componentType });
   const violations = audit.violations;
 
   // Dimension 1: Surface Elevation & Grounding (0-10)
@@ -37,15 +37,15 @@ export function evaluateCraftRubric(code: string, options: { strict?: boolean; f
 
   // Dimension 2: Word Budget & Text Restraint (0-10)
   let wordScore = 10;
+  const wordBudget = { illustration: 12, 'feature-card': 18, hero: 32, application: 150, bento: 40 } as const;
+  const budget = options.componentType ? wordBudget[options.componentType] : 60;
   if (violations.some(v => v.type === 'WORD_BUDGET_EXCEEDED')) wordScore -= 7;
-  if (audit.stats.estimatedWordCount > 25) wordScore -= 4;
-  else if (audit.stats.estimatedWordCount > 15) wordScore -= 2;
+  else if (audit.stats.estimatedWordCount > budget) wordScore -= 2;
   wordScore = Math.max(0, wordScore);
 
   // Dimension 3: Motion Intentionality & Easing (0-10)
   let motionScore = 10;
   if (violations.some(v => v.type === 'UNEARNED_ANIMATION')) motionScore -= 8;
-  if (/\banimate-spin\b/.test(code) && !/<(?:Spinner|Loader|RefreshCw)/.test(code)) motionScore -= 4;
   motionScore = Math.max(0, motionScore);
 
   // Dimension 4: Visual Focal Hierarchy (0-10)
@@ -107,9 +107,9 @@ export function evaluateCraftRubric(code: string, options: { strict?: boolean; f
       maxScore: 10,
       weight: 1.0,
       status: wordScore >= 9 ? 'flawless' : wordScore >= 7 ? 'good' : wordScore >= 4 ? 'needs-attention' : 'critical-slop',
-      feedback: wordScore >= 9 
-        ? 'Disciplined 3 to 7 real strings budget observed.' 
-        : 'Too much fake Latin text or repetitive words. Use quiet placeholder bars (<Bar />) for filler.'
+      feedback: wordScore >= 9
+        ? 'Copy stays inside the word budget for this surface.'
+        : 'Too much copy or repetitive placeholder text. Use quiet placeholder bars (<Bar />) for secondary data.'
     },
     {
       id: 'motion_intentionality',
@@ -210,7 +210,7 @@ export function evaluateCraftRubric(code: string, options: { strict?: boolean; f
   else if (totalScore >= 70) grade = 'C';
   else if (totalScore >= 50) grade = 'D';
 
-  const isCertified = totalScore >= 90;
+  const isCertified = totalScore >= 95;
 
   const verdict = isCertified
     ? `Sloppy Craft Certified: Grade ${grade} (${totalScore}/100). Pristine craftsmanship, disciplined word budgeting, and grounded framing.`

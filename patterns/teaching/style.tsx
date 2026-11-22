@@ -1,3 +1,4 @@
+/* sloppy-ignore-file. Intentional anti-pattern specimens for the style lessons. */
 import { CircleX, GitBranch, Globe, LoaderCircle, Sparkles, WandSparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Stage } from '../kit'

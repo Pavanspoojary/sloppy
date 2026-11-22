@@ -20,6 +20,7 @@ import { runServer } from '@sloppy/mcp';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,21 +31,224 @@ const KIT_DIR = path.resolve(ROOT_DIR, 'packages/kit');
 const COMPONENTS_DIR = path.resolve(ROOT_DIR, 'packages/components');
 const PLAYGROUND_DIR = path.resolve(ROOT_DIR, 'packages/playground');
 
+const sourceExtensions = /\.(tsx|jsx|ts|js|html|css)$/i;
+const severities = ['low', 'medium', 'high', 'critical'] as const;
+const gradeOrder = ['F', 'D', 'C', 'B', 'A', 'A+'];
+const require = createRequire(import.meta.url);
+
+function emitJson(value: unknown): void { process.stdout.write(`${JSON.stringify(value)}\n`); }
+function fail(message: string, code = 2): void { console.error(message); process.exitCode = code; }
+type SurfaceType = 'illustration' | 'feature-card' | 'hero' | 'application' | 'bento';
+function surfaceType(args: string[]): SurfaceType | undefined {
+  const value = args.includes('--type') ? args[args.indexOf('--type') + 1] : undefined;
+  return ['illustration', 'feature-card', 'hero', 'application', 'bento'].includes(value || '') ? value as SurfaceType : undefined;
+}
+function cliVersion(): string { return JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, 'packages/cli/package.json'), 'utf8')).version; }
+function collectFiles(targets: string[]): string[] {
+  const found: string[] = [];
+  const visit = (file: string) => {
+    const stat = fs.statSync(file);
+    if (stat.isDirectory()) {
+      for (const entry of fs.readdirSync(file).sort()) {
+        if (['node_modules', '.git', 'dist'].includes(entry)) continue;
+        visit(path.join(file, entry));
+      }
+    } else if (stat.isFile() && sourceExtensions.test(file)) found.push(file);
+  };
+  for (const target of targets) visit(path.resolve(process.cwd(), target));
+  return [...new Set(found)].sort();
+}
+function checkFiles(paths: string[], options: { maxScore: number; failOn: string; minGrade?: string; type?: 'illustration' | 'feature-card' | 'hero' | 'application' | 'bento' }) {
+  const files = paths.map(file => {
+    const code = fs.readFileSync(file, 'utf8');
+    const relative = path.relative(process.cwd(), file) || file;
+    const audit = auditCode(code, { filepath: relative, componentType: options.type });
+    const rubric = evaluateCraftRubric(code, { filepath: relative, componentType: options.type });
+    const violations = audit.violations.map(v => ({
+      id: v.id,
+      type: v.type,
+      severity: v.severity,
+      line: v.line || 1,
+      column: v.column || 1,
+      snippet: v.snippet || '',
+      message: v.message,
+      recommendation: v.recommendation
+    }));
+    return { path: relative, score: audit.slopScore, grade: rubric.grade, isSlopFree: audit.isSlopFree, words: audit.stats.estimatedWordCount, suppressed: audit.stats.suppressedCount ?? 0, violations };
+  });
+  const bySeverity = { critical: 0, high: 0, medium: 0, low: 0 };
+  for (const file of files) for (const v of file.violations) bySeverity[v.severity as keyof typeof bySeverity]++;
+  const score = files.reduce((peak, f) => Math.max(peak, f.score), 0);
+  const grade = files.reduce((worst, f) => gradeOrder.indexOf(f.grade) < gradeOrder.indexOf(worst) ? f.grade : worst, 'A+');
+  const threshold = options.failOn === 'none' ? -1 : severities.indexOf(options.failOn as typeof severities[number]);
+  const violations = files.reduce((sum, f) => sum + f.violations.length, 0);
+  const gradeFailed = options.minGrade ? gradeOrder.indexOf(grade) < gradeOrder.indexOf(options.minGrade) : false;
+  const ok = files.every(f => f.score <= options.maxScore) && !files.some(f => f.violations.some(v => severities.indexOf(v.severity as typeof severities[number]) >= threshold && threshold >= 0)) && !gradeFailed;
+  const nextActions = [...new Set(files.filter(f => f.violations.length).flatMap(f => [`Run: sloppy fix ${f.path} --diff`, `Re-run: sloppy check ${f.path}`]))].slice(0, 5);
+  return { version: cliVersion(), ok, score, grade, totals: { files: files.length, violations, bySeverity }, files, nextActions };
+}
+function jsonCommand(command: string, args: string[]): boolean { return args.includes('--json') && ['audit', 'rubric', 'plan', 'fix', 'verify', 'version', 'looks', 'archetypes', 'list'].includes(command); }
+async function handleAgentCommand(command: string, args: string[]): Promise<boolean> {
+  const json = args.includes('--json');
+  if (command === '--version' || command === 'version') {
+    const version = cliVersion();
+    let core: string | undefined;
+    try { core = require('@sloppy/core/package.json').version; } catch { try { core = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, 'packages/core/package.json'), 'utf8')).version; } catch {} }
+    if (json) emitJson({ version, ...(core ? { core } : {}) }); else console.log(version);
+    return true;
+  }
+  if (command === '--help' || (command === 'help' && args.includes('--help'))) { console.log('Usage: sloppy <command> [options]\nCommands: check, audit, plan, fix, rubric, verify, install-mcp, version, looks, archetypes, list, mcp'); return true; }
+  if (args.includes('--help') && ['check', 'fix', 'verify', 'install-mcp'].includes(command)) {
+    const help: Record<string, string> = {
+      check: 'Usage: sloppy check <paths...> [--json] [--max-score <n>] [--fail-on <none|low|medium|high|critical>] [--min-grade <A+|A|B|C|D|F>] [--type <illustration|feature-card|hero|application|bento>] [--quiet]',
+      fix: 'Usage: sloppy fix <file> [--diff|--check|--write] [--look <look>] [--json]\n       sloppy fix --stdin [--json]',
+      verify: 'Usage: sloppy verify [target] [--json] (verification timeout: 15000ms)',
+      'install-mcp': 'Usage: sloppy install-mcp --client <cursor|vscode|claude|codex> [--dir <path>] [--write] [--json]'
+    };
+    console.log(help[command]); return true;
+  }
+  if (command === 'check') {
+    const opts = { maxScore: 0, failOn: 'medium', minGrade: undefined as string | undefined, type: surfaceType(args) };
+    const paths: string[] = [];
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === '--max-score') { opts.maxScore = Number(args[++i]); if (!Number.isFinite(opts.maxScore) || opts.maxScore < 0) { fail('--max-score must be a non-negative number'); return true; } }
+      else if (args[i] === '--fail-on') { opts.failOn = args[++i]; if (!['none', ...severities].includes(opts.failOn)) { fail('--fail-on must be none, low, medium, high, or critical'); return true; } }
+      else if (args[i] === '--min-grade') { opts.minGrade = args[++i]; if (!gradeOrder.includes(opts.minGrade)) { fail('--min-grade must be A+, A, B, C, D, or F'); return true; } }
+      else if (args[i] === '--type') { const value = args[++i]; if (!['illustration', 'feature-card', 'hero', 'application', 'bento'].includes(value)) { fail('--type must be illustration, feature-card, hero, application, or bento'); return true; } }
+      else if (args[i].startsWith('-')) { if (args[i] !== '--json' && args[i] !== '--quiet') { fail(`Unknown check option: ${args[i]}`); return true; } }
+      else paths.push(args[i]);
+    }
+    if (!paths.length) { fail('Usage: sloppy check <path...> [--max-score <n>] [--fail-on <level>] [--min-grade <grade>] [--type <surface>]'); return true; }
+    try {
+      const files = collectFiles(paths);
+      const result = checkFiles(files, opts);
+      if (json) emitJson(result);
+      else {
+        if (!args.includes('--quiet')) for (const f of result.files) console.log(`${f.isSlopFree ? 'PASS' : 'FAIL'} ${f.path} score=${f.score} grade=${f.grade} violations=${f.violations.length}`);
+        console.log(`Check ${result.ok ? 'passed' : 'failed'}: ${result.totals.files} files, ${result.totals.violations} violations, peak score ${result.score}, worst grade ${result.grade}`);
+      }
+      if (!result.ok) process.exitCode = 1;
+    } catch (error) {
+      const message = `Check failed: ${(error as Error).message}`;
+      if (json) emitJson({ version: cliVersion(), ok: false, error: message });
+      fail(message);
+    }
+    return true;
+  }
+  if (command === 'install-mcp') {
+    const client = args[args.indexOf('--client') + 1];
+    const dir = args.includes('--dir') ? path.resolve(process.cwd(), args[args.indexOf('--dir') + 1]) : process.cwd();
+    if (!['cursor', 'vscode', 'claude', 'codex'].includes(client)) { fail('Usage: sloppy install-mcp --client <cursor|vscode|claude|codex> [--dir <path>] [--write]'); return true; }
+    const snippet = '[mcp_servers.sloppy]\ncommand = "npx"\nargs = ["-y", "sloppy", "mcp"]';
+    if (client === 'codex') {
+      if (!args.includes('--write')) { if (json) emitJson({ client, written: false, snippet }); else console.log(`${snippet}\nNo file written. Pass --write to append this entry to ~/.codex/config.toml.`); return true; }
+      const dest = path.join(process.env.HOME || dir, '.codex/config.toml'); fs.mkdirSync(path.dirname(dest), { recursive: true });
+      let content = fs.existsSync(dest) ? fs.readFileSync(dest, 'utf8') : '';
+      content = content.replace(/\n?\[mcp_servers\.sloppy\][\s\S]*?(?=\n\[|$)/, '').trimEnd();
+      fs.writeFileSync(dest, `${content}${content ? '\n\n' : ''}${snippet}\n`);
+      if (json) emitJson({ client, written: true, path: dest }); else console.log(`Wrote ${dest}`); return true;
+    }
+    const relative = { cursor: '.cursor/mcp.json', vscode: '.vscode/mcp.json', claude: '.mcp.json' }[client as 'cursor'|'vscode'|'claude'];
+    const dest = path.join(dir, relative); fs.mkdirSync(path.dirname(dest), { recursive: true });
+    let config: any = {};
+    try { if (fs.existsSync(dest)) config = JSON.parse(fs.readFileSync(dest, 'utf8')); } catch (error) { fail(`Cannot parse ${dest}: ${(error as Error).message}`); return true; }
+    const key = client === 'vscode' ? 'servers' : 'mcpServers';
+    config[key] ||= {}; config[key].sloppy = { command: 'npx', args: ['-y', 'sloppy', 'mcp'] };
+    fs.writeFileSync(dest, `${JSON.stringify(config, null, 2)}\n`);
+    if (json) emitJson({ client, written: true, path: dest }); else console.log(`Wrote ${dest}`); return true;
+  }
+  if (command === 'fix' && (args.includes('--stdin') || args.some(x => ['--diff', '--check', '--write', '-w'].includes(x)) || json)) {
+    const chunks: Buffer[] = [];
+    const look = args.includes('--look') ? args[args.indexOf('--look') + 1] as any : undefined;
+    if (args.includes('--stdin')) {
+      for await (const chunk of process.stdin) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      const original = Buffer.concat(chunks).toString('utf8'); const result = transformSlopToCraft(original, { look });
+      const output = { changed: result.transformedCode !== original, changesApplied: result.changesApplied, isValidSyntax: result.isValidSyntax, transformedCode: result.transformedCode, unifiedDiff: result.unifiedDiff, postAudit: result.postAudit };
+      if (json) emitJson(output); else process.stdout.write(result.transformedCode); return true;
+    }
+    const file = args.find(x => !x.startsWith('-'));
+    if (!file || !fs.existsSync(path.resolve(file))) {
+      const message = `File not found: ${file || '(missing path)'}`;
+      if (json) emitJson({ error: message });
+      fail(message); return true;
+    }
+    try {
+      const source = fs.readFileSync(file, 'utf8'); const result = transformSlopToCraft(source, { look, filepath: file });
+      if ((args.includes('--write') || args.includes('-w')) && !result.isValidSyntax) { fail(`Refusing to write invalid syntax: ${result.syntaxErrors.map(error => error.message).join('; ')}`); return true; }
+      if (args.includes('--write') || args.includes('-w')) fs.writeFileSync(file, result.transformedCode, 'utf8');
+      if (args.includes('--diff') && !json) process.stdout.write(result.unifiedDiff);
+      if (args.includes('--check') && result.transformedCode !== source) process.exitCode = 1;
+      if (json) emitJson({ changed: result.transformedCode !== source, changesApplied: result.changesApplied, isValidSyntax: result.isValidSyntax, transformedCode: result.transformedCode, unifiedDiff: result.unifiedDiff, postAudit: result.postAudit });
+      else if (!args.includes('--diff') && !args.includes('--check')) console.log(args.includes('--write') || args.includes('-w') ? `Wrote ${file}` : `Changes: ${result.changesApplied}\nRun with --write to apply.`);
+    } catch (error) { fail(`Fix failed: ${(error as Error).message}`); }
+    return true;
+  }
+  if (command === 'verify') {
+    const target = args.find(x => !x.startsWith('-')) || 'http://127.0.0.1:1355';
+    try {
+      const verifyPackage = '@sloppy/verify'; const { verifyTarget } = await import(verifyPackage); const result = await verifyTarget(target, { timeoutMs: 15000 });
+      if (json) emitJson(result);
+      else {
+        console.log(`Verification ${result.ok ? 'passed' : 'failed'}: ${result.target} (${result.mode})`);
+        for (const violation of result.violations) console.log(`[${violation.rule}] ${violation.message}${violation.evidence ? `: ${violation.evidence}` : ''}`);
+        if (result.unavailable) console.error(`Verification unavailable: ${result.unavailable}`);
+      }
+      if (result.unavailable) process.exitCode = 2;
+      else if (!result.ok) process.exitCode = 1;
+    } catch (error) {
+      const unavailable = `Verification unavailable: ${(error as Error).message}`;
+      if (json) emitJson({ ok: false, target, unavailable }); else console.error(unavailable);
+      process.exitCode = 2;
+    }
+    return true;
+  }
+  if (jsonCommand(command, args)) {
+    const target = args.find(x => !x.startsWith('-'));
+    if (command === 'audit' || command === 'rubric' || command === 'plan') {
+      if (!target || !fs.existsSync(path.resolve(target))) { const message = `Target not found: ${target || '(missing path)'}`; emitJson({ version: cliVersion(), ok: false, error: message }); fail(message); return true; }
+      try {
+        const file = path.resolve(target), relative = path.relative(process.cwd(), file);
+        if (command === 'audit') {
+          const auditFiles = fs.statSync(file).isDirectory() ? collectFiles([target]) : [file];
+          const reports = auditFiles.map(auditFile => { const source = fs.readFileSync(auditFile, 'utf8'), p = path.relative(process.cwd(), auditFile), audit = auditCode(source, { filepath: p, componentType: surfaceType(args) }); return { path: p, slopScore: audit.slopScore, isSlopFree: audit.isSlopFree, violations: audit.violations, stats: audit.stats }; });
+          const peakScore = reports.reduce((n, f) => Math.max(n, f.slopScore), 0), count = reports.reduce((n, f) => n + f.violations.length, 0);
+          emitJson({ version: cliVersion(), ok: peakScore <= 40, peakScore, totals: { files: reports.length, violations: count }, files: reports });
+          if (peakScore > 40) process.exitCode = 1;
+        }
+        else {
+          const code = fs.readFileSync(file, 'utf8');
+          if (command === 'rubric') emitJson(evaluateCraftRubric(code, { filepath: relative, strict: args.includes('--strict'), componentType: surfaceType(args) }));
+          else emitJson(createRepairPlan(code, { filepath: relative, look: args[args.indexOf('--look') + 1] || 'linear' }));
+        }
+      } catch (error) { fail(`${command} failed: ${(error as Error).message}`); }
+      return true;
+    }
+    if (command === 'looks') emitJson(LOOKS);
+    else if (command === 'archetypes') emitJson(SYNTHESIZED_ARCHETYPES);
+    else if (command === 'list') emitJson({ components: SLOPPY_COMPONENTS, patterns: PATTERNS_CATALOG });
+    return true;
+  }
+  return false;
+}
+
 export async function runCli(args: string[]) {
-  const command = args[0] || 'help';
+  const command = args.find(arg => !['--json', '--quiet'].includes(arg)) || 'help';
+  const commandIndex = args.indexOf(command);
+  const commandArgs = args.filter((_, index) => index !== commandIndex);
+  if (await handleAgentCommand(command, commandArgs)) return;
 
   switch (command) {
     case 'audit': {
       const target = args[1];
       if (!target) {
         console.error('[ERROR] Please specify a file or directory to audit: sloppy audit <path>');
-        process.exit(1);
+        process.exit(2);
       }
 
       const targetPath = path.resolve(process.cwd(), target);
       if (!fs.existsSync(targetPath)) {
         console.error(`[ERROR] Target not found: ${targetPath}`);
-        process.exit(1);
+        process.exit(2);
       }
 
       const stat = fs.statSync(targetPath);
@@ -79,7 +283,7 @@ export async function runCli(args: string[]) {
       for (const file of filesToAudit) {
         const content = fs.readFileSync(file, 'utf8');
         const relPath = path.relative(process.cwd(), file);
-        const result = auditCode(content, { filepath: relPath });
+        const result = auditCode(content, { filepath: relPath, componentType: surfaceType(args) });
 
         totalViolations += result.violations.length;
         maxScore = Math.max(maxScore, result.slopScore);
@@ -118,13 +322,13 @@ export async function runCli(args: string[]) {
       const target = args[1];
       if (!target) {
         console.error('[ERROR] Please specify a file to fix: sloppy fix <path> [--write] [--look <look>]');
-        process.exit(1);
+        process.exit(2);
       }
 
       const targetPath = path.resolve(process.cwd(), target);
       if (!fs.existsSync(targetPath)) {
         console.error(`[ERROR] File not found: ${targetPath}`);
-        process.exit(1);
+        process.exit(2);
       }
 
       const shouldWrite = args.includes('--write') || args.includes('-w');
@@ -132,7 +336,7 @@ export async function runCli(args: string[]) {
       const look = lookIdx !== -1 && args[lookIdx + 1] ? (args[lookIdx + 1] as any) : 'linear';
 
       const originalCode = fs.readFileSync(targetPath, 'utf-8');
-      const result = transformSlopToCraft(originalCode, { look });
+      const result = transformSlopToCraft(originalCode, { look, filepath: path.relative(process.cwd(), targetPath) });
 
       console.log(`\n======================================================`);
       console.log(`SLOPPY: SURGICAL AI SLOP AUTO-FIXER`);
@@ -152,6 +356,10 @@ export async function runCli(args: string[]) {
       }
 
       if (shouldWrite) {
+        if (!result.isValidSyntax) {
+          console.error(`[ERROR] Refusing to write invalid syntax: ${result.syntaxErrors.map(error => error.message).join('; ')}`);
+          process.exit(1);
+        }
         fs.writeFileSync(targetPath, result.transformedCode, 'utf-8');
         console.log(`[SUCCESS] File refactored and written in-place.`);
       } else {
@@ -164,13 +372,13 @@ export async function runCli(args: string[]) {
       const target = args[1];
       if (!target) {
         console.error('[ERROR] Please specify a file to plan repairs for: sloppy plan <path> [--look <look>]');
-        process.exit(1);
+        process.exit(2);
       }
 
       const targetPath = path.resolve(process.cwd(), target);
       if (!fs.existsSync(targetPath)) {
         console.error(`[ERROR] File not found: ${targetPath}`);
-        process.exit(1);
+        process.exit(2);
       }
 
       const lookIdx = args.indexOf('--look');
@@ -209,18 +417,18 @@ export async function runCli(args: string[]) {
       const target = args[1];
       if (!target) {
         console.error('[ERROR] Please specify a file to evaluate: sloppy rubric <path> [--strict]');
-        process.exit(1);
+        process.exit(2);
       }
 
       const targetPath = path.resolve(process.cwd(), target);
       if (!fs.existsSync(targetPath)) {
         console.error(`[ERROR] File not found: ${targetPath}`);
-        process.exit(1);
+        process.exit(2);
       }
 
       const strict = args.includes('--strict');
       const code = fs.readFileSync(targetPath, 'utf-8');
-      const cert = evaluateCraftRubric(code, { filepath: targetPath, strict });
+      const cert = evaluateCraftRubric(code, { filepath: targetPath, strict, componentType: surfaceType(args) });
 
       console.log(`\n======================================================`);
       console.log(`SLOPPY CRAFT CERTIFICATION REPORT`);
@@ -263,14 +471,14 @@ export async function runCli(args: string[]) {
       if (!archetypeId) {
         console.error('[ERROR] Please specify an archetype: sloppy create <archetypeId> [--dir <path>]');
         console.log(`Available archetypes: ${SYNTHESIZED_ARCHETYPES.map(a => a.id).join(', ')}`);
-        process.exit(1);
+        process.exit(2);
       }
 
       const archetype = getSynthesizedArchetype(archetypeId);
       if (!archetype) {
         console.error(`[ERROR] Unknown archetype "${archetypeId}".`);
         console.log(`Run "sloppy archetypes" to view available multi-library master archetypes.`);
-        process.exit(1);
+        process.exit(2);
       }
 
       const dirIdx = args.indexOf('--dir') !== -1 ? args.indexOf('--dir') : args.indexOf('--dest');
@@ -377,7 +585,7 @@ export async function runCli(args: string[]) {
       const idOrPattern = args[1];
       if (!idOrPattern) {
         console.error('[ERROR] Please specify a component or pattern ID: sloppy add <library/component>');
-        process.exit(1);
+        process.exit(2);
       }
 
       const cleanId = idOrPattern.trim();
@@ -392,7 +600,7 @@ export async function runCli(args: string[]) {
         const srcFile = path.resolve(COMPONENTS_DIR, entry.sourcePath);
         if (!fs.existsSync(srcFile)) {
           console.error(`[ERROR] Component source not found: ${srcFile}`);
-          process.exit(1);
+          process.exit(2);
         }
 
         const destDir = customDir 
@@ -438,7 +646,7 @@ export async function runCli(args: string[]) {
 
       console.error(`[ERROR] Item "${cleanId}" not found in catalog or patterns.`);
       console.log(`Run "sloppy list" to search available components and patterns.`);
-      process.exit(1);
+      process.exit(2);
       break;
     }
 
@@ -477,7 +685,10 @@ export async function runCli(args: string[]) {
         console.log(`  Accent:      ${look.accent}`);
         console.log(`  Background:  ${look.background}`);
         console.log(`  Surfaces:    1: ${look.surface1} | 2: ${look.surface2} | 3: ${look.surface3}`);
-        console.log(`  Border:      ${look.border}\n`);
+        console.log(`  Border:      ${look.border}`);
+        if (look.fontSans) console.log(`  Type:        ${look.fontSans}`);
+        if (look.source) console.log(`  Source:      ${look.source.site} (${look.source.url}) via Refero Styles`);
+        console.log('');
       }
       break;
     }
@@ -507,11 +718,15 @@ SLOPPY: The AI Slop UI Fixer (MCP + Kit + Skill Engine)
 Combining: stageshow, shadcn, motion-primitives, magicui, react-bits, kokonutui, animate-ui
 
 Usage:
+  sloppy check <paths...>       Gate files on slop score, severity, and craft grade
   sloppy audit <file|dir>     Audit code or directory for AI slop anti-patterns
   sloppy rubric <file>        Evaluate code against 10-point Craft Rubric (Grade A+ to F)
   sloppy plan <file>          Generate structured repair plan with confidence & risk scores
-  sloppy fix <file> [--write] Surgically refactor AI slop in-place into clean craft
-  sloppy verify [target]      Run browser geometric framing & motion continuity checks
+  sloppy fix <file> [--diff|--check|--write]  Review or apply a proposed repair
+  sloppy fix --stdin [--json]  Transform source from stdin
+  sloppy verify [target]      Run browser or static verification
+  sloppy install-mcp --client <client>  Configure an MCP client
+  sloppy version [--json]     Show CLI and core versions
   sloppy create <archetype>   Scaffold a unified multi-library master archetype
   sloppy archetypes           List 10 available multi-library master archetypes
   sloppy list [library]       List all components or filter by library

@@ -1,3 +1,4 @@
+/* sloppy-allow-file: WORD_BUDGET_EXCEEDED. Lesson pages carry instructional copy, not product marketing copy. */
 import { useState, type ReactNode } from 'react'
 import { Collapse, Fly, Roll, Stage, type Act, type Rect } from '../kit'
 import { MacPointer } from '../kit/cursors'

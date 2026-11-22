@@ -1,3 +1,4 @@
+/* sloppy-allow-file: WORD_BUDGET_EXCEEDED. Full product-screen reproduction with real product copy. */
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Connector, Icon, Stage, States, type Act } from '../../kit'
 import './composed.css'

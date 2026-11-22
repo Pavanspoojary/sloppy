@@ -62,7 +62,8 @@ Any agent generating or editing user interface components within this repository
 
 ### The Craft Rubric Gate:
 - **Mandatory Grade A+ (100/100, minimum 95/100)**: All UI components and master archetypes must be scored against the 10-point Craft Rubric (`sloppy rubric <file> --strict` or MCP `sloppy_evaluate_rubric`).
-- **Zero Slop Violations**: Peak slop score must be **0/100** under `sloppy audit`.
+- **Zero Slop Violations**: `sloppy check <file> --json` must return `ok: true` and exit `0`. Never claim a file is clean without a fresh check result.
+- **Closed loop**: detect (`sloppy check`), plan (`sloppy plan`), review (`sloppy fix --diff`), apply (`sloppy fix --write`), then re-check. The fixer refuses to write syntax-invalid output.
 
 ### Prohibited AI Slop Anti-Patterns:
 1. **No Purple/Indigo Gradients**: Prohibit `bg-gradient-to-r from-purple-* to-indigo-*` on marketing cards and action buttons.
@@ -82,3 +83,9 @@ Any agent generating or editing user interface components within this repository
 - `@sloppy/cli`: Developer command-line interface. Clean output with exit code 1 on quality violations.
 - `@sloppy/verify`: Automated geometric framing, contrast, and motion continuity verification.
 - `@sloppy/playground`: Interactive local development studio and archetype inspector.
+
+---
+
+## 6. Multi-Agent Coordination
+
+OpenCode and Antigravity share this repository. Before starting work, read `docs/AGENT-COORDINATION.md`. It defines file ownership, the token and contrast contract, and the current work board. Claim a task there instead of rewriting another agent's files. The Refero Styles cache is a shared source of truth: derive looks with `node scripts/refero-looks.mjs` and verify them with `node --test test/looks.test.mjs`.

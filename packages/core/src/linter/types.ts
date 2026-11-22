@@ -18,6 +18,7 @@ export interface SlopViolation {
   severity: SlopSeverity;
   message: string;
   line?: number;
+  column?: number;
   snippet?: string;
   recommendation: string;
 }
@@ -33,6 +34,8 @@ export interface AuditResult {
     highCount: number;
     mediumCount: number;
     estimatedWordCount: number;
+    byRule?: Partial<Record<SlopViolationType, number>>;
+    suppressedCount?: number;
   };
   summary: string;
   remediationPlan: string[];
@@ -46,8 +49,8 @@ export interface AuditOptions {
 
 export interface TransformOptions {
   look?: 'linear' | 'minimal' | 'dark-hero' | 'raycast' | 'radix' | 'blueprint' | 'glass';
-  groundFraming?: boolean;
   budgetWords?: boolean;
+  filepath?: string;
 }
 
 export interface TransformationItem {

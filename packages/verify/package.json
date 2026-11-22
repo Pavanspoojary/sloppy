@@ -4,6 +4,10 @@
   "description": "Perceptual & geometric verification engine for Sloppy UI components",
   "type": "module",
   "main": "./verification.mjs",
+  "exports": {
+    ".": "./verification.mjs",
+    "./verification": "./verification.mjs"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },

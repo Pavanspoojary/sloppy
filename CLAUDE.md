@@ -19,9 +19,10 @@ Stop at the first rung that holds:
 
 ## 3. Zero-Tolerance Anti-Slop Gate
 Before marking any UI task complete:
-- Execute `sloppy audit <file>`: Must return 0 violations and 0/100 slop score.
+- Execute `sloppy check <file> --json`: Must return `ok: true`, exit 0, and 0/100 slop score.
 - Execute `sloppy rubric <file>`: Must score Grade A+ (>=95/100).
 - Eliminate unanchored floating windows, purple gradients, sparkle icons, unearned keyframe animations, and excessive text.
+- Never claim a file is clean without a fresh `sloppy check` result.
 
 ## 4. Conventional Commits
 - Always use Conventional Commits format: `<type>(<scope>): <subject>`.

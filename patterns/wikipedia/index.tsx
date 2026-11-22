@@ -1,3 +1,4 @@
+/* sloppy-allow-file: WORD_BUDGET_EXCEEDED. Full product-screen reproduction with real product copy. */
 import { useCallback, type ReactNode } from 'react'
 import { Popover, Stage, Swap, Window, type Act, type Layout } from '../../kit'
 import './wiki.css'

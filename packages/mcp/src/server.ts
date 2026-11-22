@@ -36,19 +36,41 @@ const KIT_DIR = path.resolve(ROOT_DIR, 'packages/kit');
 const COMPONENTS_DIR = path.resolve(ROOT_DIR, 'packages/components');
 
 export function createSloppyServer() {
+  const packageVersion = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, 'packages/mcp/package.json'), 'utf8')).version;
   const server = new Server(
     {
       name: 'sloppy-mcp',
-      version: '1.1.0'
+      version: packageVersion
     },
     {
-      capabilities: {
-        tools: {}
-      }
+      capabilities: { tools: {} },
+      instructions: 'Use the closed loop: call sloppy_check before and after edits. Never claim a file is slop-free without a fresh check. Prefer sloppy_fix with write:false and review its diff before applying changes.'
     }
   );
 
   const tools: Tool[] = [
+    {
+      name: 'sloppy_check',
+      description: 'Audit source code or a file, evaluate its craft grade, and return a gate result with repair actions.',
+      inputSchema: { type: 'object', properties: {
+        code: { type: 'string', description: 'Source code to check' },
+        path: { type: 'string', description: 'Optional source file path to check' },
+        maxScore: { type: 'number', description: 'Maximum permitted slop score (default: 0)', default: 0 },
+        failOn: { type: 'string', enum: ['none', 'low', 'medium', 'high', 'critical'], description: 'Minimum violation severity that fails the check (default: medium)', default: 'medium' },
+        componentType: { type: 'string', enum: ['illustration', 'feature-card', 'hero', 'application', 'bento'], description: 'Rendered surface type; sets the visible word budget' },
+        strict: { type: 'boolean', description: 'Enable strict restraint thresholds' }
+      } }
+    },
+    {
+      name: 'sloppy_fix',
+      description: 'Propose a code transformation and unified diff. Writing to a file requires write:true.',
+      inputSchema: { type: 'object', properties: {
+        code: { type: 'string', description: 'Source code to transform' },
+        path: { type: 'string', description: 'Optional source file path to read; it is only modified when write:true' },
+        look: { type: 'string', description: 'Target visual look (default: linear)' },
+        write: { type: 'boolean', description: 'Write transformed source to path only when explicitly true (default: false)', default: false }
+      } }
+    },
     {
       name: 'sloppy_audit_code',
       description: 'Scans JSX, TSX, HTML, or CSS code for classic AI slop anti-patterns (purple gradients, sparkle icon overload, boxed card syndrome, floating ungrounded windows, word budget violations, unearned animations) and returns a severity score (0-100) with precise remediation instructions.',
@@ -72,7 +94,7 @@ export function createSloppyServer() {
     },
     {
       name: 'sloppy_search_components',
-      description: 'Search across 700+ UI components from all 7 major ecosystems (shadcn, motion-primitives, magicui, react-bits, kokonutui, animate-ui, and stageshow) by natural language query, library, or category, complete with anti-slop ratings and usage guidance.',
+      description: `Search across ${SLOPPY_COMPONENTS.length} curated UI components from all 7 major ecosystems by natural language query, library, or category, complete with anti-slop ratings and usage guidance.`,
       inputSchema: {
         type: 'object',
         properties: {
@@ -114,7 +136,7 @@ export function createSloppyServer() {
     },
     {
       name: 'sloppy_search_patterns',
-      description: 'Search across 73+ curated gold product scenes (Linear, Slack, Raycast, Figma, Notion, Spotify, Telegram, etc.) and layout archetypes.',
+      description: `Search across ${PATTERNS_CATALOG.length} curated product patterns and layout archetypes.`,
       inputSchema: {
         type: 'object',
         properties: {
@@ -171,13 +193,13 @@ export function createSloppyServer() {
     },
     {
       name: 'sloppy_get_look',
-      description: 'Fetch complete design tokens, color scales, surface steps, border tokens, and CSS variables for curated aesthetic looks (minimal, linear, radix, raycast, blueprint, glass, dark-hero).',
+      description: 'Fetch complete design tokens, color scales, surface steps, border tokens, typography, and CSS variables for curated aesthetic looks. Includes hand-authored looks (minimal, linear, radix, raycast, blueprint, glass, dark-hero) and Refero-sourced production looks (nuxt, linearity, grafana, modern-treasury, milanote, bunny, heptabase, glyphs).',
       inputSchema: {
         type: 'object',
         properties: {
           look: {
             type: 'string',
-            description: 'Look name (e.g. "linear", "minimal", "radix", "raycast", "blueprint", "glass", "dark-hero")'
+            description: 'Look name (e.g. "linear", "minimal", "nuxt", "grafana", "milanote")'
           }
         },
         required: ['look']
@@ -227,38 +249,10 @@ export function createSloppyServer() {
     },
     {
       name: 'sloppy_list_catalog',
-      description: 'List summary statistics for the entire Sloppy ecosystem across all 7 component libraries and 73+ product patterns.',
+      description: `List summary statistics for the entire Sloppy ecosystem across ${SLOPPY_COMPONENTS.length} curated components and ${PATTERNS_CATALOG.length} curated product patterns.`,
       inputSchema: {
         type: 'object',
         properties: {}
-      }
-    },
-    {
-      name: 'sloppy_autofix_code',
-      description: 'Automatically and surgically transforms sloppy AI code into pristine craft: replaces purple gradients with quiet surface elevation, replaces sparkles with semantic icons, tames unearned animations, grounds floating windows, and injects word budgeting.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          code: {
-            type: 'string',
-            description: 'The sloppy JSX/TSX/HTML code to automatically refactor'
-          },
-          path: {
-            type: 'string',
-            description: 'Optional file path to read, refactor, and audit'
-          },
-          look: {
-            type: 'string',
-            enum: ['linear', 'minimal', 'dark-hero', 'raycast', 'radix', 'blueprint', 'glass'],
-            description: 'Target design token look (default: "linear")',
-            default: 'linear'
-          },
-          groundFraming: {
-            type: 'boolean',
-            description: 'Whether to ground floating windows to stage edges (default: true)',
-            default: true
-          }
-        }
       }
     },
     {
@@ -291,6 +285,11 @@ export function createSloppyServer() {
           strict: {
             type: 'boolean',
             description: 'Enable strict restraint and word budget auditing'
+          },
+          componentType: {
+            type: 'string',
+            enum: ['illustration', 'feature-card', 'hero', 'application', 'bento'],
+            description: 'Rendered surface type; sets the word budget and rubric word dimension'
           }
         }
       }
@@ -327,6 +326,41 @@ export function createSloppyServer() {
     const { name, arguments: args } = request.params;
 
     try {
+      if (name === 'sloppy_check') {
+        const input = args as { code?: string; path?: string; maxScore?: number; failOn?: 'none'|'low'|'medium'|'high'|'critical'; componentType?: 'illustration'|'feature-card'|'hero'|'application'|'bento'; strict?: boolean };
+        let code = input.code;
+        if (input.path) {
+          const file = path.resolve(process.cwd(), input.path);
+          if (!fs.existsSync(file)) return { content: [{ type: 'text', text: `File not found: ${file}` }], isError: true };
+          if (code === undefined) code = fs.readFileSync(file, 'utf8');
+        }
+        if (code === undefined) return { content: [{ type: 'text', text: 'Provide code or path.' }], isError: true };
+        const audit = auditCode(code, { filepath: input.path, componentType: input.componentType, strict: input.strict });
+        const rubric = evaluateCraftRubric(code, { filepath: input.path, componentType: input.componentType, strict: input.strict });
+        const rank = ['low', 'medium', 'high', 'critical'];
+        const threshold = input.failOn === 'none' ? -1 : rank.indexOf(input.failOn || 'medium');
+        const maxScore = input.maxScore ?? 0;
+        const ok = audit.slopScore <= maxScore && !audit.violations.some(v => threshold >= 0 && rank.indexOf(v.severity) >= threshold);
+        const nextActions = [...new Set(audit.violations.flatMap(() => input.path ? [`Run: sloppy fix ${input.path} --diff`, `Re-run: sloppy check ${input.path}`] : ['Review the suggested repairs and re-run sloppy_check']))].slice(0, 5);
+        return { content: [{ type: 'text', text: JSON.stringify({ ok, score: audit.slopScore, grade: rubric.grade, violations: audit.violations, nextActions }) }] };
+      }
+
+      if (name === 'sloppy_fix') {
+        const input = args as { code?: string; path?: string; look?: string; write?: boolean };
+        let code = input.code;
+        let resolvedPath: string | undefined;
+        if (input.path) {
+          resolvedPath = path.resolve(process.cwd(), input.path);
+          if (!fs.existsSync(resolvedPath)) return { content: [{ type: 'text', text: `File not found: ${resolvedPath}` }], isError: true };
+          if (code === undefined) code = fs.readFileSync(resolvedPath, 'utf8');
+        }
+        if (code === undefined) return { content: [{ type: 'text', text: 'Provide code or path.' }], isError: true };
+        const transformed = transformSlopToCraft(code, { look: (input.look as any) || 'linear', filepath: input.path });
+        if (input.write === true && resolvedPath) fs.writeFileSync(resolvedPath, transformed.transformedCode, 'utf8');
+        const result = { changed: transformed.transformedCode !== code, changesApplied: transformed.changesApplied, isValidSyntax: transformed.isValidSyntax, transformedCode: transformed.transformedCode, unifiedDiff: transformed.unifiedDiff, postAudit: transformed.postAudit };
+        return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+      }
+
       if (name === 'sloppy_audit_code') {
         const inputArgs = args as { code?: string; path?: string; strict?: boolean };
         let code = inputArgs.code || '';
@@ -640,44 +674,6 @@ export function createSloppyServer() {
         };
       }
 
-      if (name === 'sloppy_autofix_code') {
-        const inputArgs = args as { code?: string; path?: string; look?: any; groundFraming?: boolean };
-        let code = inputArgs.code;
-
-        if (!code && inputArgs.path) {
-          const resolvedPath = path.resolve(process.cwd(), inputArgs.path);
-          if (fs.existsSync(resolvedPath)) {
-            code = fs.readFileSync(resolvedPath, 'utf-8');
-          } else {
-            return {
-              content: [{ type: 'text', text: `File not found: ${resolvedPath}` }],
-              isError: true
-            };
-          }
-        }
-
-        if (!code) {
-          return {
-            content: [{ type: 'text', text: 'Please provide either "code" or a valid "path" to autofix.' }],
-            isError: true
-          };
-        }
-
-        const result = transformSlopToCraft(code, {
-          look: inputArgs.look || 'linear',
-          groundFraming: inputArgs.groundFraming !== false
-        });
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2)
-            }
-          ]
-        };
-      }
-
       if (name === 'sloppy_get_archetype') {
         const inputArgs = args as { archetypeId?: string };
         const archetypeId = inputArgs.archetypeId?.trim();
@@ -729,7 +725,7 @@ export function createSloppyServer() {
       }
 
       if (name === 'sloppy_evaluate_rubric') {
-        const inputArgs = args as { code?: string; path?: string; strict?: boolean };
+        const inputArgs = args as { code?: string; path?: string; strict?: boolean; componentType?: 'illustration'|'feature-card'|'hero'|'application'|'bento' };
         let code = inputArgs.code;
 
         if (!code && inputArgs.path) {
@@ -753,7 +749,8 @@ export function createSloppyServer() {
 
         const cert = evaluateCraftRubric(code, {
           strict: inputArgs.strict,
-          filepath: inputArgs.path
+          filepath: inputArgs.path,
+          componentType: inputArgs.componentType
         });
 
         return {
@@ -823,5 +820,6 @@ export async function runServer() {
   const server = createSloppyServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  process.stderr.write('Sloppy MCP server v1.1.0 running on stdio.\n');
+  const version = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, 'packages/mcp/package.json'), 'utf8')).version;
+  process.stderr.write(`Sloppy MCP server v${version} running on stdio.\n`);
 }

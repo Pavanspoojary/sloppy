@@ -20,7 +20,7 @@ export const SLOPPY_LIBRARIES: Record<string, SloppyLibraryInfo> = {
       'Grounded framing with deliberate 2/3 stage coverage and edge bleeding',
       'The 3-7 word budget rule and structural placeholder bars',
       'Act API for cause-driven cursor choreography and physics-settled motion',
-      '73+ real-product studies (Linear, Slack, Raycast, Figma, Notion, Dynamic Island)'
+      '74 real-product studies (Linear, Slack, Raycast, Figma, Notion, Dynamic Island)'
     ],
     antiSlopRole: 'The Anti-Slop Conscience: controls camera crop, word budget, and ensures every motion has a cause.',
     defaultLook: 'linear'

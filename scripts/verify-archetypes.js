@@ -14,7 +14,7 @@ console.log('======================================================\n');
 let failed = false;
 
 for (const arch of SYNTHESIZED_ARCHETYPES) {
-  const result = evaluateCraftRubric(arch.tsxCode, { filepath: `${arch.id}.tsx` });
+  const result = evaluateCraftRubric(arch.tsxCode, { filepath: `${arch.id}.tsx`, componentType: 'application' });
   const status = result.totalScore >= 95 ? '[PASS - GRADE A+]' : '[FAIL - BELOW THRESHOLD]';
 
   console.log(`${status} ${arch.name} (${arch.id})`);

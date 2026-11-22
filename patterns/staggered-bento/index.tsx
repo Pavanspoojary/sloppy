@@ -1,3 +1,4 @@
+/* sloppy-allow-file: WORD_BUDGET_EXCEEDED. Full product-screen reproduction with real product copy. */
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Count, Icon, Phone, Stage, useReducedMotion } from '../../kit'
 import type { Act } from '../../kit'

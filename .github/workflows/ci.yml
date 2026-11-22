@@ -33,6 +33,14 @@ jobs:
       - name: Verify Craft Rubric & Zero-Tolerance Anti-Slop Standard
         run: npm test
 
+      - name: CLI Agent Contract Smoke Test
+        run: |
+          node packages/cli/bin/sloppy.js check test/fixtures/clean-component.tsx --json
+          if node packages/cli/bin/sloppy.js check test/fixtures/slop-component.tsx --json; then
+            echo "Expected the slop fixture to fail the quality gate."
+            exit 1
+          fi
+
   commit-lint:
     name: Conventional Commits & Professional Wording Validation
     runs-on: ubuntu-latest

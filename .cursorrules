@@ -15,7 +15,7 @@
   - Boxed card monotony (use 4-step surface elevation instead)
   - Wall-of-text filler (strictly enforce 3–7 real strings; quiet placeholder bars elsewhere)
   - Unearned animations (`animate-bounce`, `animate-pulse`, `animate-ping`)
-- Pre-delivery verification: Run `sloppy audit <file>` or `sloppy rubric <file>` to verify 0/100 slop.
+- Pre-delivery verification: Run `sloppy check <file> --json` (exit 0, `ok: true`) or `sloppy rubric <file>` (Grade A+) to verify the craft standard. Never claim a file is clean without a fresh check.
 
 ## Version Control & Commits
 - Enforce Conventional Commits: `<type>(<scope>): <imperative summary>`.

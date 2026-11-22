@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "@sloppy/core": "*",
-    "@sloppy/mcp": "*"
+    "@sloppy/mcp": "*",
+    "@sloppy/verify": "*"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",

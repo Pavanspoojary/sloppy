@@ -1,3 +1,12 @@
+import { REFERO_LOOKS } from './refero.js';
+
+export interface LookSource {
+  provider: 'refero';
+  site: string;
+  url: string;
+  styleId: string;
+}
+
 export interface LookDefinition {
   name: string;
   theme: 'light' | 'dark';
@@ -10,10 +19,13 @@ export interface LookDefinition {
   border: string;
   text: string;
   textMuted: string;
+  fontSans?: string;
+  fontMono?: string;
+  source?: LookSource;
   cssVariables: Record<string, string>;
 }
 
-export const LOOKS: Record<string, LookDefinition> = {
+const CORE_LOOKS: Record<string, LookDefinition> = {
   minimal: {
     name: 'minimal',
     theme: 'light',
@@ -25,7 +37,7 @@ export const LOOKS: Record<string, LookDefinition> = {
     surface3: '#e4e4e7',
     border: '#e4e4e7',
     text: '#09090b',
-    textMuted: '#71717a',
+    textMuted: '#64646d',
     cssVariables: {
       '--ss-bg': '#ffffff',
       '--ss-surface-1': '#fafafa',
@@ -33,7 +45,7 @@ export const LOOKS: Record<string, LookDefinition> = {
       '--ss-surface-3': '#e4e4e7',
       '--ss-border': '#e4e4e7',
       '--ss-text': '#09090b',
-      '--ss-text-muted': '#71717a',
+      '--ss-text-muted': '#64646d',
       '--ss-accent': '#09090b'
     }
   },
@@ -71,7 +83,7 @@ export const LOOKS: Record<string, LookDefinition> = {
     surface3: '#e8e8e8',
     border: '#d9d9d9',
     text: '#11181c',
-    textMuted: '#687076',
+    textMuted: '#61696f',
     cssVariables: {
       '--ss-bg': '#fcfcfc',
       '--ss-surface-1': '#f8f8f8',
@@ -79,7 +91,7 @@ export const LOOKS: Record<string, LookDefinition> = {
       '--ss-surface-3': '#e8e8e8',
       '--ss-border': '#d9d9d9',
       '--ss-text': '#11181c',
-      '--ss-text-muted': '#687076',
+      '--ss-text-muted': '#61696f',
       '--ss-accent': '#0091ff'
     }
   },
@@ -117,7 +129,7 @@ export const LOOKS: Record<string, LookDefinition> = {
     surface3: '#103d74',
     border: 'rgba(0, 210, 255, 0.2)',
     text: '#e6f7ff',
-    textMuted: '#79a8d7',
+    textMuted: '#7eaddc',
     cssVariables: {
       '--ss-bg': '#041226',
       '--ss-surface-1': '#071d3a',
@@ -125,7 +137,7 @@ export const LOOKS: Record<string, LookDefinition> = {
       '--ss-surface-3': '#103d74',
       '--ss-border': 'rgba(0, 210, 255, 0.2)',
       '--ss-text': '#e6f7ff',
-      '--ss-text-muted': '#79a8d7',
+      '--ss-text-muted': '#7eaddc',
       '--ss-accent': '#00d2ff'
     }
   },
@@ -175,6 +187,11 @@ export const LOOKS: Record<string, LookDefinition> = {
       '--ss-accent': '#10b981'
     }
   }
+};
+
+export const LOOKS: Record<string, LookDefinition> = {
+  ...CORE_LOOKS,
+  ...REFERO_LOOKS
 };
 
 export function getLook(name: string): LookDefinition {

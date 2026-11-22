@@ -1,3 +1,4 @@
+/* sloppy-allow-file: WORD_BUDGET_EXCEEDED. Lesson pages carry instructional copy, not product marketing copy. */
 import { Avatar, Row, Stage } from '../kit'
 import './contrasts.css'
 import './composition.css'
