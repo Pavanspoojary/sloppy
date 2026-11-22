@@ -1,20 +1,30 @@
-// The headless browser the filming scripts share. playwright-core is the one
-// dependency filming needs and the kit doesn't, so a missing install says how
-// to fix it rather than failing on the import. Chrome is the installed one
-// (CHROME_PATH overrides), found on macOS, Windows and Linux alike.
+// Headless browser loader with graceful static fallback detection.
+// playwright-core is optional: when unavailable, Sloppy gracefully falls back
+// to static AST multi-width and contrast simulation.
+
+export async function tryLaunch() {
+  let chromium;
+  try {
+    ;({ chromium } = await import('playwright-core'));
+  } catch (err) {
+    return { browser: null, reason: 'playwright-core not installed' };
+  }
+
+  const path = process.env.CHROME_PATH;
+  try {
+    const browser = await chromium.launch(path ? { executablePath: path } : { channel: 'chrome', headless: true });
+    return { browser, reason: null };
+  } catch (err) {
+    return { browser: null, reason: `Chrome launch failed: ${err?.message || err}` };
+  }
+}
+
 export async function launch() {
-  let chromium
-  try {
-    ;({ chromium } = await import('playwright-core'))
-  } catch {
-    console.error('Filming needs playwright-core: run `npm i -D playwright-core` (or pnpm/yarn) in this project, then try again.')
-    process.exit(2)
+  const result = await tryLaunch();
+  if (!result.browser) {
+    console.error(`[BROWSER LAUNCH FAILED] ${result.reason}`);
+    console.error('Install Google Chrome or install playwright-core: `npm i -D playwright-core`');
+    process.exit(2);
   }
-  const path = process.env.CHROME_PATH
-  try {
-    return await chromium.launch(path ? { executablePath: path } : { channel: 'chrome' })
-  } catch {
-    console.error(`Couldn't start Chrome${path ? ` at ${path}` : ''}. Install Google Chrome, or set CHROME_PATH to a Chrome or Chromium binary.`)
-    process.exit(2)
-  }
+  return result.browser;
 }

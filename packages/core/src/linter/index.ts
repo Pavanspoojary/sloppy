@@ -7,6 +7,7 @@ export * from './transform.js';
 export * from './rubric.js';
 export * from './repair-planner.js';
 export * from './config.js';
+export * from './wiring-guard.js';
 
 const severity: Record<SlopSeverity, number> = { critical: 40, high: 20, medium: 10, low: 4 };
 const advice: Record<SlopViolationType, string> = {
@@ -267,7 +268,34 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     const ruleCode = CANONICAL_RULES[c.type]?.ruleId;
     const ruleOverride = config?.rules?.[c.type] ?? (ruleCode ? config?.rules?.[ruleCode] : undefined);
     if (ruleOverride === 'off') { suppressedCount++; continue; }
+    const tier = CANONICAL_RULES[c.type]?.tier || 'reflex';
+    if (options.floorOnly && tier !== 'floor') continue;
+    if (options.tier && tier !== options.tier) continue;
+
     const loc = sourceLocation(scan, c.at), lineText = code.split('\n')[loc.line - 1] || '';
+    
+    // Check for inline override rationale: // sloppy-override: RULE <rationale>
+    let inlineRationale: string | undefined;
+    for (const comment of allComments) {
+      const cl = sourceLocation(scan, comment.at).line;
+      if (cl === loc.line || cl + 1 === loc.line) {
+        const match = comment.text.match(/(?:sloppy-override|@sloppy-override)\s*[:,]?\s*([A-Za-z0-9_,-]+)\s+([^\n*/]+)/);
+        if (match) {
+          const ruleCandidate = match[1].trim().toUpperCase().replace(/-/g, '_');
+          const resolved = RULE_ALIASES[ruleCandidate] || ruleCandidate;
+          if (resolved === c.type || (ruleCode && resolved === ruleCode)) {
+            inlineRationale = match[2].trim();
+            break;
+          }
+        }
+      }
+    }
+
+    const configRationale = config?.overrules?.[c.type] || (ruleCode ? config?.overrules?.[ruleCode] : undefined);
+    const hasRationale = Boolean(inlineRationale || configRationale);
+    const rationale = inlineRationale || configRationale;
+    const isOverruled = tier === 'reflex' && hasRationale;
+
     const ignored = ignoreFile || allowedRules.has(c.type) || (ruleCode && allowedRules.has(ruleCode)) || allComments.some(comment => {
       const cl = sourceLocation(scan,comment.at).line;
       if (cl + 1 === loc.line) {
@@ -292,19 +320,68 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
       ruleId: ruleCode || c.type,
       type: c.type,
       severity: c.severity,
+      tier,
       line: loc.line,
       column: loc.column,
       snippet,
       message: c.message,
-      recommendation: advice[c.type]
+      recommendation: advice[c.type],
+      overruled: isOverruled,
+      overruleRationale: rationale
     });
   }
-  const totalWeight = violations.reduce((sum,v) => sum + severity[v.severity],0);
-  const score = violations.length ? Math.max(0,Math.min(100,Math.round(100 * (1 - Math.exp(-totalWeight / 55))))) : 0;
-  const count = (level: SlopSeverity) => violations.filter(v => v.severity === level).length;
+  const activeViolations = violations.filter(v => !v.overruled);
+  const totalWeight = activeViolations.reduce((sum,v) => sum + severity[v.severity],0);
+  const score = activeViolations.length ? Math.max(0,Math.min(100,Math.round(100 * (1 - Math.exp(-totalWeight / 55))))) : 0;
+  const count = (level: SlopSeverity) => activeViolations.filter(v => v.severity === level).length;
   const byRule: Partial<Record<SlopViolationType,number>> = {};
   for (const v of violations) byRule[v.type] = (byRule[v.type] || 0) + 1;
-  const remediationPlan = Array.from(new Set([...violations].sort((a,b) => severity[b.severity]-severity[a.severity]).map(v => advice[v.type])));
-  const summary = violations.length === 0 ? 'Pristine craft: zero AI slop detected.' : `${count('critical') ? 'Critical' : count('high') ? 'High' : 'Moderate'} craft issues detected (Score: ${score}/100) with ${violations.length} violations.`;
-  return { filepath:options.filepath, slopScore:score, isSlopFree:violations.length===0, violations, stats:{totalViolations:violations.length,criticalCount:count('critical'),highCount:count('high'),mediumCount:count('medium'),estimatedWordCount:wordCount,byRule,suppressedCount}, summary, remediationPlan };
+  const remediationPlan = Array.from(new Set([...activeViolations].sort((a,b) => severity[b.severity]-severity[a.severity]).map(v => advice[v.type])));
+
+  const floorViolations = violations.filter(v => v.tier === 'floor');
+  const reflexViolations = violations.filter(v => v.tier === 'reflex');
+  const finishViolations = violations.filter(v => v.tier === 'finish');
+  const overruledViolations = violations.filter(v => v.overruled);
+
+  const passedFloor = floorViolations.length === 0;
+  const passedReflex = reflexViolations.every(v => v.overruled);
+  const isSlopFree = passedFloor && passedReflex && finishViolations.length === 0;
+
+  let summary = 'Pristine craft: zero AI slop detected.';
+  if (!passedFloor) {
+    summary = `[FLOOR GATE BLOCKED] ${floorViolations.length} critical accessibility/soundness issue(s) detected.`;
+  } else if (!passedReflex) {
+    const unoverruled = reflexViolations.filter(v => !v.overruled).length;
+    summary = `[REFLEX GATE BLOCKED] ${unoverruled} AI default(s) require explicit rationale or cleanup.`;
+  } else if (violations.length > 0) {
+    summary = `Craft approved with ${overruledViolations.length} justified override(s) and ${finishViolations.length} finish suggestion(s).`;
+  }
+
+  return {
+    filepath: options.filepath,
+    slopScore: score,
+    isSlopFree,
+    passedFloor,
+    passedReflex,
+    violations,
+    floorViolations,
+    reflexViolations,
+    finishViolations,
+    overruledViolations,
+    stats: {
+      totalViolations: violations.length,
+      floorCount: floorViolations.length,
+      reflexCount: reflexViolations.length,
+      finishCount: finishViolations.length,
+      overruledCount: overruledViolations.length,
+      criticalCount: count('critical'),
+      highCount: count('high'),
+      mediumCount: count('medium'),
+      estimatedWordCount: wordCount,
+      byRule,
+      suppressedCount
+    },
+    summary,
+    remediationPlan
+  };
 }

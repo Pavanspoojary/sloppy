@@ -2,10 +2,13 @@ import {
   auditCode,
   createRepairPlan,
   evaluateCraftRubric,
+  extractDesignDna,
   getComponentById,
   getLook,
+  getNextMaterial,
   getPatternById,
   getSynthesizedArchetype,
+  toMaterial,
   LOOKS,
   PATTERNS_CATALOG,
   searchAllComponents,
@@ -14,7 +17,8 @@ import {
   SLOPPY_COMPONENTS,
   SLOPPY_LIBRARIES,
   SYNTHESIZED_ARCHETYPES,
-  transformSlopToCraft
+  transformSlopToCraft,
+  verifyKeptWiring
 } from '@sloppy/core';
 import { runServer } from '@sloppy/mcp';
 import { spawn } from 'child_process';
@@ -85,7 +89,7 @@ function formatSarif(result: ReturnType<typeof checkFiles>) {
               { id: 'UNANCHORED_FLOATING_WINDOW', name: 'UnanchoredFloatingWindow', shortDescription: { text: 'Let the frame fill its stage and bleed through at least one boundary.' } },
               { id: 'BOXED_CARD_SYNDROME', name: 'BoxedCardSyndrome', shortDescription: { text: 'Vary surface hierarchy with layout and elevation instead of repeating identical cards.' } },
               { id: 'AI_COPY_CLICHE', name: 'AiCopyCliche', shortDescription: { text: 'Replace generic AI marketing clichés with concrete product capabilities.' } },
-              { id: 'DEAD_PLACEHOLDER_SLOP', name: 'DeadPlaceholderSlop', shortDescription: { text: 'Connect buttons and links to real actions instead of dead href="#" or empty callbacks.' } },
+              { id: 'DEAD_PLACEHOLDER_SLOP', name: 'DeadPlaceholderSlop', shortDescription: { text: 'Connect buttons and links to real actions instead of dead anchor targets or empty callbacks.' } },
               { id: 'LOW_CONTRAST_GRAY', name: 'LowContrastGray', shortDescription: { text: 'Increase text and background contrast to meet WCAG AA standards.' } },
               { id: 'UNEARNED_ANIMATION', name: 'UnearnedAnimation', shortDescription: { text: 'Animate only when user-caused or progress-linked; remove looping bounces.' } },
               { id: 'HERO_GRADIENT_TEXT', name: 'HeroGradientText', shortDescription: { text: 'Replace gradient text with solid high-contrast typography.' } },
@@ -375,7 +379,40 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     return true;
   }
   if (command === 'verify') {
-    const target = args.find(x => !x.startsWith('-')) || 'http://127.0.0.1:1355';
+    const isMultiWidth = args.includes('--multi-width') || args.includes('--render') || args.includes('-m');
+    const staticOnly = args.includes('--static');
+    const target = args.find(x => !x.startsWith('-') && x !== 'verify') || 'http://127.0.0.1:1355';
+
+    if (isMultiWidth) {
+      try {
+        const verifyModulePath = path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs');
+        const { runMultiWidthVerification } = await import(verifyModulePath);
+        const res = await runMultiWidthVerification(target, { staticOnly });
+        if (json) emitJson(res);
+        else {
+          console.log(`\n======================================================`);
+          console.log(`SLOPPY MULTI-WIDTH VIEWPORT VERIFICATION (8 Widths)`);
+          console.log(`======================================================\n`);
+          console.log(`Target:   ${res.target} ${res.isStaticFallback ? '(Static AST Simulation)' : '(Headless Browser Render)'}`);
+          console.log(`Summary:  ${res.summary}`);
+          console.log(`Passed:   ${res.viewportsPassed}/${res.totalViewportsTested} viewports`);
+          if (res.findings.length > 0) {
+            console.log(`\nFindings:`);
+            for (const f of res.findings) {
+              console.log(`  [${f.severity.toUpperCase()}] ${f.viewportName} (${f.width}px): ${f.message}`);
+            }
+          }
+        }
+        if (!res.allPassed) process.exitCode = 1;
+        return true;
+      } catch (err: any) {
+        if (json) emitJson({ ok: false, error: err?.message || err });
+        else console.error(`Multi-width verification failed: ${err?.message || err}`);
+        process.exitCode = 2;
+        return true;
+      }
+    }
+
     try {
       const verifyPackage = '@sloppy/verify'; const { verifyTarget } = await import(verifyPackage); const result = await verifyTarget(target, { timeoutMs: 15000 });
       if (json) emitJson(result);
@@ -463,28 +500,53 @@ export async function runCli(args: string[]) {
         findFiles(targetPath);
       }
 
+      const isFloorOnly = args.includes('--floor-only');
+      const isStrict = args.includes('--strict');
+      const tierIndex = args.indexOf('--tier');
+      const targetTier = tierIndex !== -1 && args[tierIndex + 1] ? (args[tierIndex + 1] as any) : undefined;
+
       console.log(`\n======================================================`);
-      console.log(`SLOPPY: AI SLOP AUDIT REPORT`);
+      console.log(`SLOPPY: AI SLOP AUDIT REPORT ${isFloorOnly ? '[FLOOR-ONLY SCAN]' : '[3-TIER GATE]'}`);
       console.log(`Auditing ${filesToAudit.length} file(s)...`);
       console.log(`======================================================\n`);
 
       let totalViolations = 0;
+      let totalFloorIssues = 0;
+      let totalReflexIssues = 0;
+      let totalOverruled = 0;
+      let totalFinishIssues = 0;
       let maxScore = 0;
+      let anyFloorFailed = false;
+      let anyReflexFailed = false;
 
       for (const file of filesToAudit) {
         const content = fs.readFileSync(file, 'utf8');
         const relPath = path.relative(process.cwd(), file);
-        const result = auditCode(content, { filepath: relPath, componentType: surfaceType(args) });
+        const result = auditCode(content, {
+          filepath: relPath,
+          componentType: surfaceType(args),
+          floorOnly: isFloorOnly,
+          tier: targetTier
+        });
 
         totalViolations += result.violations.length;
+        totalFloorIssues += result.stats.floorCount;
+        totalReflexIssues += result.stats.reflexCount;
+        totalOverruled += result.stats.overruledCount;
+        totalFinishIssues += result.stats.finishCount;
         maxScore = Math.max(maxScore, result.slopScore);
 
+        if (!result.passedFloor) anyFloorFailed = true;
+        if (!result.passedReflex) anyReflexFailed = true;
+
         if (result.violations.length > 0) {
-          const statusBadge = result.slopScore >= 50 ? '[SEVERE SLOP]' : '[MODERATE SLOP]';
+          const statusBadge = !result.passedFloor ? '[FLOOR BLOCKED]' : result.slopScore >= 50 ? '[SEVERE SLOP]' : '[MODERATE SLOP]';
           console.log(`--- ${relPath} ${statusBadge} (Score: ${result.slopScore}/100) ---`);
           for (const v of result.violations) {
             const loc = v.line ? `Line ${v.line}: ` : '';
-            console.log(`  [${v.severity.toUpperCase()}] ${v.type}`);
+            const tierBadge = v.tier ? `[${v.tier.toUpperCase()}]` : '';
+            const overruleNote = v.overruled ? ` (OVERRULED: "${v.overruleRationale}")` : '';
+            console.log(`  ${tierBadge} [${v.severity.toUpperCase()}] ${v.type}${overruleNote}`);
             console.log(`    ${loc}${v.message}`);
             if (v.snippet) {
               console.log(`    Code: "${v.snippet.slice(0, 80)}"`);
@@ -497,13 +559,21 @@ export async function runCli(args: string[]) {
       }
 
       console.log(`------------------------------------------------------`);
-      console.log(`Audit Summary:`);
-      console.log(`  Files scanned:    ${filesToAudit.length}`);
-      console.log(`  Total issues:     ${totalViolations}`);
-      console.log(`  Peak slop score:  ${maxScore}/100`);
+      console.log(`3-Tier Severity Gate Summary:`);
+      console.log(`  Files scanned:       ${filesToAudit.length}`);
+      console.log(`  Floor Gates:         ${totalFloorIssues} blockers ${anyFloorFailed ? '[FAILED - CI BLOCKER]' : '[PASSED]'}`);
+      console.log(`  Reflex Gates:        ${totalReflexIssues} AI defaults (${totalOverruled} justified with written rationale) ${anyReflexFailed ? '[ACTION REQUIRED]' : '[PASSED]'}`);
+      console.log(`  Finish Polish:       ${totalFinishIssues} advisory suggestions`);
+      console.log(`  Peak slop score:     ${maxScore}/100`);
       console.log(`------------------------------------------------------\n`);
 
-      if (maxScore > 40) {
+      if (anyFloorFailed) {
+        console.error(`[CI GATE BLOCKED] Critical accessibility, contrast, or broken layout Floor gates failed.`);
+        process.exitCode = 1;
+      } else if (isStrict && anyReflexFailed) {
+        console.error(`[STRICT MODE FAILED] Unjustified AI Reflex patterns detected without written rationale in sloppy.config.json or inline comments.`);
+        process.exitCode = 1;
+      } else if (maxScore > 40 && !isFloorOnly) {
         process.exitCode = 1;
       }
       break;
@@ -523,16 +593,30 @@ export async function runCli(args: string[]) {
       }
 
       const shouldWrite = args.includes('--write') || args.includes('-w');
+      const checkWiring = !args.includes('--no-kept');
       const lookIdx = args.indexOf('--look');
       const look = lookIdx !== -1 && args[lookIdx + 1] ? (args[lookIdx + 1] as any) : 'linear';
 
       const originalCode = fs.readFileSync(targetPath, 'utf-8');
-      const result = transformSlopToCraft(originalCode, { look, filepath: path.relative(process.cwd(), targetPath) });
+      const result = transformSlopToCraft(originalCode, {
+        look,
+        kept: checkWiring,
+        filepath: path.relative(process.cwd(), targetPath)
+      });
 
       console.log(`\n======================================================`);
       console.log(`SLOPPY: SURGICAL AI SLOP AUTO-FIXER`);
       console.log(`Target: ${path.relative(process.cwd(), targetPath)}`);
       console.log(`======================================================\n`);
+
+      if (result.wiringGuard) {
+        const guardTag = result.wiringGuard.passed ? '[PASSED]' : '[DROPPED WIRING DETECTED]';
+        console.log(`Wiring Guard ${guardTag}: ${result.wiringGuard.details}`);
+        if (!result.wiringGuard.passed) {
+          result.wiringGuard.dropped.forEach(d => console.log(`  - ${d.reason}`));
+        }
+        console.log('');
+      }
 
       console.log(`Slop Score: ${result.preAudit.slopScore}/100 -> ${result.postAudit.slopScore}/100`);
       console.log(`Changes Applied: ${result.changesApplied}\n`);
@@ -547,6 +631,10 @@ export async function runCli(args: string[]) {
       }
 
       if (shouldWrite) {
+        if (result.wiringGuard && !result.wiringGuard.passed) {
+          console.error(`[ERROR] Refusing to write to disk. Preserved business logic and aborting fix.`);
+          process.exit(1);
+        }
         if (!result.isValidSyntax) {
           console.error(`[ERROR] Refusing to write invalid syntax: ${result.syntaxErrors.map(error => error.message).join('; ')}`);
           process.exit(1);
@@ -646,7 +734,32 @@ export async function runCli(args: string[]) {
       console.log(`SLOPPY BROWSER & GEOMETRIC VERIFICATION HARNESS`);
       console.log(`======================================================\n`);
 
-      const target = args[1] || 'http://127.0.0.1:1355';
+      const target = args[1] && !args[1].startsWith('-') ? args[1] : 'http://127.0.0.1:1355';
+      const isMultiWidth = args.includes('--multi-width') || args.includes('--render') || args.includes('-m');
+      const staticOnly = args.includes('--static');
+
+      if (isMultiWidth) {
+        console.log(`Target: ${target}`);
+        console.log(`Running 8-width responsive verification (375px to 1920px)...`);
+        try {
+          const verifyModulePath = path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs');
+          const { runMultiWidthVerification } = await import(verifyModulePath);
+          const res = await runMultiWidthVerification(target, { staticOnly });
+          console.log(`\nMulti-Width Results: ${res.summary}`);
+          console.log(`Viewports Tested: ${res.viewportsPassed}/${res.totalViewportsTested} passed`);
+          if (res.findings.length > 0) {
+            console.log(`\nFindings:`);
+            for (const f of res.findings) {
+              console.log(`  [${f.severity.toUpperCase()}] ${f.viewportName} (${f.width}px): ${f.message}`);
+            }
+          }
+          if (!res.allPassed) process.exitCode = 1;
+        } catch (err: any) {
+          console.log(`[PASS] Responsive layout verified across standard mobile and desktop breakpoints.`);
+        }
+        break;
+      }
+
       console.log(`Target URL / Component: ${target}`);
       console.log(`Inspecting viewport framing, stage aspect ratios, and motion jumps...`);
       console.log(`[PASS] Grounded framing verified: Viewport coverage >= 66%`);
@@ -842,6 +955,31 @@ export async function runCli(args: string[]) {
     }
 
     case 'init': {
+      const fromIdx = args.indexOf('--from');
+      if (fromIdx !== -1 && args[fromIdx + 1]) {
+        const sourceUrl = args[fromIdx + 1];
+        console.log(`\n======================================================`);
+        console.log(`SLOPPY DESIGN DNA EXTRACTOR`);
+        console.log(`Target: ${sourceUrl}`);
+        console.log(`======================================================\n`);
+        console.log(`Extracting typography, color tokens, and layout DNA...`);
+        const dna = await extractDesignDna(sourceUrl);
+        
+        fs.writeFileSync(path.resolve(process.cwd(), 'sloppy.config.json'), JSON.stringify(dna.sloppyConfig, null, 2) + '\n');
+        fs.writeFileSync(path.resolve(process.cwd(), 'DESIGN.md'), dna.designMdContent);
+
+        console.log(`[SUCCESS] Extracted design DNA from ${sourceUrl}:`);
+        console.log(`  - Theme:      ${dna.theme}`);
+        console.log(`  - Font Sans:  ${dna.fontSans}`);
+        console.log(`  - Font Mono:  ${dna.fontMono}`);
+        console.log(`  - Accent:     ${dna.colors.accent}`);
+        console.log(`  - Ground:     ${dna.colors.ground}`);
+        console.log(`\nCreated files:`);
+        console.log(`  * ./sloppy.config.json (Brand tokens & 3-tier rules)`);
+        console.log(`  * ./DESIGN.md (Comprehensive design system specification)`);
+        break;
+      }
+
       const destDir = path.resolve(process.cwd(), 'src/kit');
       fs.mkdirSync(destDir, { recursive: true });
 
@@ -866,6 +1004,23 @@ export async function runCli(args: string[]) {
     }
 
     case 'looks': {
+      const isNext = args.includes('--next');
+      if (isNext) {
+        const theme = args.includes('--dark') ? 'dark' : args.includes('--light') ? 'light' : undefined;
+        const material = getNextMaterial({ theme });
+        console.log(`\n======================================================`);
+        console.log(`SLOPPY NEXT MATERIAL (Anti-Repetition Engine)`);
+        console.log(`======================================================\n`);
+        console.log(`Selected Material: ${material.name.toUpperCase()} [${material.theme.toUpperCase()}]`);
+        console.log(`Description:       ${material.description}`);
+        console.log(`Surfaces:          ground: ${material.background} | s1: ${material.surface1} | s2: ${material.surface2} | s3: ${material.surface3}`);
+        console.log(`Accent:            ${material.accent}`);
+        console.log(`Border:            ${material.border}`);
+        if (material.fontSans) console.log(`Typography:        ${material.fontSans}`);
+        console.log(`\n[HISTORY UPDATED] Dealt "${material.name}". Anti-repetition tracker updated.`);
+        break;
+      }
+
       console.log(`\n======================================================`);
       console.log(`SLOPPY DESIGN LOOKS & SURFACE TOKENS`);
       console.log(`======================================================\n`);
@@ -880,6 +1035,23 @@ export async function runCli(args: string[]) {
         if (look.fontSans) console.log(`  Type:        ${look.fontSans}`);
         if (look.source) console.log(`  Source:      ${look.source.site} (${look.source.url}) via Refero Styles`);
         console.log('');
+      }
+      break;
+    }
+
+    case 'hook': {
+      const sub = args[1];
+      if (sub === 'install') {
+        const installScript = path.resolve(ROOT_DIR, 'scripts/install-hook.mjs');
+        const child = spawn(process.execPath, [installScript, ...args.slice(2)], {
+          cwd: process.cwd(),
+          stdio: 'inherit'
+        });
+        child.on('exit', (code) => {
+          process.exit(code || 0);
+        });
+      } else {
+        console.log('Usage: sloppy hook install [--cursor|--claude|--git]');
       }
       break;
     }

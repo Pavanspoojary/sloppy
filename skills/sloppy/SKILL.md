@@ -1,8 +1,8 @@
 ---
 name: sloppy
-description: The ultimate AI slop UI fixer. Build believable, high-craft product illustrations, landing page heroes, feature cards, bento grids, and cursor walkthroughs in React and CSS without AI slop. Never use purple gradients, sparkle icons, floating miniature windows, unearned bouncy animations, or walls of fake text. Includes an integrated MCP server and a pure React anti-slop kit.
+description: The ultimate AI slop UI fixer. Build believable, high-craft product illustrations, landing page heroes, feature cards, bento grids, and cursor walkthroughs in React and CSS without AI slop. Never use purple gradients, sparkle icons, floating miniature windows, unearned bouncy animations, or walls of fake text. Includes 3-tier severity gates (Floor/Reflex/Finish), wiring guard, multi-width verification, decoupled materials, an integrated MCP server, and a pure React anti-slop kit.
 metadata:
-  version: 1.3.0
+  version: 1.4.0
 ---
 
 # Sloppy: The AI Slop UI Fixer & Unified Design Engine
@@ -14,7 +14,71 @@ AI agents routinely generate "AI UI Slop":
 - Word overload: filling every row with fake numbers and text instead of disciplined word budgeting.
 - Unearned animations: spinning, bouncing, and sudden content swaps without cause-and-effect transitions.
 
-Sloppy eliminates AI slop by unifying 7 top-tier component ecosystems (Stageshow, shadcn/ui, Motion Primitives, Magic UI, React Bits, Kokonut UI, and Animate UI) with an automated surgical AST auto-fixer, 10 synthesized master archetypes, a 10-point Craft Rubric grading engine, a Model Context Protocol (MCP) server, and a developer CLI.
+Sloppy eliminates AI slop by unifying 7 top-tier component ecosystems (Stageshow, shadcn/ui, Motion Primitives, Magic UI, React Bits, Kokonut UI, and Animate UI) with an automated surgical AST auto-fixer, 3-tier severity gates, wiring protection guard, multi-width rendering verification, 10 synthesized master archetypes, a 10-point Craft Rubric grading engine, a Model Context Protocol (MCP) server, and a developer CLI.
+
+---
+
+## 3-Tier Severity Gates (Floor / Reflex / Finish)
+
+Sloppy categorizes all rules into three distinct enforcement tiers for painless CI adoption:
+
+1. **Floor (Hard CI Blockers)**:
+   - Non-negotiable quality and accessibility gates: WCAG contrast (`LOW_CONTRAST_GRAY`), broken mobile layout/overflow (`SCROLL_HIJACKING`), inaccessible controls (`FAKE_CONTROL_SLOP`), dead placeholder links (`DEAD_PLACEHOLDER_SLOP`), fabricated metrics (`FABRICATED_SOCIAL_PROOF`), and lorem ipsum text (`LOREM_IPSUM_SLOP`).
+   - Hard failure in `--strict` and pre-commit hooks. Cannot be bypassed.
+2. **Reflex (AI Defaults, Overrulable with Written Rationale)**:
+   - Typical synthetic agent habits: purple gradients (`PURPLE_GRADIENT_SLOP`), sparkle icons (`SPARKLE_ICON_OVERLOAD`), boxed card syndrome (`BOXED_CARD_SYNDROME`), unanchored floating windows (`UNANCHORED_FLOATING_WINDOW`), and unearned keyframe loops (`UNEARNED_ANIMATION`).
+   - Blocks CI by default, BUT passes if explicitly overruled with a written rationale in `sloppy.config.json` (under `"overrules": { "PURPLE_GRADIENT_SLOP": "Brand primary requirement" }`) or an inline comment:
+     `// sloppy-override: PURPLE_GRADIENT_SLOP Client requested brand purple gradient`
+3. **Finish (Advisory Polish)**:
+   - Non-blocking suggestions: spacing rhythm, visual weight balance, and micro-alignment. Never blocks CI.
+
+---
+
+## The Wiring Guard (`--kept` / `--before`)
+
+To remove the #1 fear developers have about AI UI rewrites (lost callbacks, dropped inputs, broken business logic), `sloppy fix` enforces a strict wiring guard before modifying any file:
+- **Snapshots Interactive Elements**: Event handlers (`onClick`, `onSubmit`, `onChange`), form inputs (`<input>`, `<select>`, `<textarea>`), navigation links (`href`, `to`), headings (`h1`-`h6`), and test anchors (`data-testid`, `id`).
+- **Fails Closed on Dropped Wiring**: If an automated transformation drops any wiring connection, the rewrite is aborted, the original file is preserved, and exact dropped items are reported.
+
+---
+
+## Multi-Width Viewport Verification (8 Widths)
+
+`sloppy verify <target> --multi-width` tests real rendered contrast, mobile horizontal overflow, and above-the-fold hero framing across 8 canonical viewports:
+- Mobile: 375px (iPhone SE), 390px (iPhone 14/15), 430px (iPhone Max)
+- Tablet: 768px (iPad), 834px (iPad Pro)
+- Desktop: 1024px (Laptop), 1440px (Desktop Widescreen), 1920px (1080p Monitor)
+- **Static AST Fallback**: When Playwright or Chrome is not installed, Sloppy automatically falls back to static AST inspection, verifying responsive constraints without failing or crashing.
+
+---
+
+## Decoupled Materials & Anti-Repetition Engine
+
+- **Pure Materials**: Each theme is a lightweight material token set (≤8 KB of surface, border, typography, and accent tokens) completely separated from page anatomy.
+- **Anti-Repetition Memory**: `sloppy looks --next` tracks recently dealt themes in `.sloppy/dealt-looks.json`, rotating through materials so generation never creates a recognizable "Sloppy template" look.
+
+---
+
+## Design DNA Extractor (`sloppy init --from <url>`)
+
+- Extracts authentic typography stacks, color palettes, surface hierarchy, and border radius directly from a live URL or local dev server.
+- Generates `sloppy.config.json` with project-specific brand allowances and generates a comprehensive `DESIGN.md` in the project root.
+
+---
+
+## Edit-Time Floor Hook (`sloppy hook install`)
+
+- Installs lightweight sub-30ms Floor checks for Cursor, Claude Code, and Git pre-commit.
+- Runs `sloppy audit --floor-only` on file edits, catching dead links, fake metrics, and contrast bugs in real time before the agent finishes its loop.
+
+---
+
+## Installation via `npx skills add`
+
+`skills/sloppy` is packaged for standalone installation:
+```bash
+npx skills add Pavanspoojary/slopy -g
+```
 
 ---
 

@@ -191,7 +191,44 @@ echo '<div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl 
 | `looks` | `sloppy looks` | Display design tokens and surface steps for curated and Refero looks. |
 | `libs` | `sloppy libs` | List the 7 integrated UI libraries and their design roles. |
 | `list` | `sloppy list [library]` | Search and list curated components across the ecosystem. |
-| `init` | `sloppy init` | Scaffold portable anti-slop React kit primitives into `./src/kit/`. |
+| `init` | `sloppy init [--from <url>]` | Scaffold React kit, or extract design DNA from live URL/dev-server into `sloppy.config.json` and `DESIGN.md`. |
+| `looks` | `sloppy looks [--next]` | Display tokens or deal fresh material from anti-repetition memory. |
+| `verify` | `sloppy verify [target] [--multi-width] [--static]` | Multi-width responsive verification (8 widths) with static AST fallback. |
+| `hook` | `sloppy hook install [--cursor\|--claude\|--git]` | Install lightweight sub-30ms Floor checks for edit-time validation. |
+
+---
+
+## 7 High-Leverage Hallmark Adaptations
+
+Sloppy incorporates 7 architectural features inspired by Hallmark to make CI adoption painless and eliminate the developer fear of broken UI rewrites:
+
+### 1. 3-Tier Severity Gates (Floor / Reflex / Finish)
+Rules are divided into three clear operational tiers:
+- **Floor (Hard CI Blockers)**: Non-negotiable gates—WCAG contrast, broken mobile layout/overflow, dead placeholder links, fake metrics, and lorem ipsum text. Fails `--strict` unconditionally.
+- **Reflex (AI Defaults, Overrulable with Rationale)**: AI defaults (purple gradients, sparkle icons, unanchored floating windows, unearned animations) that fail by default, BUT pass if explicitly overruled with a written rationale in `sloppy.config.json` (`"overrules": { "PURPLE_GRADIENT_SLOP": "Brand primary" }`) or inline:
+  `// sloppy-override: PURPLE_GRADIENT_SLOP Client requested brand purple gradient`
+- **Finish (Advisory Polish)**: Spacing rhythm, optical alignment, and subtle token balance. Never blocks CI.
+
+### 2. The Wiring Guard (`--kept` / `--before`)
+Before any automated fix or agent redesign touches a file, Sloppy snapshots all interactive event handlers (`onClick`, `onSubmit`), form inputs (`name`, `id`, `type`), navigation links (`href`, `to`), headings, and test IDs. If the transformation drops any connection, the fix is aborted, preserving business logic.
+
+### 3. Multi-Width Render Verification (8 Widths with Static Fallback)
+Tests real rendered contrast, mobile horizontal overflow, and above-the-fold hero framing across 8 canonical viewports (375px to 1920px). When Playwright or Chrome is not installed, Sloppy cleanly falls back to static AST inspection without failing or crashing.
+
+### 4. Decoupled Materials & Anti-Repetition Engine
+Themes are treated as pure lightweight materials (≤8 KB of surface, border, typography, and accent tokens) completely separated from page layout. `sloppy looks --next` tracks recently dealt looks so generated outputs never repeat the same theme twice.
+
+### 5. Design DNA Extractor (`sloppy init --from <url>`)
+Extracts typography stacks, color palettes, and surface hierarchy directly from a live URL or running local dev-server, automatically generating `sloppy.config.json` and a complete `DESIGN.md`.
+
+### 6. Lightweight Edit-Time Floor Hook (`sloppy hook install`)
+Installs sub-30ms Floor checks for Cursor (`.cursor/hooks/on-save.sh`), Claude Code (`.claude/hooks/post-edit.sh`), or Git (`.githooks/pre-commit`). Catches dead links, fake metrics, and contrast bugs in real time before the agent finishes its loop.
+
+### 7. Universal Skills Distribution (`npx skills add`)
+`skills/sloppy` is packaged as a standalone skill descriptor, installable globally across platforms:
+```bash
+npx skills add Pavanspoojary/slopy -g
+```
 | `dev` | `sloppy dev` | Launch the local visual playground and comparison studio on port 1355. |
 | `mcp` | `sloppy mcp` | Launch the stdio Model Context Protocol server. |
 | `version` | `sloppy version [--json]` | Output CLI and core engine versions. |

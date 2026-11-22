@@ -1,0 +1,17 @@
+{
+  "name": "@sloppy/skill",
+  "version": "1.4.0",
+  "description": "The ultimate AI slop UI fixer combining Stageshow craft, 7 UI ecosystems, surgical auto-fixer, 3-tier severity gates (Floor/Reflex/Finish), and wiring guard.",
+  "main": "SKILL.md",
+  "keywords": [
+    "skill",
+    "ai-slop",
+    "antigravity",
+    "claude-code",
+    "cursor",
+    "react",
+    "ui-craft"
+  ],
+  "author": "Pavanspoojary",
+  "license": "MIT"
+}

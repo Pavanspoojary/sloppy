@@ -2,6 +2,7 @@ import { auditCode } from './index.js';
 import { addNamedImport, resolveImport, rewriteIconImports } from './imports.js';
 import { unifiedDiff } from './diff.js';
 import { validateSyntax, SyntaxErrorItem } from './syntax.js';
+import { verifyKeptWiring, WiringCheckResult } from './wiring-guard.js';
 import { AuditResult, TransformationItem, TransformOptions, TransformResult } from './types.js';
 
 export interface FixResult extends TransformResult {
@@ -10,6 +11,7 @@ export interface FixResult extends TransformResult {
   isIdempotent: boolean;
   unifiedDiff: string;
   manualReviewItems: string[];
+  wiringGuard?: WiringCheckResult;
 }
 
 function mapJsxTags(source: string): { start: number; end: number; text: string }[] {
@@ -184,10 +186,36 @@ function applyOnce(code: string, options: TransformOptions): { code: string; ite
 
 export function transformSlopToCraft(code: string, options: TransformOptions = {}): FixResult {
   const preAudit = auditCode(code, { strict: true });
-  const first = applyOnce(code, options); const validation = validateSyntax(first.code);
-  const transformedCode = validation.valid ? first.code : code;
-  const transformations = validation.valid ? first.items : [];
+  const first = applyOnce(code, options);
+  const validation = validateSyntax(first.code);
+  const wiring = options.kept !== false ? verifyKeptWiring(code, first.code) : undefined;
+  
+  // If wiring guard failed, protect user logic and abort change
+  const isSafe = validation.valid && (!wiring || wiring.passed);
+  const transformedCode = isSafe ? first.code : code;
+  const transformations = isSafe ? first.items : [];
+  const manual = [...first.manual];
+  if (wiring && !wiring.passed) {
+    manual.push(`[WIRING GUARD BLOCKED] ${wiring.dropped.length} connection(s) dropped. Transformation aborted to preserve business logic.`);
+    for (const d of wiring.dropped) {
+      manual.push(`  - ${d.reason}`);
+    }
+  }
+
   const postAudit = auditCode(transformedCode, { strict: true });
   const second = applyOnce(transformedCode, options);
-  return { originalCode: code, transformedCode, changesApplied: transformations.length, transformations, preAudit, postAudit, isValidSyntax: validation.valid, syntaxErrors: validation.valid ? [] : validation.errors, isIdempotent: second.code === transformedCode, unifiedDiff: unifiedDiff(code, transformedCode, options.filepath || 'file.tsx'), manualReviewItems: first.manual };
+  return {
+    originalCode: code,
+    transformedCode,
+    changesApplied: transformations.length,
+    transformations,
+    preAudit,
+    postAudit,
+    isValidSyntax: validation.valid,
+    syntaxErrors: validation.valid ? [] : validation.errors,
+    isIdempotent: second.code === transformedCode,
+    unifiedDiff: unifiedDiff(code, transformedCode, options.filepath || 'file.tsx'),
+    manualReviewItems: manual,
+    wiringGuard: wiring
+  };
 }

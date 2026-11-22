@@ -1,0 +1,16 @@
+#!/bin/sh
+# Sloppy Fast Edit-Time Floor Hook
+echo "[SLOPPY HOOK] Running edit-time Floor checks on staged files..."
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(tsx|jsx|ts|js|html|css)$')
+
+if [ -n "$STAGED_FILES" ]; then
+  for FILE in $STAGED_FILES; do
+    if [ -f "$FILE" ]; then
+      npx sloppy audit "$FILE" --floor-only --strict
+      if [ $? -ne 0 ]; then
+        echo "[SLOPPY HOOK FAILED] Floor gate blocked commit on $FILE."
+        exit 1
+      fi
+    fi
+  done
+fi

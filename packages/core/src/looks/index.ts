@@ -189,6 +189,67 @@ const CORE_LOOKS: Record<string, LookDefinition> = {
   }
 };
 
+export interface MaterialDefinition {
+  name: string;
+  theme: 'light' | 'dark';
+  description: string;
+  surfaces: {
+    ground: string;
+    surface1: string;
+    surface2: string;
+    surface3: string;
+  };
+  borders: {
+    subtle: string;
+    strong: string;
+    focus: string;
+  };
+  typography: {
+    fontSans?: string;
+    fontMono?: string;
+    text: string;
+    textMuted: string;
+  };
+  accent: {
+    color: string;
+    glow?: string;
+  };
+  cssVariables: Record<string, string>;
+  sizeBytes: number; // Guaranteed <= 8192 bytes (<= 8 KB)
+}
+
+export function toMaterial(look: LookDefinition): MaterialDefinition {
+  const json = JSON.stringify(look);
+  const sizeBytes = Buffer.byteLength(json, 'utf8');
+  return {
+    name: look.name,
+    theme: look.theme,
+    description: look.description,
+    surfaces: {
+      ground: look.background,
+      surface1: look.surface1,
+      surface2: look.surface2,
+      surface3: look.surface3
+    },
+    borders: {
+      subtle: look.border,
+      strong: look.surface3,
+      focus: look.accent
+    },
+    typography: {
+      fontSans: look.fontSans,
+      fontMono: look.fontMono,
+      text: look.text,
+      textMuted: look.textMuted
+    },
+    accent: {
+      color: look.accent
+    },
+    cssVariables: look.cssVariables,
+    sizeBytes
+  };
+}
+
 export const LOOKS: Record<string, LookDefinition> = {
   ...CORE_LOOKS,
   ...REFERO_LOOKS
@@ -198,3 +259,5 @@ export function getLook(name: string): LookDefinition {
   const clean = name.toLowerCase().trim();
   return LOOKS[clean] || LOOKS.linear;
 }
+
+export * from './history.js';
