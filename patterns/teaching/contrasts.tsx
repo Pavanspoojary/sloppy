@@ -11,7 +11,7 @@ import { EdgeComparison, edgeLessons } from './edges'
 import { SceneComparison, sceneLessons } from './scenes'
 import { StyleComparison, styleLessons } from './style'
 import { DetailComparison, detailLessons } from './details'
-import { ChoreographyComparison, choreographyLessons } from '../examples/choreography'
+import { ChoreographyComparison, choreographyLessons } from '../choreography'
 
 type State = { done: boolean; pressed: boolean; phase: 'start' | 'change' | 'followup'; count: 0 | 1 | 2 | 3 }
 type Kind = 'label' | 'press' | 'space' | 'identity' | 'exit' | 'interrupt' | 'handoff' | 'reset'

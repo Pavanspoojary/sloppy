@@ -18,6 +18,8 @@ export interface CraftCertification {
   grade: CraftGrade;
   isCertified: boolean;
   verdict: string;
+  evaluationMethod: 'static-ast-heuristics';
+  coverageNote: string;
   dimensions: CraftDimension[];
   violations: SlopViolation[];
   markdownBadge: string;
@@ -212,9 +214,12 @@ export function evaluateCraftRubric(code: string, options: { strict?: boolean; f
 
   const isCertified = totalScore >= 95;
 
+  const evaluationMethod = 'static-ast-heuristics';
+  const coverageNote = 'Score reflects static AST anti-pattern elimination. Rendered layouts, complex CSS variables, and dynamic runtime animations require headless visual verification.';
+
   const verdict = isCertified
-    ? `Sloppy Craft Certified: Grade ${grade} (${totalScore}/100). Pristine craftsmanship, disciplined word budgeting, and grounded framing.`
-    : `Certification Failed: Grade ${grade} (${totalScore}/100). Substandard craftsmanship with detected AI slop anti-patterns.`;
+    ? `Sloppy Craft Certified: Grade ${grade} (${totalScore}/100) [Static AST Verified]. Zero known AI slop anti-patterns detected; pair with headless browser verification for runtime fidelity.`
+    : `Certification Failed: Grade ${grade} (${totalScore}/100) [Static AST Detected]. Substandard craftsmanship with detected AI slop anti-patterns.`;
 
   const colorHex = isCertified ? '38bdf8' : totalScore >= 75 ? 'eab308' : 'ef4444';
   const badgeLabel = `Sloppy%20Craft-Grade%20${encodeURIComponent(grade)}%20(${totalScore}%2F100)-${colorHex}`;
@@ -232,6 +237,8 @@ export function evaluateCraftRubric(code: string, options: { strict?: boolean; f
     grade,
     isCertified,
     verdict,
+    evaluationMethod,
+    coverageNote,
     dimensions,
     violations,
     markdownBadge,

@@ -4,7 +4,20 @@
  * Ensures every synthesized master archetype strictly achieves Grade A+ (>= 95/100).
  */
 
-import { evaluateCraftRubric, SYNTHESIZED_ARCHETYPES } from '../packages/core/dist/index.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const coreDist = path.resolve(__dirname, '../packages/core/dist/index.js');
+
+if (!fs.existsSync(coreDist)) {
+  console.log('[ARCHETYPE AUDIT] Building @sloppy/core prerequisite...');
+  execSync('npm run build --workspace=@sloppy/core', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+}
+
+const { evaluateCraftRubric, SYNTHESIZED_ARCHETYPES } = await import(pathToFileURL(coreDist).href);
 
 console.log('======================================================');
 console.log('SLOPPY CRAFT CERTIFICATION: MASTER ARCHETYPES AUDIT');

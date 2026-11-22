@@ -144,7 +144,12 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     const fg = tokens.map(color).find((x,i) => x && tokens[i].startsWith('text-'));
     let bg = tokens.map(color).find((x,i) => x && tokens[i].startsWith('bg-'));
     if (fg && !bg) for (const ancestor of ancestorsOf(tag)) { const ancestorTokens = getClasses(ancestor); bg = ancestorTokens.map(color).find((x,i) => x && ancestorTokens[i].startsWith('bg-')); if (bg) break; }
-    if (fg && bg) { const ratio = contrast(fg,bg); const tiny = tokens.includes('text-xs'); if (ratio < 3 || (!tiny && ratio < 4.5)) push('LOW_CONTRAST_GRAY', tag.start, `Text and background contrast is ${ratio.toFixed(2)}:1.`); }
+    if (fg && bg) {
+      const ratio = contrast(fg,bg);
+      const isLarge = tokens.some(t => /text-(?:lg|xl|[2-9]xl)/.test(t) || (t === 'font-bold' && tokens.includes('text-base')));
+      const minRatio = isLarge ? 3 : 4.5;
+      if (ratio < minRatio) push('LOW_CONTRAST_GRAY', tag.start, `Text and background contrast is ${ratio.toFixed(2)}:1 (minimum ${minRatio}:1 required under WCAG).`);
+    }
   }
   // Repeated sibling-like tags are approximated by contiguous repeated opening tags with matching surface tokens.
   const surfaces = new Map<string, SourceTag[]>();

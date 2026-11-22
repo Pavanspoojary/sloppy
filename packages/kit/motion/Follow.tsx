@@ -8,6 +8,8 @@ export interface FollowProps extends HTMLAttributes<HTMLDivElement> {
   to: Rect | null
   /** Higher is snappier. 0.25 is a quick, settled follow. */
   stiffness?: number
+  /** Damping ratio (zeta). Default 1.0 is strictly critically damped (zero overshoot). < 1.0 is underdamped. */
+  dampingRatio?: number
   children?: ReactNode
 }
 
@@ -17,7 +19,7 @@ export interface FollowProps extends HTMLAttributes<HTMLDivElement> {
  * restarts from rest on every change, so a target updated cell by cell on a
  * freeform drag stutters and shakes; this retargets smoothly instead.
  */
-export function Follow({ to, stiffness = 0.25, className, style, children, ...rest }: FollowProps) {
+export function Follow({ to, stiffness = 0.25, dampingRatio = 1.0, className, style, children, ...rest }: FollowProps) {
   const reduced = useReducedMotion()
   const el = useRef<HTMLDivElement>(null)
   const cur = useRef<Rect | null>(null)
@@ -30,7 +32,7 @@ export function Follow({ to, stiffness = 0.25, className, style, children, ...re
     let id = 0
     let running = false
     const k = stiffness
-    const damp = 2 * Math.sqrt(k) * 0.95
+    const damp = 2 * Math.sqrt(k) * dampingRatio
     const frame = 1000 / 60
     const keys = ['x', 'y', 'width', 'height'] as const
     let previous = performance.now()

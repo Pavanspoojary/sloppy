@@ -1,4 +1,24 @@
 {
-  "compilerOptions": { "target": "ES2022", "module": "ESNext", "moduleResolution": "bundler", "jsx": "react-jsx", "strict": true, "skipLibCheck": true, "noEmit": true, "lib": ["ES2022", "DOM", "DOM.Iterable"], "types": ["vite/client"] },
-  "include": [".", "../kit", "../examples", "../teaching"]
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "../../assets/*": ["../../assets/*"],
+      "../kit": ["../kit"],
+      "../kit/*": ["../kit/*"],
+      "../examples/*": ["../../patterns/*"],
+      "@sloppy/kit": ["../kit"],
+      "@sloppy/core": ["../core/src"]
+    },
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"]
+  },
+  "include": ["*.ts", "*.tsx"]
 }
