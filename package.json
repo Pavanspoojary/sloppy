@@ -4,10 +4,14 @@
   "private": true,
   "type": "module",
   "description": "Sloppy: The ultimate AI slop UI fixer combining Stageshow's craft principles, React kit, 74 pattern directories, MCP server, and universal agent skill.",
+  "bin": {
+    "sloppy": "./packages/cli/bin/sloppy.js"
+  },
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
+    "prepare": "npm run build --workspace=@sloppy/core && npm run build --workspace=@sloppy/mcp && npm run build --workspace=sloppy",
     "dev": "npm run dev --workspace=@sloppy/playground",
     "build": "npm run build --workspace=@sloppy/core && npm run build --workspace=@sloppy/mcp && npm run build --workspace=sloppy && npm run build --workspace=@sloppy/playground",
     "typecheck": "npm run typecheck --workspace=@sloppy/core && npm run typecheck --workspace=@sloppy/mcp && npm run typecheck --workspace=sloppy && npm run typecheck --workspace=@sloppy/kit && npm run typecheck --workspace=@sloppy/verify && npm run typecheck --workspace=@sloppy/playground",

@@ -4,28 +4,50 @@ A deterministic anti-slop design engine, portable React kit, Model Context Proto
 
 ---
 
-## Quick Installation (One Command Does Everything)
+## Direct Installation (Zero NPM Registration Needed)
 
-Run one single command to install and configure the entire Sloppy ecosystem across your machine:
+Install and configure the complete Sloppy ecosystem directly from GitHub with a single command (no npm publishing or registry accounts needed):
+
+### Option 1: Direct One-Line Installer (Recommended)
+Clones or updates into `~/.sloppy`, builds, links `sloppy` globally, and provisions MCP servers and Agent Skills:
 
 ```bash
-npx -y sloppy@latest setup --write
+curl -fsSL https://raw.githubusercontent.com/Pavanspoojary/sloppy/main/scripts/install.sh | bash
 ```
 
-Using `npx -y sloppy@latest` guarantees you always run the freshest anti-slop rules, archetypes, and MCP tools directly on every execution without stale local caches or manual updates.
+### Option 2: Direct Global Install via GitHub
+Installs directly from GitHub using npm's native git repository support:
+
+```bash
+npm install -g Pavanspoojary/sloppy && sloppy setup --write
+```
+
+### Option 3: Zero-Install via NPX directly from GitHub
+Run directly without installing anything permanent:
+
+```bash
+npx github:Pavanspoojary/sloppy setup --write
+```
 
 ---
 
 <details>
-<summary>Manual & Advanced Configuration Options</summary>
+<summary>Manual Clone & Local Development</summary>
 
-If you require fine-grained manual installation for specific environments:
+For local development or contributors:
 
-* **Zero-install CLI execution**: `npx -y sloppy@latest check ./src`
-* **Global install** (if preferred): `npm install -g sloppy && sloppy setup --write`
+```bash
+git clone https://github.com/Pavanspoojary/sloppy.git
+cd sloppy
+npm install
+npm run build
+npm link
+sloppy setup --write
+```
+
+* **Audit code directly**: `npx github:Pavanspoojary/sloppy check ./src`
+* **Scaffold React Kit**: `npx github:Pavanspoojary/sloppy init`
 * **Agent Skill only**: `npx skills add Pavanspoojary/sloppy --skill sloppy -g -a '*' -y`
-* **MCP Server only**: `npx -y sloppy@latest install-mcp --client cursor` (or `vscode`, `claude`, `codex`)
-* **React Kit into project**: `npx -y sloppy@latest init`
 
 </details>
 
