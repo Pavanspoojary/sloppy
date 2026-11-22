@@ -1,17 +1,31 @@
 #!/usr/bin/env bash
 set -e
 
-INSTALL_DIR="${SLOPPY_DIR:-$HOME/.sloppy}"
+# Detect if running from an existing repository clone
+if [ -z "$SLOPPY_DIR" ]; then
+  if [ -f "./package.json" ] && grep -q '"name": "sloppy-monorepo"' "./package.json" 2>/dev/null; then
+    INSTALL_DIR="$(pwd)"
+  else
+    INSTALL_DIR="$HOME/.sloppy"
+  fi
+else
+  INSTALL_DIR="$SLOPPY_DIR"
+fi
+
 BIN_DIR="${SLOPPY_BIN_DIR:-$HOME/.local/bin}"
 
-printf "[1/4] Fetching Sloppy repository from GitHub...\n"
-if [ -d "$INSTALL_DIR/.git" ]; then
-  cd "$INSTALL_DIR"
-  git fetch origin main --quiet
-  git reset --hard origin/main --quiet
+printf "[1/4] Preparing Sloppy environment in %s...\n" "$INSTALL_DIR"
+if [ "$INSTALL_DIR" != "$(pwd)" ]; then
+  if [ -d "$INSTALL_DIR/.git" ]; then
+    cd "$INSTALL_DIR"
+    git fetch origin main --quiet
+    git reset --hard origin/main --quiet
+  else
+    rm -rf "$INSTALL_DIR"
+    git clone --depth 1 https://github.com/Pavanspoojary/sloppy.git "$INSTALL_DIR" --quiet
+    cd "$INSTALL_DIR"
+  fi
 else
-  rm -rf "$INSTALL_DIR"
-  git clone --depth 1 https://github.com/Pavanspoojary/sloppy.git "$INSTALL_DIR" --quiet
   cd "$INSTALL_DIR"
 fi
 
