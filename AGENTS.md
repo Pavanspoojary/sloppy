@@ -1,6 +1,6 @@
 # Repository Engineering Guidelines & Agent Contract
 
-This repository (`slopy`) defines the universal anti-slop design system, Model Context Protocol (MCP) server, and developer CLI. Every autonomous agent (Antigravity, Cursor, Claude Code, Copilot, Codex, OpenCode, Devin, Windsurf, Gemini CLI, etc.) and human contributor working on this codebase must adhere strictly to these non-negotiable engineering standards.
+This repository (`sloppy`) defines the universal anti-slop design system, Model Context Protocol (MCP) server, and developer CLI. Every autonomous agent (Antigravity, Cursor, Claude Code, Copilot, Codex, OpenCode, Devin, Windsurf, Gemini CLI, etc.) and human contributor working on this codebase must adhere strictly to these non-negotiable engineering standards.
 
 ---
 
