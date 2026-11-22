@@ -166,10 +166,13 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     const mcpResults: Array<{ client: string; path: string; status: string }> = [];
     const skillResults: Array<{ target: string; path: string; status: string }> = [];
 
+    const inProject = process.cwd() !== '/' && process.cwd() !== homeDir && (fs.existsSync(path.join(process.cwd(), 'package.json')) || fs.existsSync(path.join(process.cwd(), '.git')));
+    const useGlobal = isGlobal || !inProject;
+
     const mcpClients = [
-      { id: 'cursor', file: isGlobal ? path.join(homeDir, '.cursor/mcp.json') : path.join(process.cwd(), '.cursor/mcp.json'), key: 'mcpServers' },
-      { id: 'vscode', file: isGlobal ? path.join(homeDir, 'Library/Application Support/Code/User/globalStorage/mcp.json') : path.join(process.cwd(), '.vscode/mcp.json'), key: 'servers' },
-      { id: 'claude', file: isGlobal ? path.join(homeDir, '.claude.json') : path.join(process.cwd(), '.mcp.json'), key: 'mcpServers' }
+      { id: 'cursor', file: useGlobal ? path.join(homeDir, '.cursor/mcp.json') : path.join(process.cwd(), '.cursor/mcp.json'), key: 'mcpServers' },
+      { id: 'vscode', file: useGlobal ? path.join(homeDir, 'Library/Application Support/Code/User/globalStorage/mcp.json') : path.join(process.cwd(), '.vscode/mcp.json'), key: 'servers' },
+      { id: 'claude', file: useGlobal ? path.join(homeDir, '.claude.json') : path.join(process.cwd(), '.mcp.json'), key: 'mcpServers' }
     ];
 
     for (const client of mcpClients) {

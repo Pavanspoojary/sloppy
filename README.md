@@ -4,100 +4,34 @@ A deterministic anti-slop design engine, portable React kit, Model Context Proto
 
 ---
 
-## Quick Installation: Choose Your Setup
+## Quick Installation (One Command Does Everything)
 
-Sloppy accommodates both all-in-one universal setups and standalone modular installs:
-
-| Setup Goal | What Gets Installed | 1-Step Command |
-|---|---|---|
-| **1. Everything (All-in-One)** | CLI + MCP Server (all editors) + Agent Skill | `npx -y sloppy setup --write` |
-| **2. CLI Only** | Terminal command & CI/CD quality gate | `npm install -g sloppy` (or zero-install: `npx sloppy check`) |
-| **3. MCP Server Only** | 16-tool stdio server for Cursor, Claude, Codex, VS Code | `npx -y sloppy install-mcp --client <client>` |
-| **4. Agent Skill Only** | Universal skill for 70+ agents (Antigravity, Cursor, etc.) | `npx skills add Pavanspoojary/sloppy --skill sloppy -g -a '*' -y` |
-| **5. React Kit Only** | Portable anti-slop primitives into `./src/kit/` | `npx -y sloppy init` |
-
----
-
-### Path 1: All-in-One Universal Setup (Recommended)
-
-One single command provisions the CLI, registers the MCP server across all detected clients, and links the Agent Skill globally:
+Run one single command to install and configure the entire Sloppy ecosystem across your machine:
 
 ```bash
-# Run directly with npx (zero pre-install required)
 npx -y sloppy setup --write
-
-# Or install globally and configure all tools at once
-npm install -g sloppy
-sloppy setup --write
 ```
 
-What this single command configures:
-1. **CLI**: Installs `sloppy` globally for terminal audits and CI/CD quality gates.
-2. **MCP Server**: Automatically registers `sloppy mcp` (16 tools) inside Cursor (`.cursor/mcp.json`), Claude (`.mcp.json`), Codex (`~/.codex/config.toml`), and VS Code (`.vscode/mcp.json`).
-3. **Agent Skill**: Globally links the `sloppy` skill into `~/.agents/skills/sloppy`, `~/.gemini/config/skills/sloppy` (Antigravity), and `~/.claude/skills/sloppy`.
+*(Or install globally and run setup: `npm install -g sloppy && sloppy setup --write`)*
+
+### What this single command sets up:
+1. **Developer CLI**: Installs `sloppy` globally for instant terminal audits, syntax repairs, and CI/CD quality gates.
+2. **MCP Server**: Automatically registers `sloppy mcp` (16 tools) inside Cursor (`.cursor/mcp.json`), Claude (`.claude.json`), Codex (`~/.codex/config.toml`), and VS Code.
+3. **Universal Agent Skill**: Links the `sloppy` skill into `~/.agents/skills/sloppy`, `~/.gemini/config/skills/sloppy` (Antigravity), and `~/.claude/skills/sloppy`. Every coding agent immediately gains access to the 10-point craft rubric, design rules, and master archetypes.
 
 ---
 
-### Path 2: CLI Only (For Developers & CI/CD Pipelines)
+<details>
+<summary>Manual & Advanced Configuration Options</summary>
 
-If you only want the terminal linter, syntax auto-fixer, and CI gate without agent integration:
+If you require fine-grained manual installation for specific environments:
 
-```bash
-# Install globally
-npm install -g sloppy
+* **CLI only**: `npm install -g sloppy` (or zero-install: `npx sloppy check ./src`)
+* **Agent Skill only**: `npx skills add Pavanspoojary/sloppy --skill sloppy -g -a '*' -y`
+* **MCP Server only**: `npx -y sloppy install-mcp --client cursor` (or `vscode`, `claude`, `codex`)
+* **React Kit into project**: `npx -y sloppy init`
 
-# Or run on-demand with zero local installation
-npx sloppy check ./src
-npx sloppy fix ./src/components/Hero.tsx --diff
-npx sloppy rubric ./src/components/Hero.tsx --strict
-```
-
----
-
-### Path 3: MCP Server Only (For Cursor, Claude, Codex, VS Code)
-
-If you only need the Model Context Protocol server for your AI code editor:
-
-```bash
-# Automatic 1-command registration:
-npx -y sloppy install-mcp --client cursor   # Configures .cursor/mcp.json
-npx -y sloppy install-mcp --client vscode   # Configures .vscode/mcp.json
-npx -y sloppy install-mcp --client claude   # Configures .mcp.json
-npx -y sloppy install-mcp --client codex    # Appends to ~/.codex/config.toml
-```
-
-Manual configuration snippet:
-```json
-{
-  "mcpServers": {
-    "sloppy": {
-      "command": "npx",
-      "args": ["-y", "sloppy", "mcp"]
-    }
-  }
-}
-```
-
----
-
-### Path 4: Agent Skill Only (For 70+ AI Coding Agents)
-
-If you only want the universal anti-slop skill, prompt instructions, 7 reference manuals, and 10 master archetypes loaded into Antigravity, Claude Code, Cursor, Codex, or Cline:
-
-```bash
-npx skills add Pavanspoojary/sloppy --skill sloppy -g -a '*' -y
-```
-
----
-
-### Path 5: React UI Kit Only (For Frontend Projects)
-
-If you only want the ready-to-use, zero-slop UI primitives (`Stage`, `Window`, `Act`, `Ease`, `Bar`) in your React repository:
-
-```bash
-# Scaffolds portable primitives directly into ./src/kit/
-npx -y sloppy init
-```
+</details>
 
 ---
 
