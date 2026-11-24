@@ -2,7 +2,7 @@
 /**
  * Sloppy Multi-Width Render & Viewport Verification
  * Evaluates real rendered contrast, mobile horizontal overflow, and hero stage framing
- * across 8 canonical viewports (375px to 1920px), with graceful static AST fallback.
+ * across 8 canonical viewports (375px to 1920px), with a graceful static source-scan fallback.
  */
 
 import { tryLaunch } from './browser.mjs';
@@ -30,7 +30,7 @@ export async function runMultiWidthVerification(target, options = {}) {
     }
   }
 
-  // Fallback to static AST analysis
+  // Fallback to static source scanning
   return runStaticMultiWidthFallback(target);
 }
 
@@ -66,7 +66,55 @@ async function runBrowserMultiWidth(browser, url) {
           });
         }
 
-        // 2. Check Above-the-fold Hero Framing on desktop viewports
+        // 2. Measure rendered text contrast against the nearest painted ancestor.
+        const contrastDefects = await page.evaluate(() => {
+          const parse = (value) => {
+            const match = String(value || '').match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)/);
+            return match ? [Number(match[1]), Number(match[2]), Number(match[3]), match[4] === undefined ? 1 : Number(match[4])] : null;
+          };
+          const luminance = ([r, g, b]) => {
+            const channel = (v) => { const x = v / 255; return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
+            return channel(r) * 0.2126 + channel(g) * 0.7152 + channel(b) * 0.0722;
+          };
+          const ratio = (a, b) => { const x = luminance(a), y = luminance(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+          const defects = [];
+          for (const el of document.querySelectorAll('body *')) {
+            if (el.closest('script, style, svg')) continue;
+            const text = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent || '').join(' ').trim();
+            if (text.length < 2) continue;
+            const style = getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) continue;
+            const rect = el.getBoundingClientRect();
+            if (!rect.width || !rect.height) continue;
+            const fg = parse(style.color);
+            let bg = parse(style.backgroundColor);
+            let parent = el;
+            while ((!bg || bg[3] === 0) && parent && parent !== document.documentElement) {
+              parent = parent.parentElement;
+              if (parent) bg = parse(getComputedStyle(parent).backgroundColor);
+            }
+            if (!fg || !bg) continue;
+            const fontSize = Number.parseFloat(style.fontSize) || 16;
+            const bold = Number(style.fontWeight) >= 700;
+            const minRatio = fontSize >= 24 || (bold && fontSize >= 18.66) ? 3 : 4.5;
+            const measured = ratio(fg, bg);
+            if (measured < minRatio) defects.push({ ratio: Number(measured.toFixed(2)), minRatio, fontSize, text: text.slice(0, 60) });
+          }
+          return defects.sort((a, b) => a.ratio - b.ratio).slice(0, 3);
+        });
+
+        for (const defect of contrastDefects) {
+          vpPassed = false;
+          findings.push({
+            width: vp.width,
+            viewportName: vp.name,
+            type: 'RENDERED_CONTRAST_DEFECT',
+            severity: 'high',
+            message: `Text "${defect.text}" has ${defect.ratio}:1 contrast (minimum ${defect.minRatio}:1 at ${defect.fontSize}px).`
+          });
+        }
+
+        // 3. Check Above-the-fold Hero Framing on desktop viewports
         if (vp.width >= 1024) {
           const heroCoverage = await page.evaluate(() => {
             const stage = document.querySelector('.ss-stage, [data-sloppy-stage], main, header');
@@ -91,7 +139,7 @@ async function runBrowserMultiWidth(browser, url) {
         findings.push({
           width: vp.width,
           viewportName: vp.name,
-          type: 'RENDERED_CONTRAST_DEFECT',
+          type: 'RENDER_EVALUATION_ERROR',
           severity: 'medium',
           message: `Evaluation error at ${vp.width}px: ${err?.message || err}`
         });
@@ -155,7 +203,7 @@ function runStaticMultiWidthFallback(target) {
     allPassed,
     findings,
     summary: allPassed
-      ? `[STATIC FALLBACK] Verified responsive layout across 8 viewports via static AST inspection.`
+      ? `[STATIC FALLBACK] Verified responsive layout across 8 viewports via static source scanning.`
       : `[STATIC FALLBACK] Found ${findings.length} potential mobile layout issue(s).`
   };
 }

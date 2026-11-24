@@ -15,6 +15,8 @@
     "test:rubric": "node scripts/verify-archetypes.js",
     "test:unit": "node --test --test-concurrency=1 test/*.test.mjs",
     "verify:commit": "node scripts/verify-commit-msg.js",
+    "rules:sync": "node scripts/sync-rules.mjs",
+    "rules:check": "node scripts/sync-rules.mjs --check",
     "verify:all": "npm run typecheck && npm run test",
     "mcp": "node packages/mcp/bin/sloppy-mcp.js",
     "audit": "node packages/cli/bin/sloppy.js audit",

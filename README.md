@@ -65,7 +65,7 @@ The installer and CLI recognize the following environment variables:
 
 | Layer | Component | Description |
 |---|---|---|
-| **CLI & Quality Gate** | `sloppy` | Deterministic linter, AST-validated auto-fixer, repair planner, and CI quality gate. |
+| **CLI & Quality Gate** | `sloppy` | Deterministic linter, syntax-validated auto-fixer, repair planner, and CI quality gate. |
 | **Agent Protocol** | `@sloppy/mcp` | Lean 5-tool stdio server enabling autonomous agents to audit, plan, and repair code in a closed loop. |
 | **Agent Skill** | `skills/sloppy` | Universal skill with 7 reference manuals (`craft`, `framing`, `motion`, `bento`, `word_budget`, `looks`, `rehearse`). |
 | **UI Primitives** | `@sloppy/kit` | Portable React and plain CSS components enforcing grounded framing, surface elevation, and caused motion. |
@@ -84,37 +84,44 @@ Sloppy identifies, lints, and remediates AI slop patterns cataloged with formal 
 
 Sloppy unifies catalog classification codes (`VIS-01`, `STR-01`, `AX-01`, `CPY-01`, etc.) and descriptive slug identifiers (`HERO_GRADIENT_TEXT`, `BOXED_CARD_SYNDROME`, `FAKE_CONTROL_SLOP`, `FABRICATED_SOCIAL_PROOF`, etc.) as 100% interchangeable aliases across CLI reporting, `sloppy.config.json` rules tables, and inline code comments (`sloppy-ignore-next-line`).
 
-| Rule ID | Canonical Slug | Severity | Description |
-|---|---|---|---|
-| `VIS-01` | `HERO_GRADIENT_TEXT` | High | `bg-clip-text text-transparent` with purple/indigo/cyan gradient fills. |
-| `VIS-02` | `PURPLE_GRADIENT_SLOP` | Critical | Arbitrary purple, indigo, or violet gradient backgrounds on cards and hero bands. |
-| `VIS-03` | `SPARKLE_ICON_OVERLOAD` | High | Decorative sparkle, magic wand, or orb icons (`LucideSparkles`, `Wand2`) on generic actions. |
-| `VIS-08` | `LOW_CONTRAST_GRAY` | High | Murky gray body text failing WCAG AA 4.5:1 contrast requirements. |
-| `VIS-09` | `MADE_UP_AI_BADGE` | Medium | Fabricated marketing tags ("Powered by AI", "Smart AI", "Generate with AI"). |
-| `STR-01` | `BOXED_CARD_SYNDROME` | Medium | Symmetrical repetition of 3+ identical boxed cards with uniform borders and padding. |
-| `STR-02` | `UNANCHORED_FLOATING_WINDOW` | High | Shrinking applications into miniature centered cards with uniform ambient air. |
-| `STR-03` | `FLAT_SURFACE_MONOTONY` | Medium | Repetition of 4+ surface elements sharing identical backgrounds and borders without depth steps. |
-| `LAY-01` | `CENTER_ALIGNED_EVERYTHING` | Medium | Global text and element centering with zero leading-edge anchor. |
-| `MOT-01` | `UNEARNED_ANIMATION` | High | Looping bounces, pulses, pings, or infinite spins uncaused by user action or loading state. |
-| `MED-01` | `EMOJI_ICON_SLOP` | Medium | Raw Unicode emojis embedded in UI buttons, nav items, or headers instead of crisp SVG icons. |
-| `CPY-01` | `FABRICATED_SOCIAL_PROOF` | High | Invented round numbers ("50,000+ teams", "99.99% uptime") and fake customer testimonials. |
-| `CPY-03` | `AI_COPY_CLICHE` | Medium | Generic marketing clichés ("Unlock the power of", "Supercharge your workflow", "10x your output"). |
-| `CPY-04` | `NEGATIVE_PARALLELISM` | Medium | Contrast reframes ("Not just a tool — it's an intelligent workspace"). |
-| `CPY-06` | `CHATBOT_SIGN_OFF_SLOP` | Medium | Leftover conversational filler ("I hope this helps!", "In conclusion", "Overall, it is important"). |
-| `CPY-07` | `LOREM_IPSUM_SLOP` | High | Dummy Latin placeholder copy (`lorem ipsum`, `dolor sit amet`) or synthetic names (`John Doe`). |
-| `AX-01` | `FAKE_CONTROL_SLOP` | High | Inaccessible clickable `<div>` or `<span>` lacking keyboard accessibility and ARIA roles. |
-| `UX-01` | `INTERACTIVE_STATES_MISSING` | High | Hover-only controls lacking `:focus-visible`, `:active`, `:disabled`, and empty states. |
-| `UX-02` | `DEAD_PLACEHOLDER_SLOP` | Medium | Dead placeholder links (`href="#"`), empty click handlers (`onClick={() => {}}`), and 404 targets. |
-| `UX-05` | `SCROLL_HIJACKING` | High | Global `overflow-hidden` on `<html>` or `<body>`, or custom wheel event interception. |
-| `TOK-01` | `Z_INDEX_CHAOS` | Medium | Arbitrary extreme z-index classes (`z-[9999]`, `z-[99999]`) and token drift. |
-| `TYP-08` | `WORD_BUDGET_EXCEEDED` | High | Visible word count exceeding the declared surface budget limit. |
-| `COD-01` | `AI_NARRATION_COMMENT_SLOP` | Low | AI narration comments (`// Render the button`, `// Main container`, section divider banners). |
-| `COD-02` | `CHAINED_TYPE_ASSERTION` | High | Fabricated type safety via chained assertions (`as unknown as T`, `as any as T`). |
-| `COD-03` | `UNVALIDATED_DYNAMIC_RETURN` | Medium | Unvalidated contract returns (`(): any`, `(): Promise<unknown>`) lacking schema guards. |
-| `COD-04` | `BROAD_RECORD_SLOP` | Medium | Broad dictionary types (`Record<string, any>`) erasing TypeScript safety boundaries. |
-| `COD-05` | `EMPTY_OBJECT_SPREAD` | Low | Conditional empty object spreads (`...(condition ? { key } : {})`). |
-| `COD-06` | `NON_NULL_ASSERTION_SLOP` | Medium | Unsafe chained non-null assertions (`foo!.bar!.baz`) bypassing defensive null checks. |
-| `LIV-01` | `STERILE_SURFACE_SLOP` | Low | Interactive controls lacking hover/focus/transition states, resulting in a sterile gray void. |
+<!-- RULES:START (generated by scripts/sync-rules.mjs; do not edit by hand) -->
+| ID | Slug | Title | Tier | Severity | Mode | What it catches |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `AX-01` | `FAKE_CONTROL_SLOP` | Inaccessible Fake Control | floor | high | detect-only | Clickable div or span without role or keyboard access. |
+| `COD-01` | `AI_NARRATION_COMMENT_SLOP` | AI Narration Comment Slop | finish | low | auto-fix | Line-by-line narration comments and divider banners. |
+| `COD-02` | `CHAINED_TYPE_ASSERTION` | Chained Type Assertion (as unknown as) | reflex | high | detect-only | Chained Type Assertion (as unknown as) |
+| `COD-03` | `UNVALIDATED_DYNAMIC_RETURN` | Unvalidated Contract Return (any/unknown) | reflex | medium | detect-only | Unvalidated Contract Return (any/unknown) |
+| `COD-04` | `BROAD_RECORD_SLOP` | Broad Dictionary Type (Record<string, any>) | reflex | medium | detect-only | Broad Dictionary Type (Record<string, any>) |
+| `COD-05` | `EMPTY_OBJECT_SPREAD` | Conditional Empty Object Spread | finish | low | detect-only | Conditional Empty Object Spread |
+| `COD-06` | `NON_NULL_ASSERTION_SLOP` | Unsafe Chained Non-Null Assertion (!.) | floor | medium | detect-only | Chained non-null assertions bypassing null checks. |
+| `CPY-01` | `FABRICATED_SOCIAL_PROOF` | Fabricated Social Proof Metrics | floor | high | detect-only | Invented metrics, logos, or testimonials. |
+| `CPY-02` | `STATUS_DOT_SLOP` | Unwired Pulsing Status Dots | reflex | medium | detect-only | Pulsing green status dot with no health endpoint behind it. |
+| `CPY-03` | `AI_COPY_CLICHE` | Generic Marketing Clichés | reflex | medium | detect-only | Generic Marketing Clichés |
+| `CPY-04` | `NEGATIVE_PARALLELISM` | Negative Parallelism Cliché | reflex | medium | detect-only | Negative Parallelism Cliché |
+| `CPY-05` | `AI_PROSE_FILLER` | Em-Dash, Rule-of-Three & Filler Copy | finish | medium | detect-only | Em-dash chains, adjective triplets, false ranges, and vague attribution. |
+| `CPY-06` | `CHATBOT_SIGN_OFF_SLOP` | Chatbot Conversational Artifacts | reflex | medium | detect-only | Chatbot Conversational Artifacts |
+| `CPY-07` | `LOREM_IPSUM_SLOP` | Placeholder & Lorem Ipsum Copy | floor | high | detect-only | Placeholder & Lorem Ipsum Copy |
+| `LAY-01` | `CENTER_ALIGNED_EVERYTHING` | Center-Aligned Monotony | reflex | medium | detect-only | Center-Aligned Monotony |
+| `LIV-01` | `STERILE_SURFACE_SLOP` | Sterile Surface & Missing Liveliness | finish | low | detect-only | Sterile Surface & Missing Liveliness |
+| `MED-01` | `EMOJI_ICON_SLOP` | Raw Emojis as UI Icons | reflex | medium | detect-only | Raw Emojis as UI Icons |
+| `MED-02` | `SPARKLE_ICON_OVERLOAD` | Sparkle / Magic-Wand Icon Overload | reflex | high | auto-fix | Decorative sparkle or magic-wand icons on generic actions. |
+| `MOT-01` | `UNEARNED_ANIMATION` | Unearned Looping Animation | reflex | high | auto-fix | Unearned Looping Animation |
+| `STR-01` | `BOXED_CARD_SYNDROME` | Boxed Card Monotony | reflex | medium | detect-only | Boxed Card Monotony |
+| `STR-02` | `UNANCHORED_FLOATING_WINDOW` | Unanchored Floating Window | reflex | high | detect-only | Unanchored Floating Window |
+| `STR-03` | `FLAT_SURFACE_MONOTONY` | Flat Surface Monotony | reflex | medium | detect-only | Flat Surface Monotony |
+| `TOK-01` | `Z_INDEX_CHAOS` | Arbitrary Z-Index Escalation | floor | medium | detect-only | Arbitrary Z-Index Escalation |
+| `TOK-02` | `DESIGN_TOKEN_DRIFT` | Off-Contract Design Token | reflex | medium | detect-only | A hard-coded color outside the palette locked in DESIGN.md. |
+| `TYP-08` | `WORD_BUDGET_EXCEEDED` | Word Budget Exceeded | reflex | high | auto-fix | Word Budget Exceeded |
+| `UX-02` | `DEAD_PLACEHOLDER_SLOP` | Dead Placeholder Handlers | floor | medium | detect-only | Dead anchors or empty click handlers. |
+| `UX-05` | `SCROLL_HIJACKING` | Scroll Hijacking & Wheel Interference | floor | high | detect-only | Global scroll locks or wheel interception. |
+| `VIS-01` | `HERO_GRADIENT_TEXT` | Hero Gradient Text | reflex | high | detect-only | Gradient text clipped to a transparent heading fill. |
+| `VIS-02` | `PURPLE_GRADIENT_SLOP` | Purple/Indigo Gradient Palette | reflex | critical | auto-fix | Purple, indigo, or violet gradients used as a default accent. |
+| `VIS-03` | `EMERALD_MONOCULTURE` | Gen-2 Emerald Dark-Mode Monoculture | reflex | high | detect-only | Gen-2 emerald-on-dark accents with no declared brand token. |
+| `VIS-06` | `BLUR_OVERUSE` | Glassmorphism Blur Overuse | reflex | medium | detect-only | Backdrop blur used as the default surface instead of a rare overlay. |
+| `VIS-07` | `GLOW_SHADOW` | Colored Glow Shadows | reflex | medium | detect-only | Colored ambient glow shadows around cards or controls. |
+| `VIS-08` | `LOW_CONTRAST_GRAY` | Low Contrast Gray Text | floor | high | detect-only | Body or label text below WCAG AA contrast. |
+| `VIS-09` | `MADE_UP_AI_BADGE` | Fabricated AI Badge | reflex | medium | detect-only | Fabricated AI Badge |
+<!-- RULES:END -->
 
 ---
 
@@ -140,11 +147,11 @@ To preserve agent context windows while going deeper per domain, Sloppy splits i
 | Skill | Directory | Primary Focus | Referenced Rule IDs |
 | :--- | :--- | :--- | :--- |
 | **`sloppy`** | `skills/sloppy/` | Master coordinator, CLI workflow, 3-tier severity gates, and wiring guard | All |
-| **`sloppy-ui`** | `skills/sloppy-ui/` | Surface elevation (Step 0 to 3), monochromatic ground, authentic icons | `VIS-01`, `VIS-02`, `VIS-03`, `VIS-08`, `LIV-01` |
-| **`sloppy-copywriting`** | `skills/sloppy-copywriting/` | Word budgets (3-7 words per item), negative parallelism, metric proof | `CPY-01`, `CPY-04`, `CPY-06`, `CPY-07`, `TYP-08` |
-| **`sloppy-human`** | `skills/sloppy-human/` | Engineering authenticity, real domain nouns, macOS chrome headers | `REAL_WORLD_CHROME_MISSING`, `AUTHENTIC_MICROCOPY` |
+| **`sloppy-ui`** | `skills/sloppy-ui/` | Surface elevation (Step 0 to 3), monochromatic ground, authentic icons | `VIS-01`, `VIS-02`, `VIS-03`, `VIS-06`, `VIS-07`, `VIS-08`, `MED-02`, `LIV-01` |
+| **`sloppy-copywriting`** | `skills/sloppy-copywriting/` | Word budgets (3-7 words per item), negative parallelism, metric proof | `CPY-01`, `CPY-02`, `CPY-04`, `CPY-05`, `CPY-06`, `CPY-07`, `TYP-08` |
+| **`sloppy-human`** | `skills/sloppy-human/` | Engineering authenticity, real domain nouns, macOS chrome headers | Guidance only |
 | **`sloppy-layoutmobile`** | `skills/sloppy-layoutmobile/` | Responsive framing, stage coverage (>=66%), breaking boxed cards | `STR-01`, `STR-02`, `LAY-01`, `UX-05` |
-| **`sloppy-code`** | `skills/sloppy-code/` | Accessibility (`role`, `tabIndex`), zero dead callbacks, comment hygiene | `AX-01`, `UX-02`, `TOK-01`, `COD-01` |
+| **`sloppy-code`** | `skills/sloppy-code/` | Accessibility (`role`, `tabIndex`), zero dead callbacks, comment hygiene | `AX-01`, `UX-02`, `TOK-01`, `TOK-02`, `COD-01` |
 
 Install any skill individually via:
 ```bash
@@ -264,7 +271,7 @@ echo '<div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl 
 | `list` | `sloppy list [library]` | Search and list curated components across the ecosystem. |
 | `init` | `sloppy init [--from <url>]` | Scaffold React kit, or extract design DNA from live URL/dev-server into `sloppy.config.json` and `DESIGN.md`. |
 | `looks` | `sloppy looks [--next]` | Display tokens or deal fresh material from anti-repetition memory. |
-| `verify` | `sloppy verify [target] [--multi-width] [--static]` | Multi-width responsive verification (8 widths) with static AST fallback. |
+| `verify` | `sloppy verify [target] [--multi-width] [--static]` | Multi-width responsive verification (8 widths) with static source-scan fallback. |
 | `hook` | `sloppy hook install [--cursor\|--claude\|--git]` | Install lightweight sub-30ms Floor checks for edit-time validation. |
 
 ---
@@ -284,7 +291,7 @@ Rules are divided into three clear operational tiers:
 Before any automated fix or agent redesign touches a file, Sloppy snapshots all interactive event handlers (`onClick`, `onSubmit`), form inputs (`name`, `id`, `type`), navigation links (`href`, `to`), headings, and test IDs. If the transformation drops any connection, the fix is aborted, preserving business logic.
 
 ### 3. Multi-Width Render Verification (8 Widths with Static Fallback)
-Tests real rendered contrast, mobile horizontal overflow, and above-the-fold hero framing across 8 canonical viewports (375px to 1920px). When Playwright or Chrome is not installed, Sloppy cleanly falls back to static AST inspection without failing or crashing.
+Tests real rendered contrast, mobile horizontal overflow, and above-the-fold hero framing across 8 canonical viewports (375px to 1920px). When Playwright or Chrome is not installed, Sloppy cleanly falls back to static source scanning without failing or crashing.
 
 ### 4. Decoupled Materials & Anti-Repetition Engine
 Themes are treated as pure lightweight materials (≤8 KB of surface, border, typography, and accent tokens) completely separated from page layout. `sloppy looks --next` tracks recently dealt looks so generated outputs never repeat the same theme twice.
@@ -316,8 +323,8 @@ npx skills add Pavanspoojary/slopy -g
 
 To eliminate circular self-grading, Sloppy distinguishes between two independent evaluation metrics:
 
-### 1. Slop Score (AST Violation Count, 0–100, Lower is Better)
-The linter metric is an error-density scale computed from weighted static AST anti-pattern violations:
+### 1. Slop Score (Source-Scan Violation Count, 0–100, Lower is Better)
+The linter metric is an error-density scale computed from weighted static source-scan anti-pattern violations:
 * `0`: Pristine craft; zero detected AI slop patterns.
 * `1–19`: Minor advisory notices; passes lenient gates.
 * `>= 20`: Fails the default CI quality gate.
@@ -347,7 +354,7 @@ The certification metric evaluates architectural craft across 10 distinct dimens
 ### Independent Verification Evidence
 
 Auto-repair is never certified by circular linter scores alone. Sloppy subjects every transformed component to independent external verification:
-* **TypeScript AST Syntax Validation**: Transformed code must compile without errors under `tsc --noEmit`.
+* **Static Syntax Validation**: Transformed code must compile without errors under `tsc --noEmit`.
 * **Playwright Computed-Style Luminance**: Headless verification measures rendered color contrast against WCAG AA standards (4.5:1 for body copy, 3.0:1 for large text).
 * **Semantic DOM Integrity**: Buttons and interactive controls must be native HTML elements or carry complete keyboard navigation event bindings.
 
@@ -552,11 +559,11 @@ Sloppy supports rule suppression using either catalog codes or descriptive slugs
 
 ---
 
-## AST & Lexical Scope: Analysis Boundaries
+## Lexical Scope & Analysis Boundaries
 
 To earn senior engineer and team trust in automated CI/CD pipelines, Sloppy clearly demarcates what its scanner evaluates versus what is intentionally delegated to compilers and runtime environments:
 
-### What Sloppy Resolves (Deterministic AST & Lexical Scope)
+### What Sloppy Resolves (Deterministic Source Scan & Lexical Scope)
 * **Same-File Lexical Scope**: Resolves local variable assignments, function declarations, imports (`import { Sparkles as MagicIcon }`), and property bindings.
 * **JSX/HTML Structural Hierarchy**: Tracks parent-child tag trees, ancestor chains, element nesting depth, and accessible roles (`role="button"`, `tabIndex`).
 * **Wiring Graph Preservation**: Tracks active href targets, form inputs, event handlers (`onClick`, `onSubmit`), and text headings to ensure zero regressions during auto-fixes.
@@ -564,8 +571,8 @@ To earn senior engineer and team trust in automated CI/CD pipelines, Sloppy clea
 * **Low-Evidence TypeScript Constructs**: Flags unsafe chained assertions (`as unknown as T`), ungrounded non-null assertions (`foo!.bar`), dynamic contract returns (`(): Promise<any>`), and broad dictionary types (`Record<string, any>`).
 
 ### What Sloppy Intentionally Skips (Analysis Boundaries)
-* **Cross-File Type Inference**: Resolving types across external files or npm modules belongs to `tsc` / `oxlint`. Sloppy focuses on local syntax, structural ASTs, and visual UI rules.
-* **Dynamic Code Execution (`eval` / Runtime State)**: Sloppy never executes target source code during AST passes; all checks are static, idempotent, and sandboxed.
+* **Cross-File Type Inference**: Resolving types across external files or npm modules belongs to `tsc` / `oxlint`. Sloppy focuses on local syntax, structural JSX scans, and visual UI rules.
+* **Dynamic Code Execution (`eval` / Runtime State)**: Sloppy never executes target source code during static passes; all checks are static, idempotent, and sandboxed.
 * **Backend Network & Sockets**: Static verification runs fully offline without making outbound network requests or binding live server sockets.
 
 ---
@@ -588,7 +595,7 @@ Sloppy includes an interactive comparison studio (`packages/playground`) for tes
 ```
 sloppy/
 ├── packages/
-│   ├── core/          # Primary wedge: AST scanner, rules, scoring, rubric, repair planner, and config loader
+│   ├── core/          # Primary wedge: source scanner, rules, scoring, rubric, repair planner, and config loader
 │   ├── cli/           # Developer CLI, setup orchestrator, and CI quality gate
 │   ├── mcp/           # Lean 5-tool Model Context Protocol stdio server for agents
 │   ├── kit/           # Portable React craft primitives (Stage, Window, Follow, Fly, Expand)
@@ -607,7 +614,7 @@ sloppy/
 
 * **Strict Zero Emojis Policy**: Zero emojis across code, UI, alert banners, documentation, commit messages, and assistant output.
 * **Conventional Commits**: Every commit strictly follows `<type>(<scope>): <summary>` format, verified by commit-msg hooks.
-* **Zero New Runtime Dependencies**: The scanner, AST transformer, and repair planner are hand-written TypeScript.
+* **Zero New Runtime Dependencies**: The scanner, source transformer, and repair planner are hand-written TypeScript.
 
 ---
 

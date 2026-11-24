@@ -1,6 +1,6 @@
 // Headless browser loader with graceful static fallback detection.
 // playwright-core is optional: when unavailable, Sloppy gracefully falls back
-// to static AST multi-width and contrast simulation.
+// to static source-scan multi-width and contrast simulation.
 
 export async function tryLaunch() {
   let chromium;

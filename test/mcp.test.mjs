@@ -181,3 +181,41 @@ test('MCP sloppy_rules queries craft guidelines', async (t) => {
   const payload = JSON.parse(text);
   assert.ok(payload.rules || payload.commandments, 'must return framing rules payload');
 });
+
+test('MCP sloppy_fix exposes only, wiringGuard, and manualReviewItems', async (t) => {
+  const server = startServer();
+  t.after(() => {
+    server.child.kill('SIGTERM');
+  });
+
+  server.send({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'initialize',
+    params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'sloppy-test', version: '1.0.0' } }
+  });
+  await server.waitFor((message) => message.id === 1);
+  server.send({ jsonrpc: '2.0', method: 'notifications/initialized' });
+
+  server.send({
+    jsonrpc: '2.0',
+    id: 2,
+    method: 'tools/call',
+    params: {
+      name: 'sloppy_fix',
+      arguments: {
+        code: '<button onClick={handleSave} className="bg-gradient-to-r from-purple-500 to-indigo-600">Save</button>',
+        only: ['PURPLE_GRADIENT_SLOP']
+      }
+    }
+  });
+
+  const response = await server.waitFor((message) => message.id === 2);
+  assert.ok(response.result, JSON.stringify(response));
+  const payload = JSON.parse(response.result.content.find((item) => item.type === 'text').text);
+  assert.deepEqual(payload.only, ['PURPLE_GRADIENT_SLOP']);
+  assert.ok(payload.wiringGuard, 'sloppy_fix must report the wiring guard');
+  assert.equal(payload.wiringGuard.passed, true);
+  assert.ok(Array.isArray(payload.manualReviewItems));
+  assert.equal(/from-purple-500/.test(payload.transformedCode), false);
+});

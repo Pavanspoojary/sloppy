@@ -54,7 +54,23 @@ If actual metrics are not yet available, use an explicit `TODO` or structural sk
 
 ---
 
-## 4. Stripping Chatbot Artifacts & Filler (`CPY-06`, `CPY-07`)
+## 4. No Decorative Status Claims (`CPY-02`)
+
+- A pulsing green dot next to `"All Systems Operational"` or `"Live"` is a trust claim, not decoration. Remove it unless it is bound to a real health endpoint (`/api/health`, `statusUrl`, a `fetch`/query result).
+
+---
+
+## 5. No Formulaic Prose Tics (`CPY-05`)
+
+- **Em-dash chains:** three or more em dashes in one view is a tell. Use commas, periods, or parentheses.
+- **Adjective triplets:** "innovative, transformative, and groundbreaking" says nothing. Pick the one adjective that is true, or state the capability.
+- **False ranges:** "ranging from solo builders to global enterprises" is filler unless the product genuinely spans both.
+- **Vague attribution:** "Studies show", "experts say" — cite the source or delete the claim.
+- **Spelled-out metrics:** use numerals in UI copy (`7 tools`, not `seven tools`).
+
+---
+
+## 6. Stripping Chatbot Artifacts & Filler (`CPY-06`, `CPY-07`)
 
 - **`CPY-06` (Chatbot Conversational Artifacts)**: Eliminate conversational prefixes ("Certainly! Here is your component", "Sure, let's explore", "Hope this helps!").
 - **`CPY-07` (Lorem Ipsum & John Doe)**: Never insert raw Latin filler ("Lorem ipsum dolor sit amet", "John Doe"). Use authentic domain nouns (e.g., `production-cluster-04`, `invoice_8492_paid.pdf`).

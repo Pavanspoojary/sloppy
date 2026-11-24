@@ -109,7 +109,7 @@ export function detectProjectStack(cwd?: string): StackDetectionResult {
   // Generate summary
   const summary: string[] = [];
   summary.push(`Framework: ${framework}`);
-  summary.push(`Language: ${hasTypeScript ? 'TypeScript (Strict AST rules active)' : 'JavaScript'}`);
+  summary.push(`Language: ${hasTypeScript ? 'TypeScript (strict source-scan rules active)' : 'JavaScript'}`);
   summary.push(`Styling: ${styling}`);
   if (uiLibrary !== 'none') summary.push(`UI Components: ${uiLibrary}`);
   if (icons !== 'none') summary.push(`Icon System: ${icons}`);
@@ -121,9 +121,6 @@ export function detectProjectStack(cwd?: string): StackDetectionResult {
     'VIS-01': 'error',
     'VIS-02': 'error',
     'MED-01': 'error',
-    'ACC-01': 'error',
-    'ACC-02': 'error',
-    'ACC-03': 'error',
     'COD-01': 'warn'
   };
 

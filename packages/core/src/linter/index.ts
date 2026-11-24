@@ -1,8 +1,10 @@
 import { AuditOptions, AuditResult, SlopViolation, SlopViolationType, SlopSeverity, CANONICAL_RULES, RULE_ALIASES } from './types.js';
 import { classTokens, getClasses, scanSource, sourceLocation, SourceTag } from './source-scan.js';
 import { loadSloppyConfig } from './config.js';
+import { DEFAULT_BLUR_CAP, declaredAccentAllows, resolveDesignContract } from './design-contract.js';
 
 export * from './types.js';
+export * from './design-contract.js';
 export * from './transform.js';
 export * from './rubric.js';
 export * from './repair-planner.js';
@@ -12,6 +14,11 @@ export * from './wiring-guard.js';
 const severity: Record<SlopSeverity, number> = { critical: 40, high: 20, medium: 10, low: 4 };
 const advice: Record<SlopViolationType, string> = {
   PURPLE_GRADIENT_SLOP: 'Replace purple-family gradients with a restrained surface palette and a purposeful accent.',
+  EMERALD_MONOCULTURE: 'Replace the unconfigured emerald-on-dark accent with the brand accent declared in DESIGN.md.',
+  BLUR_OVERUSE: 'Cap backdrop-blur to 1–2 functional overlays; use solid surfaces with a 1px border for cards.',
+  GLOW_SHADOW: 'Replace colored glow shadows with a neutral grounded shadow or flat border elevation.',
+  STATUS_DOT_SLOP: 'Bind the status dot to real health telemetry, or remove the decorative indicator.',
+  AI_PROSE_FILLER: 'Replace em-dash chains, adjective triplets, and vague attribution with direct concrete prose.',
   SPARKLE_ICON_OVERLOAD: 'Replace decorative sparkle or magic-wand iconography with authentic product iconography.',
   UNEARNED_ANIMATION: 'Use looping motion only for explicit progress affordances; otherwise animate cause-driven state changes.',
   MADE_UP_AI_BADGE: 'Describe the product action or system state without generic AI marketing language.',
@@ -31,6 +38,7 @@ const advice: Record<SlopViolationType, string> = {
   LOREM_IPSUM_SLOP: 'Replace generic placeholder text (Lorem ipsum, John Doe) with authentic product copy or explicit placeholders.',
   EMOJI_ICON_SLOP: 'Replace raw emojis in UI chrome with disciplined SVG icons or clean typographic labels.',
   Z_INDEX_CHAOS: 'Enforce disciplined, layered stacking tokens rather than arbitrary extreme z-indexes.',
+  DESIGN_TOKEN_DRIFT: 'Use a color declared in DESIGN.md instead of an off-contract hard-coded value.',
   SCROLL_HIJACKING: 'Avoid global scroll locks or intercepting native wheel events; let viewport scrolling flow naturally.',
   AI_NARRATION_COMMENT_SLOP: 'Strip low-signal AI narration comments ("// Render...", section divider banners); preserve invariant and rationale comments.',
   STERILE_SURFACE_SLOP: 'Add purposeful micro-interactions, hover states, or typographic depth to avoid sterile gray voids when eliminating slop.',
@@ -238,8 +246,11 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   for (const {tag,tokens} of tagClasses) {
     if (tag.name.toLowerCase() === 'svg' || /(?:icon|glyph)$/i.test(tag.name)) continue;
     const fg = tokens.map(color).find((x,i) => x && tokens[i].startsWith('text-'));
+    const hasOwnBackground = tokens.some(t => t.startsWith('bg-'));
     let bg = tokens.map(color).find((x,i) => x && tokens[i].startsWith('bg-'));
-    if (fg && !bg) for (const ancestor of ancestorsOf(tag)) { const ancestorTokens = getClasses(ancestor); bg = ancestorTokens.map(color).find((x,i) => x && ancestorTokens[i].startsWith('bg-')); if (bg) break; }
+    // An unresolved own background (e.g. bg-emerald-500) must not be compared
+    // against an ancestor surface; that produces a false contrast failure.
+    if (fg && !bg && !hasOwnBackground) for (const ancestor of ancestorsOf(tag)) { const ancestorTokens = getClasses(ancestor); bg = ancestorTokens.map(color).find((x,i) => x && ancestorTokens[i].startsWith('bg-')); if (bg) break; }
     if (fg && bg) {
       const ratio = contrast(fg,bg);
       const isLarge = tokens.some(t => /text-(?:lg|xl|[2-9]xl)/.test(t) || (t === 'font-bold' && tokens.includes('text-base')));
@@ -251,7 +262,66 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   const surfaces = new Map<string, SourceTag[]>();
   for (const {tag,tokens} of tagClasses) { const bg = tokens.find(t => /^bg-/.test(t)), border = tokens.filter(t => /^border(?:-|$)/.test(t)).join(' '), rounded = tokens.filter(t => /^rounded(?:-|$)/.test(t)).join(' '), shadow = tokens.filter(t => /^shadow(?:-|$)/.test(t)).join(' '), parentKey = parent.get(tag)?.start ?? -1; if (bg && (border || rounded)) { const key = `${parentKey}|${bg}|${border}|${rounded}|${shadow}`; surfaces.set(key,[...(surfaces.get(key) || []),tag]); } }
   for (const group of surfaces.values()) if (group.length >= 4) { push('FLAT_SURFACE_MONOTONY', group[0].start, `${group.length} elements repeat the same background, border, and rounding without an elevation step.`); break; }
+
+  // Gen-2 defaults: the "anti-slop" palette swap. Detect-only, because the fix is
+  // a brand decision declared in DESIGN.md, not a mechanical rewrite.
+  const designContract = resolveDesignContract(options.filepath, config);
+  const hasDarkGround = tagClasses.some(({ tokens }) => tokens.some(t =>
+    /^bg-(?:black|neutral-(?:900|950)|slate-(?:900|950)|zinc-(?:900|950)|stone-(?:900|950)|gray-(?:900|950))$/.test(t) || /^bg-\[#0[0-9a-f]{5}\]$/i.test(t)
+  ));
+  if (!declaredAccentAllows(designContract, 'emerald') && !(config?.brand?.allowColors || []).some(c => /^(?:emerald|green|teal|lime)$/i.test(c))) {
+    const emerald = tagClasses.flatMap(({ tag, tokens }) => tokens
+      .filter(t => /(?:^|:)(?:bg|text|border|ring|from|via|to|fill|stroke|outline|decoration)-emerald-\d{3}(?:\/\d+)?$/.test(t))
+      .map(token => ({ tag, token })));
+    if (hasDarkGround && emerald.length) push('EMERALD_MONOCULTURE', emerald[0].tag.start, `Gen-2 emerald accent "${emerald[0].token}" on a dark ground with no declared brand token.`);
+  }
+
+  const blurCap = designContract.blurCap ?? config?.design?.blurCap ?? DEFAULT_BLUR_CAP;
+  const blurElements = tagClasses.filter(({ tokens }) => tokens.some(t => /^backdrop-blur(?:-|$)/.test(t)));
+  if (blurElements.length > blurCap) push('BLUR_OVERUSE', blurElements[blurCap].tag.start, `${blurElements.length} elements use backdrop-blur (cap ${blurCap}); glass is being used as the default surface.`);
+
+  const glowPattern = /^(?:shadow|drop-shadow)-(?:emerald|green|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|red|orange|amber|yellow|lime)(?:-\d{3})?(?:\/\d+)?$/;
+  const glow = tagClasses.flatMap(({ tag, tokens }) => tokens.filter(t => glowPattern.test(t) || /^drop-shadow-\[.*(?:#[0-9a-f]{3,8}|rgba?\()/i.test(t)).map(token => ({ tag, token })));
+  if (glow.length) push('GLOW_SHADOW', glow[0].tag.start, `Colored glow shadow "${glow[0].token}" detected; colored ambient glow is a Gen-1/Gen-2 default.`);
+
+  // CPY-02: a pulsing green dot claiming live status without any telemetry binding.
+  const claimsLiveStatus = /\b(?:all\s+systems\s+operational|systems?\s+operational|currently\s+live|live\s+status)\b/i.test(visibleText);
+  const pulsingDot = tagClasses.some(({ tokens }) => tokens.some(t => /^animate-(?:pulse|ping)$/.test(t)) && tokens.some(t => /^(?:bg|from|fill)-(?:emerald|green)-\d{3}$/.test(t)));
+  const wiredToTelemetry = /\b(?:fetch\(|useSWR|useQuery|statusUrl|statusUri|healthz|health-check|\/api\/(?:status|health))\b/i.test(code);
+  if (claimsLiveStatus && pulsingDot && !wiredToTelemetry) push('STATUS_DOT_SLOP', tagClasses.find(({ tokens }) => tokens.includes('animate-pulse') || tokens.includes('animate-ping'))?.tag.start ?? tags[0]?.start ?? 0, 'Pulsing status dot claims live operational status but no health endpoint or telemetry binding exists.');
+
+  // CPY-05: formulaic prose tics. Each sub-signal is reported at most once.
+  const emDashCount = (visibleText.match(/[—–]/g) || []).length;
+  if (emDashCount >= 3) push('AI_PROSE_FILLER', Math.max(0, code.search(/[—–]/)), `${emDashCount} em/en dashes in visible copy; use commas or parentheses where they belong.`);
+  const adjectiveTriplet = /\b(?:innovative|transformative|groundbreaking|cutting-edge|revolutionary|seamless|powerful|intuitive|scalable|robust)\b\s*,\s*(?:innovative|transformative|groundbreaking|cutting-edge|revolutionary|seamless|powerful|intuitive|scalable|robust)\b\s*,\s*and\s+(?:innovative|transformative|groundbreaking|cutting-edge|revolutionary|seamless|powerful|intuitive|scalable|robust)\b/iu;
+  const tripletMatch = visibleText.match(adjectiveTriplet);
+  if (tripletMatch) push('AI_PROSE_FILLER', Math.max(0, code.indexOf(tripletMatch[0])), `Adjective triplet "${tripletMatch[0]}" detected.`);
+  const falseRange = visibleText.match(/\branging\s+from\s+[^.\n]{2,40}\s+to\s+[^.\n]{2,40}/iu);
+  if (falseRange) push('AI_PROSE_FILLER', Math.max(0, code.indexOf(falseRange[0])), `Formulaic false range "${falseRange[0].trim()}" detected.`);
+  const vagueAttribution = visibleText.match(/\b(?:studies|research|experts|industry\s+reports?)\s+(?:show|shows|suggest|suggests|say|says|indicate|indicates)\b/iu);
+  if (vagueAttribution) push('AI_PROSE_FILLER', Math.max(0, code.indexOf(vagueAttribution[0])), `Vague attribution "${vagueAttribution[0]}" detected.`);
+  const spelledMetric = visibleText.match(/\b(?:across|for|with|in)\s+(?:three|four|five|six|seven|eight|nine|ten)\s+(?:tools|teams|steps|platforms|workflows|minutes|seconds)\b/iu);
+  if (spelledMetric) push('AI_PROSE_FILLER', Math.max(0, code.indexOf(spelledMetric[0])), `Spelled-out metric "${spelledMetric[0]}" detected; use numerals in UI copy.`);
+
+  const lockedColors = new Set<string>();
+  for (const token of designContract.lockedTokens) {
+    for (const match of token.matchAll(/#([0-9a-f]{3}|[0-9a-f]{6})\b/gi)) {
+      const hex = match[1].toLowerCase();
+      lockedColors.add(hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex);
+    }
+  }
   for (const { tag, tokens } of tagClasses) {
+    if (lockedColors.size) {
+      const colorSource = [...tokens, tag.attributes.get('style')?.value || ''].join(' ');
+      for (const match of colorSource.matchAll(/#([0-9a-f]{3}|[0-9a-f]{6})\b/gi)) {
+        const raw = match[1].toLowerCase();
+        const hex = raw.length === 3 ? raw.split('').map((c) => c + c).join('') : raw;
+        if (!lockedColors.has(hex)) {
+          push('DESIGN_TOKEN_DRIFT', tag.start, `Off-contract color "#${raw}" is not in the DESIGN.md palette (${[...lockedColors].map((c) => `#${c}`).join(', ')}).`);
+          break;
+        }
+      }
+    }
     const extremeZ = tokens.find(t => /^z-(?:\[?(?:999+|1000+|99999)\]?)$/.test(t) || /^z-\[\d{4,}\]/.test(t));
     if (extremeZ) {
       push('Z_INDEX_CHAOS', tag.start, `Arbitrary escalated z-index "${extremeZ}" detected instead of disciplined stacking tokens.`);
@@ -526,7 +596,8 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     },
     summary,
     remediationPlan,
-    reportPath
+    reportPath,
+    designContract
   };
 }
 

@@ -21,7 +21,10 @@ test('False-Positive Sweep: Real-world patterns pass without false positives', (
 
   for (const relPath of realPatterns) {
     const fullPath = path.join(ROOT, relPath);
-    if (!fs.existsSync(fullPath)) continue;
+    assert.ok(
+      fs.existsSync(fullPath),
+      `False-positive fixture is missing: ${relPath}. A skipped fixture would make this test lie about coverage.`
+    );
 
     const source = fs.readFileSync(fullPath, 'utf8');
     const audit = auditCode(source, { filepath: fullPath, componentType: 'application' });

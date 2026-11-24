@@ -86,3 +86,11 @@ test('repair plan is reviewable and honest', () => {
     }
   }
 });
+
+test('autofix replaces gradients with a flat neutral surface, not new slop', () => {
+  const result = transformSlopToCraft(readFixture('slop-component.tsx'), { look: 'linear' });
+  assert.equal(/backdrop-blur/.test(result.transformedCode), false, 'the fixer must not add backdrop-blur');
+  assert.equal(/shadow-2xl/.test(result.transformedCode), false, 'the fixer must not add shadow-2xl');
+  assert.ok(/bg-neutral-900|bg-neutral-50/.test(result.transformedCode), 'the replacement must be a flat neutral surface');
+  assert.equal(/from-purple|to-indigo/.test(result.transformedCode), false);
+});

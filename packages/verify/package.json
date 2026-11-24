@@ -6,7 +6,8 @@
   "main": "./verification.mjs",
   "exports": {
     ".": "./verification.mjs",
-    "./verification": "./verification.mjs"
+    "./verification": "./verification.mjs",
+    "./multi-width": "./multi-width.mjs"
   },
   "files": [
     "verification.mjs",
@@ -19,7 +20,8 @@
     "jumps.mjs",
     "layout-core.mjs",
     "layout.mjs",
-    "motion-watch.mjs"
+    "motion-watch.mjs",
+    "multi-width.mjs"
   ],
   "publishConfig": {
     "access": "public"

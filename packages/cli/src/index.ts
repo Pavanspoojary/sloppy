@@ -1,6 +1,9 @@
 import {
   auditCode,
+  AUTO_FIX_RULE_TYPES,
+  CANONICAL_RULES,
   createRepairPlan,
+  DESIGN_MD_TEMPLATE,
   detectProjectStack,
   evaluateCraftRubric,
   extractDesignDna,
@@ -148,7 +151,6 @@ function checkFiles(paths: string[], options: { maxScore: number; failOn: string
   const nextActions = [...new Set(files.filter(f => f.violations.length).flatMap(f => [`Run: sloppy fix ${f.path} --diff`, `Re-run: sloppy check ${f.path}`]))].slice(0, 5);
   return { version: cliVersion(), ok, score, grade, totals: { files: files.length, violations, bySeverity }, files, nextActions };
 }
-function jsonCommand(command: string, args: string[]): boolean { return args.includes('--json') && ['audit', 'rubric', 'plan', 'fix', 'verify', 'version', 'looks', 'archetypes', 'list'].includes(command); }
 async function handleAgentCommand(command: string, args: string[]): Promise<boolean> {
   const json = args.includes('--json');
   if (command === '--version' || command === 'version') {
@@ -158,11 +160,24 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     if (json) emitJson({ version, ...(core ? { core } : {}) }); else console.log(version);
     return true;
   }
-  if (command === '--help' || (command === 'help' && args.includes('--help'))) { console.log('Usage: sloppy <command> [options]\nCommands: setup, check, audit, plan, fix, rubric, verify, install-mcp, version, looks, archetypes, list, mcp'); return true; }
+  if (command === '--help' || (command === 'help' && args.includes('--help'))) { console.log('Usage: sloppy <command> [options]\nCommands: setup, check, audit, plan, fix, rubric, verify, install-mcp, rules, version, looks, archetypes, list, mcp'); return true; }
+  if (command === 'rules') {
+    const rules = (Object.entries(CANONICAL_RULES) as Array<[string, typeof CANONICAL_RULES[keyof typeof CANONICAL_RULES]]>)
+      .map(([slug, rule]) => ({ slug, ...rule }))
+      .sort((a, b) => a.ruleId.localeCompare(b.ruleId));
+    if (json) emitJson({ version: cliVersion(), autoFix: AUTO_FIX_RULE_TYPES, rules });
+    else {
+      console.log('\nID       SLUG                          TIER     SEVERITY  MODE         TITLE');
+      console.log('------------------------------------------------------------------------------------------------------');
+      for (const rule of rules) console.log(`${rule.ruleId.padEnd(8)} ${rule.slug.padEnd(29)} ${rule.tier.padEnd(8)} ${rule.defaultSeverity.padEnd(9)} ${rule.mode.padEnd(12)} ${rule.title}`);
+      console.log('\n"auto-fix" rules are rewritten by `sloppy fix`; "detect-only" rules need a human decision.\n');
+    }
+    return true;
+  }
   if (args.includes('--help') && ['check', 'fix', 'verify', 'install-mcp', 'setup'].includes(command)) {
     const help: Record<string, string> = {
       setup: 'Usage: sloppy setup [--write|-w] [--global|-g] [--json]',
-      check: 'Usage: sloppy check <paths...> [--json] [--max-score <n>] [--fail-on <none|low|medium|high|critical>] [--min-grade <A+|A|B|C|D|F>] [--type <illustration|feature-card|hero|application|bento>] [--quiet]',
+      check: 'Usage: sloppy check <paths...|url> [--json] [--max-score <n>] [--fail-on <none|low|medium|high|critical>] [--min-grade <A+|A|B|C|D|F>] [--type <illustration|feature-card|hero|application|bento>] [--render|--multi-width] [--static] [--quiet]',
       fix: 'Usage: sloppy fix <file> [--diff|--check|--write] [--look <look>] [--json]\n       sloppy fix --stdin [--json]',
       verify: 'Usage: sloppy verify [target] [--json] (verification timeout: 15000ms)',
       'install-mcp': 'Usage: sloppy install-mcp --client <cursor|vscode|claude|codex> [--dir <path>] [--write] [--json]'
@@ -180,22 +195,55 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       else if (args[i] === '--min-grade') { opts.minGrade = args[++i]; if (!gradeOrder.includes(opts.minGrade)) { fail('--min-grade must be A+, A, B, C, D, or F'); return true; } }
       else if (args[i] === '--type') { const value = args[++i]; if (!['illustration', 'feature-card', 'hero', 'application', 'bento'].includes(value)) { fail('--type must be illustration, feature-card, hero, application, or bento'); return true; } }
       else if (args[i] === '--format') { const fmt = args[++i]; if (fmt !== 'sarif' && fmt !== 'json') { fail('--format must be sarif or json'); return true; } }
-      else if (args[i] === '--sarif' || args[i] === '--watch' || args[i] === '-w' || args[i] === '--code' || args[i] === '--code-only' || args[i] === '--strict' || args[i] === '--compact') { /* recognized flag */ }
+      else if (args[i] === '--sarif' || args[i] === '--watch' || args[i] === '-w' || args[i] === '--code' || args[i] === '--code-only' || args[i] === '--strict' || args[i] === '--compact' || args[i] === '--render' || args[i] === '--multi-width' || args[i] === '--static') { /* recognized flag */ }
       else if (args[i].startsWith('-')) { if (args[i] !== '--json' && args[i] !== '--quiet') { fail(`Unknown check option: ${args[i]}`); return true; } }
       else paths.push(args[i]);
     }
-    if (!paths.length) { fail('Usage: sloppy check <path...> [--max-score <n>] [--fail-on <level>] [--min-grade <grade>] [--type <surface>] [--format <json|sarif>] [--watch]'); return true; }
+    if (!paths.length) { fail('Usage: sloppy check <path...|url> [--max-score <n>] [--fail-on <level>] [--min-grade <grade>] [--type <surface>] [--format <json|sarif>] [--render] [--watch]'); return true; }
     try {
       const isSarif = args.includes('--sarif') || (args.includes('--format') && args[args.indexOf('--format') + 1] === 'sarif');
       const isWatch = args.includes('--watch') || args.includes('-w');
-      const runInspection = () => {
-        const files = collectFiles(paths);
-        const result = checkFiles(files, opts);
+      const wantsRuntime = args.includes('--render') || args.includes('--multi-width');
+      const runInspection = async () => {
+        const urlTargets = paths.filter(p => /^https?:\/\//i.test(p));
+        const fileTargets = paths.filter(p => !/^https?:\/\//i.test(p));
+        if (!fileTargets.length && !wantsRuntime) {
+          const message = 'check needs a file path, or a URL together with --render/--multi-width';
+          if (json) emitJson({ version: cliVersion(), ok: false, error: message });
+          fail(message);
+          return null;
+        }
+
+        const files = fileTargets.length ? collectFiles(fileTargets) : [];
+        const result = files.length ? checkFiles(files, opts) : {
+          version: cliVersion(), ok: true, score: 0, grade: 'A+',
+          totals: { files: 0, violations: 0, bySeverity: { critical: 0, high: 0, medium: 0, low: 0 } },
+          files: [], nextActions: []
+        };
+
+        let runtime: Record<string, unknown> | null = null;
+        if (wantsRuntime) {
+          const target = urlTargets[0] || fileTargets[0];
+          const module = await import('@sloppy/verify/multi-width').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs')));
+          runtime = await module.runMultiWidthVerification(target, { staticOnly: args.includes('--static') });
+          const findings = (runtime as unknown as { findings: Array<{ severity: string }> }).findings || [];
+          const blocking = findings.filter(f => f.severity === 'critical' || f.severity === 'high').length;
+          if (blocking > 0) result.ok = false;
+          result.totals.violations += findings.length;
+        }
+
+        const payload = { ...result, runtime };
         if (isSarif) emitJson(formatSarif(result));
-        else if (json) emitJson(result);
+        else if (json) emitJson(payload);
         else {
           if (!args.includes('--quiet')) for (const f of result.files) console.log(`${f.isSlopFree ? 'PASS' : 'FAIL'} ${f.path} score=${f.score} grade=${f.grade} violations=${f.violations.length}`);
-          console.log(`Check ${result.ok ? 'passed' : 'failed'}: ${result.totals.files} files, ${result.totals.violations} violations, peak score ${result.score}, worst grade ${result.grade}`);
+          if (runtime) {
+            const r = runtime as unknown as { summary: string; isStaticFallback: boolean; findings: Array<{ severity: string; viewportName: string; width: number; message: string }> };
+            console.log(`\nRuntime ${r.isStaticFallback ? '(static source simulation)' : '(headless browser)'}: ${r.summary}`);
+            for (const f of r.findings) console.log(`  [${f.severity.toUpperCase()}] ${f.viewportName} (${f.width}px): ${f.message}`);
+            if (!r.findings.length) console.log('  contrast and overflow: no rendered defects found');
+          }
+          console.log(`Check ${result.ok ? 'passed' : 'failed'}: ${result.totals.files} files, ${result.totals.violations} violations, peak score ${result.score}, worst grade ${result.grade}${runtime ? ', runtime findings included' : ''}`);
         }
         if (!result.ok) process.exitCode = 1;
         return result;
@@ -203,20 +251,20 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
 
       if (isWatch) {
         console.log(`[SLOPPY WATCH] Watching ${paths.join(', ')} for changes...`);
-        runInspection();
+        await runInspection();
         for (const p of paths) {
           try {
             fs.watch(path.resolve(process.cwd(), p), { recursive: true }, () => {
               console.clear();
               console.log(`[SLOPPY WATCH] Reloaded at ${new Date().toLocaleTimeString()}`);
-              runInspection();
+              void runInspection();
             });
           } catch {}
         }
         return true;
       }
 
-      runInspection();
+      await runInspection();
     } catch (error) {
       const message = `Check failed: ${(error as Error).message}`;
       if (json) emitJson({ version: cliVersion(), ok: false, error: message });
@@ -401,131 +449,6 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     }
     return true;
   }
-  if (command === 'fix' && (args.includes('--stdin') || args.some(x => ['--diff', '--check', '--write', '-w'].includes(x)) || json)) {
-    const chunks: Buffer[] = [];
-    const look = args.includes('--look') ? args[args.indexOf('--look') + 1] as any : undefined;
-    const onlyIdx = args.indexOf('--only');
-    const only = onlyIdx !== -1 && args[onlyIdx + 1] ? args[onlyIdx + 1].split(',').map(s => s.trim()) : undefined;
-    if (args.includes('--stdin')) {
-      for await (const chunk of process.stdin) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-      const original = Buffer.concat(chunks).toString('utf8'); const result = transformSlopToCraft(original, { look, only });
-      const output = { changed: result.transformedCode !== original, changesApplied: result.changesApplied, isValidSyntax: result.isValidSyntax, transformedCode: result.transformedCode, unifiedDiff: result.unifiedDiff, postAudit: result.postAudit };
-      if (json) emitJson(output); else process.stdout.write(result.transformedCode); return true;
-    }
-    const file = args.find(x => !x.startsWith('-'));
-    if (!file || !fs.existsSync(path.resolve(file))) {
-      const message = `File not found: ${file || '(missing path)'}`;
-      if (json) emitJson({ error: message });
-      fail(message); return true;
-    }
-    try {
-      const source = fs.readFileSync(file, 'utf8'); const result = transformSlopToCraft(source, { look, filepath: file, only });
-      if ((args.includes('--write') || args.includes('-w')) && !result.isValidSyntax) { fail(`Refusing to write invalid syntax: ${result.syntaxErrors.map(error => error.message).join('; ')}`); return true; }
-      if (args.includes('--write') || args.includes('-w')) fs.writeFileSync(file, result.transformedCode, 'utf8');
-      if (args.includes('--diff') && !json) process.stdout.write(result.unifiedDiff);
-      if (args.includes('--check') && result.transformedCode !== source) process.exitCode = 1;
-      if (json) emitJson({ changed: result.transformedCode !== source, changesApplied: result.changesApplied, isValidSyntax: result.isValidSyntax, transformedCode: result.transformedCode, unifiedDiff: result.unifiedDiff, postAudit: result.postAudit });
-      else if (!args.includes('--diff') && !args.includes('--check')) console.log(args.includes('--write') || args.includes('-w') ? `Wrote ${file}` : `Changes: ${result.changesApplied}\nRun with --write to apply.`);
-    } catch (error) { fail(`Fix failed: ${(error as Error).message}`); }
-    return true;
-  }
-  if (command === 'verify') {
-    const isMultiWidth = args.includes('--multi-width') || args.includes('--render') || args.includes('-m');
-    const staticOnly = args.includes('--static');
-    const target = args.find(x => !x.startsWith('-') && x !== 'verify') || 'http://127.0.0.1:1355';
-
-    if (isMultiWidth) {
-      try {
-        const verifyModulePath = path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs');
-        const { runMultiWidthVerification } = await import(verifyModulePath);
-        const res = await runMultiWidthVerification(target, { staticOnly });
-        if (json) emitJson(res);
-        else {
-          console.log(`\n======================================================`);
-          console.log(`SLOPPY MULTI-WIDTH VIEWPORT VERIFICATION (8 Widths)`);
-          console.log(`======================================================\n`);
-          console.log(`Target:   ${res.target} ${res.isStaticFallback ? '(Static AST Simulation)' : '(Headless Browser Render)'}`);
-          console.log(`Summary:  ${res.summary}`);
-          console.log(`Passed:   ${res.viewportsPassed}/${res.totalViewportsTested} viewports`);
-          if (res.findings.length > 0) {
-            console.log(`\nFindings:`);
-            for (const f of res.findings) {
-              console.log(`  [${f.severity.toUpperCase()}] ${f.viewportName} (${f.width}px): ${f.message}`);
-            }
-          }
-        }
-        if (!res.allPassed) process.exitCode = 1;
-        return true;
-      } catch (err: any) {
-        if (json) emitJson({ ok: false, error: err?.message || err });
-        else console.error(`Multi-width verification failed: ${err?.message || err}`);
-        process.exitCode = 2;
-        return true;
-      }
-    }
-
-    try {
-      const verifyPackage = '@sloppy/verify'; const { verifyTarget } = await import(verifyPackage); const result = await verifyTarget(target, { timeoutMs: 15000 });
-      if (json) emitJson(result);
-      else {
-        console.log(`Verification ${result.ok ? 'passed' : 'failed'}: ${result.target} (${result.mode})`);
-        for (const violation of result.violations) console.log(`[${violation.rule}] ${violation.message}${violation.evidence ? `: ${violation.evidence}` : ''}`);
-        if (result.unavailable) console.error(`Verification unavailable: ${result.unavailable}`);
-      }
-      if (result.unavailable) process.exitCode = 2;
-      else if (!result.ok) process.exitCode = 1;
-    } catch (error) {
-      const unavailable = `Verification unavailable: ${(error as Error).message}`;
-      if (json) emitJson({ ok: false, target, unavailable }); else console.error(unavailable);
-      process.exitCode = 2;
-    }
-    return true;
-  }
-  if (jsonCommand(command, args)) {
-    const target = args.find(x => !x.startsWith('-'));
-    if (command === 'audit' || command === 'rubric' || command === 'plan') {
-      if (!target || !fs.existsSync(path.resolve(target))) { const message = `Target not found: ${target || '(missing path)'}`; emitJson({ version: cliVersion(), ok: false, error: message }); fail(message); return true; }
-      try {
-        const file = path.resolve(target), relative = path.relative(process.cwd(), file);
-        if (command === 'audit') {
-          const isCodeOnly = args.includes('--code') || args.includes('--code-only');
-          const isCompact = args.includes('--compact');
-          const isStrict = args.includes('--strict');
-          const auditFiles = fs.statSync(file).isDirectory() ? collectFiles([target]) : [file];
-          const reports = auditFiles.map(auditFile => {
-            const source = fs.readFileSync(auditFile, 'utf8'), p = path.relative(process.cwd(), auditFile);
-            const audit = auditCode(source, { filepath: p, componentType: surfaceType(args), codeOnly: isCodeOnly, strict: isStrict });
-            return { path: p, slopScore: audit.slopScore, isSlopFree: audit.isSlopFree, violations: audit.violations, stats: audit.stats };
-          });
-          const peakScore = reports.reduce((n, f) => Math.max(n, f.slopScore), 0), count = reports.reduce((n, f) => n + f.violations.length, 0);
-          if (isCompact) {
-            emitJson({
-              ok: peakScore <= 40,
-              peakScore,
-              files: reports.map(r => ({
-                path: r.path,
-                score: r.slopScore,
-                issues: r.violations.map(v => `${v.tier || 'reflex'}:${v.ruleId || v.type}@L${v.line}`)
-              }))
-            });
-          } else {
-            emitJson({ version: cliVersion(), ok: peakScore <= 40, peakScore, totals: { files: reports.length, violations: count }, files: reports });
-          }
-          if (peakScore > 40) process.exitCode = 1;
-        }
-        else {
-          const code = fs.readFileSync(file, 'utf8');
-          if (command === 'rubric') emitJson(evaluateCraftRubric(code, { filepath: relative, strict: args.includes('--strict'), componentType: surfaceType(args) }));
-          else emitJson(createRepairPlan(code, { filepath: relative, look: args[args.indexOf('--look') + 1] || 'linear' }));
-        }
-      } catch (error) { fail(`${command} failed: ${(error as Error).message}`); }
-      return true;
-    }
-    if (command === 'looks') emitJson(LOOKS);
-    else if (command === 'archetypes') emitJson(SYNTHESIZED_ARCHETYPES);
-    else if (command === 'list') emitJson({ components: SLOPPY_COMPONENTS, patterns: PATTERNS_CATALOG });
-    return true;
-  }
   return false;
 }
 
@@ -533,6 +456,7 @@ export async function runCli(args: string[]) {
   const command = args.find(arg => !['--json', '--quiet'].includes(arg)) || 'help';
   const commandIndex = args.indexOf(command);
   const commandArgs = args.filter((_, index) => index !== commandIndex);
+  const json = args.includes('--json');
   if (await handleAgentCommand(command, commandArgs)) return;
 
   switch (command) {
@@ -577,11 +501,14 @@ export async function runCli(args: string[]) {
       const tierIndex = args.indexOf('--tier');
       const targetTier = tierIndex !== -1 && args[tierIndex + 1] ? (args[tierIndex + 1] as any) : undefined;
 
-      console.log(`\n======================================================`);
-      console.log(`SLOPPY: AI SLOP AUDIT REPORT ${isAfterMode ? '[AFTER-MODE APPROVAL GATE]' : isCodeOnly ? '[LOW-EVIDENCE TS/REACT CODE]' : isFloorOnly ? '[FLOOR-ONLY SCAN]' : '[3-TIER GATE]'}`);
-      console.log(`Auditing ${filesToAudit.length} file(s)...`);
-      console.log(`======================================================\n`);
+      if (!json) {
+        console.log(`\n======================================================`);
+        console.log(`SLOPPY: AI SLOP AUDIT REPORT ${isAfterMode ? '[AFTER-MODE APPROVAL GATE]' : isCodeOnly ? '[LOW-EVIDENCE TS/REACT CODE]' : isFloorOnly ? '[FLOOR-ONLY SCAN]' : '[3-TIER GATE]'}`);
+        console.log(`Auditing ${filesToAudit.length} file(s)...`);
+        console.log(`======================================================\n`);
+      }
 
+      const auditedFiles: Array<Record<string, unknown>> = [];
       let totalViolations = 0;
       let totalFloorIssues = 0;
       let totalReflexIssues = 0;
@@ -614,6 +541,9 @@ export async function runCli(args: string[]) {
 
         if (!result.passedFloor) anyFloorFailed = true;
         if (!result.passedReflex) anyReflexFailed = true;
+        auditedFiles.push({ path: relPath, score: result.slopScore, isSlopFree: result.isSlopFree, passedFloor: result.passedFloor, passedReflex: result.passedReflex, violations: result.violations, stats: result.stats, summary: result.summary, reportPath: result.reportPath });
+
+        if (json) continue;
 
         if (result.violations.length > 0) {
           const statusBadge = !result.passedFloor ? '[FLOOR BLOCKED]' : result.slopScore >= 50 ? '[SEVERE SLOP]' : '[MODERATE SLOP]';
@@ -641,14 +571,26 @@ export async function runCli(args: string[]) {
         }
       }
 
-      console.log(`------------------------------------------------------`);
-      console.log(`3-Tier Severity Gate Summary:`);
-      console.log(`  Files scanned:       ${filesToAudit.length}`);
-      console.log(`  Floor Gates:         ${totalFloorIssues} blockers ${anyFloorFailed ? '[FAILED - CI BLOCKER]' : '[PASSED]'}`);
-      console.log(`  Reflex Gates:        ${totalReflexIssues} AI defaults (${totalOverruled} justified with written rationale) ${anyReflexFailed ? '[ACTION REQUIRED]' : '[PASSED]'}`);
-      console.log(`  Finish Polish:       ${totalFinishIssues} advisory suggestions`);
-      console.log(`  Peak slop score:     ${maxScore}/100`);
-      console.log(`------------------------------------------------------\n`);
+      const gateOk = !anyFloorFailed && !(isStrict && anyReflexFailed) && (isFloorOnly || maxScore <= 40);
+      if (json) {
+        emitJson({
+          version: cliVersion(),
+          ok: gateOk,
+          score: maxScore,
+          totals: { files: filesToAudit.length, violations: totalViolations, floor: totalFloorIssues, reflex: totalReflexIssues, overruled: totalOverruled, finish: totalFinishIssues },
+          files: auditedFiles,
+          nextActions: auditedFiles.filter((f) => (f.violations as unknown[]).length > 0).map((f) => `Run: sloppy fix ${f.path} --diff`)
+        });
+      } else {
+        console.log(`------------------------------------------------------`);
+        console.log(`3-Tier Severity Gate Summary:`);
+        console.log(`  Files scanned:       ${filesToAudit.length}`);
+        console.log(`  Floor Gates:         ${totalFloorIssues} blockers ${anyFloorFailed ? '[FAILED - CI BLOCKER]' : '[PASSED]'}`);
+        console.log(`  Reflex Gates:        ${totalReflexIssues} AI defaults (${totalOverruled} justified with written rationale) ${anyReflexFailed ? '[ACTION REQUIRED]' : '[PASSED]'}`);
+        console.log(`  Finish Polish:       ${totalFinishIssues} advisory suggestions`);
+        console.log(`  Peak slop score:     ${maxScore}/100`);
+        console.log(`------------------------------------------------------\n`);
+      }
 
       if (anyFloorFailed) {
         console.error(`[CI GATE BLOCKED] Critical accessibility, contrast, or broken layout Floor gates failed.`);
@@ -663,75 +605,99 @@ export async function runCli(args: string[]) {
     }
 
     case 'fix': {
-      const target = args[1];
-      if (!target) {
-        console.error('[ERROR] Please specify a file to fix: sloppy fix <path> [--write] [--look <look>]');
-        process.exit(2);
-      }
-
-      const targetPath = path.resolve(process.cwd(), target);
-      if (!fs.existsSync(targetPath)) {
-        console.error(`[ERROR] File not found: ${targetPath}`);
-        process.exit(2);
-      }
-
+      const usingStdin = args.includes('--stdin');
       const shouldWrite = args.includes('--write') || args.includes('-w');
+      const shouldDiff = args.includes('--diff');
+      const shouldCheck = args.includes('--check');
       const checkWiring = !args.includes('--no-kept');
       const lookIdx = args.indexOf('--look');
       const look = lookIdx !== -1 && args[lookIdx + 1] ? (args[lookIdx + 1] as any) : 'linear';
       const onlyIdx = args.indexOf('--only');
       const onlyParam = onlyIdx !== -1 && args[onlyIdx + 1] ? args[onlyIdx + 1].split(',').map(s => s.trim()) : undefined;
 
-      const originalCode = fs.readFileSync(targetPath, 'utf-8');
-      const result = transformSlopToCraft(originalCode, {
-        look,
-        kept: checkWiring,
-        filepath: path.relative(process.cwd(), targetPath),
-        only: onlyParam
-      });
-
-      console.log(`\n======================================================`);
-      console.log(`SLOPPY: SURGICAL AI SLOP AUTO-FIXER`);
-      console.log(`Target: ${path.relative(process.cwd(), targetPath)}`);
-      if (onlyParam) {
-        console.log(`Surgical Filter: Only applying fixes for [${onlyParam.join(', ')}]`);
-      }
-      console.log(`======================================================\n`);
-
-      if (result.wiringGuard) {
-        const guardTag = result.wiringGuard.passed ? '[PASSED]' : '[DROPPED WIRING DETECTED]';
-        console.log(`Wiring Guard ${guardTag}: ${result.wiringGuard.details}`);
-        if (!result.wiringGuard.passed) {
-          result.wiringGuard.dropped.forEach(d => console.log(`  - ${d.reason}`));
-        }
-        console.log('');
-      }
-
-      console.log(`Slop Score: ${result.preAudit.slopScore}/100 -> ${result.postAudit.slopScore}/100`);
-      console.log(`Changes Applied: ${result.changesApplied}\n`);
-
-      if (result.transformations.length > 0) {
-        console.log(`--- Applied Transformations ---`);
-        result.transformations.forEach((t, i) => {
-          console.log(`${i + 1}. [${t.type}] ${t.explanation}`);
-          console.log(`   Before: "${t.original.slice(0, 60)}"`);
-          console.log(`   After:  "${t.replacement.slice(0, 60)}"\n`);
-        });
-      }
-
-      if (shouldWrite) {
-        if (result.wiringGuard && !result.wiringGuard.passed) {
-          console.error(`[ERROR] Refusing to write to disk. Preserved business logic and aborting fix.`);
-          process.exit(1);
-        }
-        if (!result.isValidSyntax) {
-          console.error(`[ERROR] Refusing to write invalid syntax: ${result.syntaxErrors.map(error => error.message).join('; ')}`);
-          process.exit(1);
-        }
-        fs.writeFileSync(targetPath, result.transformedCode, 'utf-8');
-        console.log(`[SUCCESS] File refactored and written in-place.`);
+      let originalCode = '';
+      let targetPath: string | undefined;
+      let label = 'stdin';
+      if (usingStdin) {
+        const chunks: Buffer[] = [];
+        for await (const chunk of process.stdin) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        originalCode = Buffer.concat(chunks).toString('utf8');
       } else {
-        console.log(`[INFO] Dry-run complete. Run with "--write" (or "-w") to save changes.`);
+        const target = args[1];
+        if (!target || target.startsWith('-')) {
+          const message = 'Usage: sloppy fix <file> [--diff|--check|--write] [--look <look>] [--only <ids>] [--json]  |  sloppy fix --stdin';
+          if (json) emitJson({ ok: false, error: message }); else console.error(`[ERROR] ${message}`);
+          process.exitCode = 2;
+          break;
+        }
+        targetPath = path.resolve(process.cwd(), target);
+        if (!fs.existsSync(targetPath)) {
+          const message = `File not found: ${target}`;
+          if (json) emitJson({ ok: false, error: message }); else console.error(`[ERROR] ${message}`);
+          process.exitCode = 2;
+          break;
+        }
+        originalCode = fs.readFileSync(targetPath, 'utf-8');
+        label = path.relative(process.cwd(), targetPath);
+      }
+
+      const result = transformSlopToCraft(originalCode, { look, kept: checkWiring, filepath: label, only: onlyParam });
+      const changed = result.transformedCode !== originalCode;
+      const wiring = result.wiringGuard;
+      const writeBlocked = shouldWrite && Boolean((wiring && !wiring.passed) || !result.isValidSyntax);
+      if (shouldWrite && !writeBlocked && targetPath) fs.writeFileSync(targetPath, result.transformedCode, 'utf8');
+
+      if (json) {
+        emitJson({
+          ok: result.isValidSyntax && (!wiring || wiring.passed) && !(shouldCheck && changed),
+          changed,
+          changesApplied: result.changesApplied,
+          isValidSyntax: result.isValidSyntax,
+          syntaxErrors: result.syntaxErrors,
+          transformedCode: result.transformedCode,
+          unifiedDiff: result.unifiedDiff,
+          only: onlyParam ?? null,
+          transformations: result.transformations,
+          preAudit: result.preAudit,
+          postAudit: result.postAudit,
+          wiringGuard: wiring ?? null,
+          manualReviewItems: result.manualReviewItems
+        });
+      } else {
+        // The wiring block is printed on every fix path. When stdout carries code
+        // or a diff, the block goes to stderr so the output stays machine-clean.
+        const stream = (usingStdin || shouldDiff) ? console.error : console.log;
+        stream(`Wiring Guard ${wiring ? (wiring.passed ? '[PASSED]' : '[DROPPED WIRING DETECTED]') : '[SKIPPED]'}: ${wiring ? wiring.details : 'disabled with --no-kept'}`);
+        if (wiring && !wiring.passed) wiring.dropped.forEach(d => stream(`  - ${d.reason}`));
+        result.manualReviewItems.forEach(item => stream(`  review: ${item}`));
+
+        if (shouldDiff) process.stdout.write(result.unifiedDiff);
+        else if (usingStdin) process.stdout.write(result.transformedCode);
+        else {
+          console.log(`\n======================================================`);
+          console.log(`SLOPPY: SURGICAL AI SLOP AUTO-FIXER`);
+          console.log(`Target: ${label}`);
+          if (onlyParam) console.log(`Surgical Filter: Only applying fixes for [${onlyParam.join(', ')}]`);
+          console.log(`======================================================\n`);
+          console.log(`Slop Score: ${result.preAudit.slopScore}/100 -> ${result.postAudit.slopScore}/100`);
+          console.log(`Changes Applied: ${result.changesApplied}\n`);
+          result.transformations.forEach((t, i) => {
+            console.log(`${i + 1}. [${t.type}] ${t.explanation}`);
+            console.log(`   Before: "${t.original.slice(0, 60)}"`);
+            console.log(`   After:  "${t.replacement.slice(0, 60)}"\n`);
+          });
+          console.log(writeBlocked ? '[INFO] Nothing written.' : shouldWrite ? `[SUCCESS] Wrote ${label}` : '[INFO] Dry-run complete. Run with "--write" (or "-w") to save changes.');
+        }
+      }
+
+      if (writeBlocked) {
+        const message = wiring && !wiring.passed
+          ? 'Refusing to write: the wiring guard detected dropped handlers or links.'
+          : `Refusing to write invalid syntax: ${result.syntaxErrors.map(error => error.message).join('; ')}`;
+        if (!json) console.error(`[ERROR] ${message}`);
+        process.exitCode = 1;
+      } else if (shouldCheck && changed) {
+        process.exitCode = 1;
       }
       break;
     }
@@ -753,6 +719,11 @@ export async function runCli(args: string[]) {
       const look = lookIdx !== -1 && args[lookIdx + 1] ? args[lookIdx + 1] : 'linear';
       const code = fs.readFileSync(targetPath, 'utf-8');
       const plan = createRepairPlan(code, { filepath: targetPath, look });
+
+      if (json) {
+        emitJson({ version: cliVersion(), ok: plan.isValidSyntax, filepath: targetPath, ...plan });
+        break;
+      }
 
       console.log(`\n======================================================`);
       console.log(`SLOPPY STRUCTURED REPAIR PLAN`);
@@ -798,6 +769,11 @@ export async function runCli(args: string[]) {
       const code = fs.readFileSync(targetPath, 'utf-8');
       const cert = evaluateCraftRubric(code, { filepath: targetPath, strict, componentType: surfaceType(args) });
 
+      if (json) {
+        emitJson({ version: cliVersion(), ok: cert.isCertified, filepath: targetPath, ...cert });
+        break;
+      }
+
       console.log(`\n======================================================`);
       console.log(`SLOPPY CRAFT CERTIFICATION REPORT`);
       console.log(`Target: ${path.relative(process.cwd(), targetPath)}`);
@@ -819,43 +795,47 @@ export async function runCli(args: string[]) {
     }
 
     case 'verify': {
-      console.log(`\n======================================================`);
-      console.log(`SLOPPY BROWSER & GEOMETRIC VERIFICATION HARNESS`);
-      console.log(`======================================================\n`);
-
       const target = args[1] && !args[1].startsWith('-') ? args[1] : 'http://127.0.0.1:1355';
       const isMultiWidth = args.includes('--multi-width') || args.includes('--render') || args.includes('-m');
       const staticOnly = args.includes('--static');
 
-      if (isMultiWidth) {
-        console.log(`Target: ${target}`);
-        console.log(`Running 8-width responsive verification (375px to 1920px)...`);
-        try {
-          const verifyModulePath = path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs');
-          const { runMultiWidthVerification } = await import(verifyModulePath);
-          const res = await runMultiWidthVerification(target, { staticOnly });
-          console.log(`\nMulti-Width Results: ${res.summary}`);
-          console.log(`Viewports Tested: ${res.viewportsPassed}/${res.totalViewportsTested} passed`);
-          if (res.findings.length > 0) {
-            console.log(`\nFindings:`);
-            for (const f of res.findings) {
-              console.log(`  [${f.severity.toUpperCase()}] ${f.viewportName} (${f.width}px): ${f.message}`);
-            }
+      try {
+        if (isMultiWidth) {
+          const moduleName = '@sloppy/verify/multi-width';
+          const module = await import(moduleName).catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs')));
+          const res = await module.runMultiWidthVerification(target, { staticOnly });
+          if (json) emitJson(res);
+          else {
+            console.log(`\n======================================================`);
+            console.log(`SLOPPY MULTI-WIDTH VIEWPORT VERIFICATION (${res.totalViewportsTested} WIDTHS)`);
+            console.log(`======================================================\n`);
+            console.log(`Target:   ${res.target} ${res.isStaticFallback ? '(Static Source Simulation)' : '(Headless Browser Render)'}`);
+            console.log(`Summary:  ${res.summary}`);
+            console.log(`Passed:   ${res.viewportsPassed}/${res.totalViewportsTested} viewports`);
+            for (const f of res.findings) console.log(`  [${f.severity.toUpperCase()}] ${f.viewportName} (${f.width}px): ${f.message}`);
           }
           if (!res.allPassed) process.exitCode = 1;
-        } catch (err: any) {
-          console.log(`[PASS] Responsive layout verified across standard mobile and desktop breakpoints.`);
+          break;
         }
-        break;
-      }
 
-      console.log(`Target URL / Component: ${target}`);
-      console.log(`Inspecting viewport framing, stage aspect ratios, and motion jumps...`);
-      console.log(`[PASS] Grounded framing verified: Viewport coverage >= 66%`);
-      console.log(`[PASS] Edge bleed verified: Panel bled off bottom boundary`);
-      console.log(`[PASS] Motion continuity: Zero abrupt layout jumps recorded across 60fps frame buffer`);
-      console.log(`[PASS] Zero purple gradients or unauthorized sparkle SVGs detected in DOM inspection.`);
-      console.log(`\nVerification Status: PASSED`);
+        const { verifyTarget } = await import('@sloppy/verify');
+        const result = await verifyTarget(target, { timeoutMs: 15000 });
+        if (json) emitJson(result);
+        else {
+          console.log(`\n======================================================`);
+          console.log(`SLOPPY BROWSER & GEOMETRIC VERIFICATION HARNESS`);
+          console.log(`======================================================\n`);
+          console.log(`Verification ${result.ok ? 'passed' : 'failed'}: ${result.target} (${result.mode})`);
+          for (const violation of result.violations) console.log(`[${violation.rule}] ${violation.message}${violation.evidence ? `: ${violation.evidence}` : ''}`);
+          if (result.unavailable) console.error(`Verification unavailable: ${result.unavailable}`);
+        }
+        if (result.unavailable) process.exitCode = 2;
+        else if (!result.ok) process.exitCode = 1;
+      } catch (error) {
+        const unavailable = `Verification unavailable: ${(error as Error).message}`;
+        if (json) emitJson({ ok: false, target, unavailable }); else console.error(unavailable);
+        process.exitCode = 2;
+      }
       break;
     }
 
@@ -896,6 +876,7 @@ export async function runCli(args: string[]) {
     }
 
     case 'archetypes': {
+      if (json) { emitJson(SYNTHESIZED_ARCHETYPES); break; }
       console.log(`\n======================================================`);
       console.log(`SLOPPY SYNTHESIZED MASTER ARCHETYPES (${SYNTHESIZED_ARCHETYPES.length})`);
       console.log(`Fusing the best of all 7 libraries without slop`);
@@ -913,6 +894,7 @@ export async function runCli(args: string[]) {
     }
 
     case 'list': {
+      if (json) { emitJson({ components: SLOPPY_COMPONENTS, patterns: PATTERNS_CATALOG }); break; }
       const libFilter = args[1]?.toLowerCase();
 
       if (libFilter && SLOPPY_LIBRARIES[libFilter]) {
@@ -1087,6 +1069,14 @@ export async function runCli(args: string[]) {
         console.log(`\n[INFO] ./sloppy.config.json already exists. Pass --force to regenerate.`);
       }
 
+      const designPath = path.resolve(process.cwd(), 'DESIGN.md');
+      if (!fs.existsSync(designPath) || args.includes('--force')) {
+        fs.writeFileSync(designPath, DESIGN_MD_TEMPLATE, 'utf8');
+        console.log(`[SUCCESS] Generated ./DESIGN.md design contract (token lock: palette, type, radius, blur cap, signature).`);
+      } else {
+        console.log(`[INFO] ./DESIGN.md already exists. Pass --force to regenerate the token-lock template.`);
+      }
+
       const destDir = path.resolve(process.cwd(), 'src/kit');
       fs.mkdirSync(destDir, { recursive: true });
 
@@ -1115,7 +1105,7 @@ export async function runCli(args: string[]) {
       console.log(`SLOPPY CRAFT SCOREBOARD (MEASURED VALUE IMPACT)`);
       console.log(`======================================================\n`);
       console.log(`Eradicated Anti-Patterns (Zero-Tolerance Standards):`);
-      console.log(`  * AI Cliché & Narration:    100% stripped (COD-01, COPY-01..04)`);
+      console.log(`  * AI Cliché & Narration:    100% stripped (COD-01, CPY-03..07)`);
       console.log(`  * Low-Evidence TS Slop:     100% blocked in CI (COD-02..06)`);
       console.log(`  * Unanchored Floats & Cards: Replaced with grounded stages & bleeding frames`);
       console.log(`  * Purple & Hero Text Gradients: Eradicated; replaced with high-contrast type`);
@@ -1134,6 +1124,7 @@ export async function runCli(args: string[]) {
       if (isNext) {
         const theme = args.includes('--dark') ? 'dark' : args.includes('--light') ? 'light' : undefined;
         const material = getNextMaterial({ theme });
+        if (json) { emitJson(material); break; }
         console.log(`\n======================================================`);
         console.log(`SLOPPY NEXT MATERIAL (Anti-Repetition Engine)`);
         console.log(`======================================================\n`);
@@ -1147,6 +1138,7 @@ export async function runCli(args: string[]) {
         break;
       }
 
+      if (json) { emitJson(LOOKS); break; }
       console.log(`\n======================================================`);
       console.log(`SLOPPY DESIGN LOOKS & SURFACE TOKENS`);
       console.log(`======================================================\n`);
@@ -1208,14 +1200,15 @@ Combining: stageshow, shadcn, motion-primitives, magicui, react-bits, kokonutui,
 
 Usage:
   sloppy setup [--write|-w]     All-in-one setup: configure MCP clients and link Agent Skills
-  sloppy check <paths...>       Gate files on slop score, severity, and craft grade (--code, --compact)
+  sloppy check <paths...|url>   Gate files on slop score, severity, and craft grade (--code, --compact, --render)
   sloppy audit <file|dir>     Audit code or directory for AI slop anti-patterns (--strict, --floor-only, --code)
   sloppy gain                 Display measured craft value scoreboard & token efficiency
   sloppy rubric <file>        Evaluate code against 10-point Craft Rubric (Grade A+ to F)
   sloppy plan <file>          Generate structured repair plan with confidence & risk scores
   sloppy fix <file> [--diff|--check|--write]  Review or apply a proposed repair
   sloppy fix --stdin [--json]  Transform source from stdin
-  sloppy verify [target]      Run browser or static verification
+  sloppy verify [target]      Run browser or static verification (--multi-width, --static)
+  sloppy rules                List canonical rule IDs with tier, severity, and auto-fix/detect-only mode
   sloppy install-mcp --client <client>  Configure an MCP client
   sloppy version [--json]     Show CLI and core versions
   sloppy create <archetype>   Scaffold a unified multi-library master archetype

@@ -114,7 +114,9 @@ function applyOnce(code: string, options: TransformOptions, allowedRules: Set<st
     !allowedRules || allowedRules.has(type) || (ruleId ? allowedRules.has(ruleId) : false);
 
   const light = options.look === 'minimal' || options.look === 'radix';
-  const gradientReplacement = light ? 'bg-neutral-50/80 border border-neutral-200 text-neutral-900 shadow-sm' : 'bg-neutral-900/90 border border-neutral-800 text-neutral-100 shadow-2xl backdrop-blur-sm';
+  // A flat neutral surface: no translucent blur, no oversized shadow. The fixer
+  // must not replace one AI default with another.
+  const gradientReplacement = light ? 'bg-neutral-50 border border-neutral-200 text-neutral-900' : 'bg-neutral-900 border border-neutral-800 text-neutral-100';
   const animationReplacement = (token: string) => token === 'animate-bounce' ? 'transition-transform duration-200 ease-out hover:-translate-y-0.5' : token === 'animate-pulse' ? 'transition-opacity duration-300' : token === 'animate-spin' ? 'transition-transform duration-200 ease-out' : 'transition-opacity duration-200 ease-out';
   const progressAffordance = /\brole\s*=\s*["'](?:status|progressbar)["']|\baria-busy\b/.test(code);
   if (progressAffordance && /\banimate-(?:bounce|pulse|spin|ping)\b/.test(code)) manual.push('Kept looping animation tokens for manual review: the file declares a progress affordance.');
@@ -142,8 +144,8 @@ function applyOnce(code: string, options: TransformOptions, allowedRules: Set<st
   const rewriteStyleText = (text: string) => {
     if (!isRuleAllowed('PURPLE_GRADIENT_SLOP', 'VIS-02')) return text;
     return text.replace(/(?:linear|radial|conic)-gradient\([^)]*(?:#7c3aed|#6366f1|#8b5cf6|#a855f7|rgba\(\s*124,\s*58,\s*237|rgba\(\s*99,\s*102,\s*241|purple|violet|indigo|fuchsia)[^)]*\)/gi, match => {
-      const replacement = light ? 'linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%)' : 'linear-gradient(180deg, #18181b 0%, #09090b 100%)';
-      items.push({ type: 'PURPLE_GRADIENT_SLOP', original: match, replacement, explanation: 'Converted inline purple gradient to a monochromatic surface elevation.' });
+      const replacement = light ? '#fafafa' : '#18181b';
+      items.push({ type: 'PURPLE_GRADIENT_SLOP', original: match, replacement, explanation: 'Converted inline purple gradient to a flat neutral surface.' });
       return replacement;
     });
   };

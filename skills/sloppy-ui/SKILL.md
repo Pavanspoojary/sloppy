@@ -40,12 +40,15 @@ AI agents default to purple-indigo gradients on everything (`VIS-02`). Replace s
    - Information / Telemetry: Cyan / Sky (`text-sky-400`, `bg-sky-500/10`)
 3. **`VIS-01` (Hero Gradient Text)**: Replace multicolored text clipping (`bg-clip-text text-transparent bg-gradient-to-r...`) with solid high-contrast white text (`text-white font-semibold tracking-tight`).
 4. **`VIS-02` (Purple Gradient Slop)**: Purple and indigo gradients are blocked by default (Reflex tier) unless explicitly declared with written rationale.
+5. **`VIS-03` (Gen-2 Emerald Monoculture)**: Emerald accents on dark grounds are the new default. Only use them when `DESIGN.md` declares the brand accent; otherwise pick the product's own token.
+6. **`VIS-06` (Blur Overuse)**: Cap `backdrop-blur` at 1-2 functional overlays per page. A blurred card over a flat background is glassmorphism filler.
+7. **`VIS-07` (Glow Shadows)**: No colored ambient glow (`shadow-indigo-500/50`, colored `drop-shadow`). Use one neutral grounded shadow or a 1px border.
 
 ---
 
 ## 3. Authentic Icon Replacement (Zero Sparkle Clichés)
 
-AI agents blindly insert sparkles or magic wands on generic buttons (`VIS-03`).
+AI agents blindly insert sparkles or magic wands on generic buttons (`MED-02`).
 
 ### Strict Replacement Protocol:
 - **Sparkles / Magic Wand (`<Sparkles>`, `<MagicWand>`)** -> Replace with domain-accurate icons:

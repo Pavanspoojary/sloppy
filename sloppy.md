@@ -41,7 +41,7 @@ If any of these anti-patterns appear in your output, the code is considered brok
 2. **Banned: Hero Gradient Text (`VIS-01`)**:
    - Forbidden: `bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600`.
    - Mandatory: Solid high-contrast text with weight and letter-spacing contrast: `text-white font-semibold tracking-tight`.
-3. **Banned: Sparkle and Magic-Wand Icons (`VIS-03`)**:
+3. **Banned: Sparkle and Magic-Wand Icons (`MED-02`)**:
    - Forbidden: `<Sparkles>`, `<LucideSparkles>`, `<MagicWand>`.
    - Mandatory: Contextual domain icons: `<Activity>` (telemetry), `<Zap>` (execution), `<Terminal>` (CLI), `<Database>` (storage), `<Shield>` (security).
 4. **Banned: Boxed Card Monotony (`STR-01`)**:

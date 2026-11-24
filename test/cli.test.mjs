@@ -144,3 +144,74 @@ test('verify reports honestly instead of printing a fake pass', () => {
   assert.equal(payload.ok, false);
   assert.ok(payload.unavailable || payload.violations.length > 0);
 });
+
+test('fix, audit, plan, rubric, and verify have one behaviour for human and --json', () => {
+  const source = fs.readFileSync(fixture('slop-component.tsx'), 'utf8');
+  const human = runCli(['fix', '--stdin'], { input: source });
+  const machine = runCli(['fix', '--stdin', '--json'], { input: source });
+  assert.equal(human.status, 0, human.stderr);
+  assert.equal(machine.status, 0, machine.stderr);
+  assert.equal(parseJsonStdout(machine).transformedCode, human.stdout, 'stdin human and JSON output must agree');
+
+  const auditHuman = runCli(['audit', fixture('slop-component.tsx')]);
+  const auditJson = runCli(['audit', fixture('slop-component.tsx'), '--json']);
+  assert.equal(auditHuman.status, auditJson.status, 'audit exit codes must agree');
+  assert.equal(/AI SLOP AUDIT REPORT/.test(auditHuman.stdout), true);
+  assert.equal(parseJsonStdout(auditJson).totals.files, 1);
+
+  const planJson = runCli(['plan', fixture('slop-component.tsx'), '--json']);
+  const planHuman = runCli(['plan', fixture('slop-component.tsx')]);
+  assert.equal(planJson.status, planHuman.status);
+  assert.ok(Array.isArray(parseJsonStdout(planJson).patches));
+  assert.equal(/STRUCTURED REPAIR PLAN/.test(planHuman.stdout), true);
+
+  const rubricJson = runCli(['rubric', fixture('clean-component.tsx'), '--json']);
+  const rubricHuman = runCli(['rubric', fixture('clean-component.tsx')]);
+  assert.equal(rubricJson.status, rubricHuman.status);
+  assert.equal(parseJsonStdout(rubricJson).evaluationMethod, 'static-source-scan');
+  assert.equal(/CRAFT CERTIFICATION REPORT/.test(rubricHuman.stdout), true);
+});
+
+test('every fix path prints the wiring block and reports it in JSON', () => {
+  const source = fs.readFileSync(fixture('slop-component.tsx'), 'utf8');
+  const stdinHuman = runCli(['fix', '--stdin'], { input: source });
+  assert.match(stdinHuman.stderr, /Wiring Guard \[PASSED\]/);
+
+  const diffHuman = runCli(['fix', fixture('slop-component.tsx'), '--diff']);
+  assert.match(diffHuman.stderr, /Wiring Guard \[PASSED\]/);
+  assert.match(diffHuman.stdout, /^@@/m);
+
+  const jsonRun = runCli(['fix', fixture('slop-component.tsx'), '--json']);
+  const payload = parseJsonStdout(jsonRun);
+  assert.ok('wiringGuard' in payload, 'JSON fix output must carry wiringGuard');
+  assert.ok('manualReviewItems' in payload, 'JSON fix output must carry manualReviewItems');
+  assert.ok('only' in payload, 'JSON fix output must carry the surgical only filter');
+
+  const human = runCli(['fix', fixture('slop-component.tsx')]);
+  assert.match(human.stdout, /Wiring Guard \[PASSED\]/);
+});
+
+test('user-facing copy does not claim an AST where the implementation is a scanner', () => {
+  const rubric = runCli(['rubric', fixture('clean-component.tsx'), '--json']);
+  assert.equal(/\bAST\b/.test(rubric.stdout), false, 'rubric JSON must not mention AST');
+
+  const verify = runCli(['verify', fixture('gen2-clean.tsx'), '--multi-width', '--static']);
+  assert.equal(/\bAST\b/.test(verify.stdout), false, 'multi-width output must not mention AST');
+  assert.match(verify.stdout, /Static Source Simulation/);
+});
+
+test('check --render merges multi-width contrast and overflow findings into one report', () => {
+  const jsonRun = runCli(['check', fixture('fixed-width.tsx'), '--render', '--static', '--json']);
+  assert.equal(jsonRun.status, 1, jsonRun.stderr);
+  const payload = parseJsonStdout(jsonRun);
+  assert.ok(payload.runtime, 'the check payload must include runtime findings');
+  assert.equal(payload.runtime.isStaticFallback, true);
+  assert.ok(payload.runtime.findings.some((finding) => finding.type === 'STATIC_FIXED_WIDTH'));
+  assert.ok(payload.totals.violations >= payload.runtime.findings.length);
+
+  const human = runCli(['check', fixture('fixed-width.tsx'), '--render', '--static']);
+  assert.equal(human.status, 1);
+  assert.match(human.stdout, /Runtime \(static source simulation\)/);
+  assert.match(human.stdout, /mobile-small/);
+  assert.match(human.stdout, /runtime findings included/);
+});

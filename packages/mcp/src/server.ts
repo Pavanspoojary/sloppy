@@ -76,7 +76,12 @@ export const PRIMARY_TOOLS: Tool[] = [
         code: { type: 'string', description: 'Source code content to repair' },
         path: { type: 'string', description: 'Optional file path to read, transform, and optionally write back' },
         look: { type: 'string', description: 'Desired design look (e.g. "linear", "minimal", "dark-hero")', default: 'linear' },
-        write: { type: 'boolean', description: 'Whether to write changes directly to disk when path is provided (default: false)', default: false }
+        write: { type: 'boolean', description: 'Whether to write changes directly to disk when path is provided (default: false)', default: false },
+        only: {
+          type: 'array',
+          items: { type: ['string', 'number'] },
+          description: 'Surgical allowlist of finding indices (e.g. [1, 3]) or rule IDs (e.g. ["VIS-02", "COD-01"]). Omit to apply every safe transformation.'
+        }
       }
     }
   },
@@ -225,7 +230,7 @@ export function createSloppyServer() {
       }
 
       if (name === 'sloppy_fix') {
-        const input = (args || {}) as { code?: string; path?: string; look?: string; write?: boolean };
+        const input = (args || {}) as { code?: string; path?: string; look?: string; write?: boolean; only?: (string | number)[] };
         let code = input.code;
         let resolvedPath: string | undefined;
         if (input.path) {
@@ -235,8 +240,18 @@ export function createSloppyServer() {
         }
         if (code === undefined) return { content: [{ type: 'text', text: 'Provide code or path.' }], isError: true };
 
-        const transformed = transformSlopToCraft(code, { look: (input.look as any) || 'linear', filepath: input.path });
-        if (input.write === true && resolvedPath) fs.writeFileSync(resolvedPath, transformed.transformedCode, 'utf8');
+        const only = Array.isArray(input.only) ? input.only : undefined;
+        const transformed = transformSlopToCraft(code, { look: (input.look as any) || 'linear', filepath: input.path, only });
+        const wiringGuard = transformed.wiringGuard;
+        if (input.write === true && resolvedPath) {
+          if (!transformed.isValidSyntax) {
+            return { content: [{ type: 'text', text: `Refusing to write invalid syntax: ${transformed.syntaxErrors.map((e) => e.message).join('; ')}` }], isError: true };
+          }
+          if (wiringGuard && !wiringGuard.passed) {
+            return { content: [{ type: 'text', text: `Refusing to write: the wiring guard detected dropped handlers or links. ${wiringGuard.details}` }], isError: true };
+          }
+          fs.writeFileSync(resolvedPath, transformed.transformedCode, 'utf8');
+        }
 
         return {
           content: [
@@ -248,7 +263,10 @@ export function createSloppyServer() {
                 isValidSyntax: transformed.isValidSyntax,
                 transformedCode: transformed.transformedCode,
                 unifiedDiff: transformed.unifiedDiff,
-                postAudit: transformed.postAudit
+                postAudit: transformed.postAudit,
+                only: only ?? null,
+                wiringGuard,
+                manualReviewItems: transformed.manualReviewItems
               })
             }
           ]

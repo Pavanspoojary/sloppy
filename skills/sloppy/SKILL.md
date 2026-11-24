@@ -14,7 +14,7 @@ AI agents routinely generate "AI UI Slop":
 - Word overload: filling every row with fake numbers and text instead of disciplined word budgeting.
 - Unearned animations: spinning, bouncing, and sudden content swaps without cause-and-effect transitions.
 
-Sloppy eliminates AI slop by unifying 7 top-tier component ecosystems (Stageshow, shadcn/ui, Motion Primitives, Magic UI, React Bits, Kokonut UI, and Animate UI) with an automated surgical AST auto-fixer, 3-tier severity gates, wiring protection guard, multi-width rendering verification, 10 synthesized master archetypes, a 10-point Craft Rubric grading engine, approval-gated audit reports, a Model Context Protocol (MCP) server, and 5 modular specialist skills.
+Sloppy eliminates AI slop by unifying 7 top-tier component ecosystems (Stageshow, shadcn/ui, Motion Primitives, Magic UI, React Bits, Kokonut UI, and Animate UI) with an automated surgical source-scan auto-fixer, 3-tier severity gates, wiring protection guard, multi-width rendering verification, 10 synthesized master archetypes, a 10-point Craft Rubric grading engine, approval-gated audit reports, a Model Context Protocol (MCP) server, and 5 modular specialist skills.
 
 ---
 
@@ -22,8 +22,8 @@ Sloppy eliminates AI slop by unifying 7 top-tier component ecosystems (Stageshow
 
 To preserve agent context windows while providing deep, domain-specific guidance, Sloppy splits into 1 core coordinator skill plus 5 on-demand specialists:
 
-1. **`sloppy-ui`**: Surface elevation steps (0, 1, 2, 3), monochromatic neutrals, single semantic accent discipline, authentic Lucide icon replacement (`VIS-01`, `VIS-02`, `VIS-03`, `VIS-08`, `LIV-01`).
-2. **`sloppy-copywriting`**: Word budget enforcement (3-7 words per element), eliminating negative parallelism clichés, and preventing fabricated metrics (`CPY-01`, `CPY-04`, `CPY-06`, `CPY-07`, `TYP-08`).
+1. **`sloppy-ui`**: Surface elevation steps (0, 1, 2, 3), monochromatic neutrals, single semantic accent discipline, authentic Lucide icon replacement (`VIS-01`, `VIS-02`, `VIS-03`, `VIS-06`, `VIS-07`, `VIS-08`, `MED-02`, `LIV-01`).
+2. **`sloppy-copywriting`**: Word budget enforcement (3-7 words per element), eliminating negative parallelism clichés, and preventing fabricated metrics and formulaic prose (`CPY-01`, `CPY-02`, `CPY-04`, `CPY-05`, `CPY-06`, `CPY-07`, `TYP-08`).
 3. **`sloppy-human`**: Engineering authenticity, realistic domain nouns, authentic macOS chrome headers, and grounded error/empty states (`REAL_WORLD_CHROME_MISSING`, `AUTHENTIC_MICROCOPY`).
 4. **`sloppy-layoutmobile`**: Viewport framing (>=66% stage coverage, edge bleeding), breaking boxed card syndrome, responsive density, and mobile scroll protection (`STR-01`, `STR-02`, `LAY-01`, `UX-05`).
 5. **`sloppy-code`**: Component semantics, keyboard accessibility (`role="button"`, `tabIndex={0}`), zero dead placeholder callbacks, and comment hygiene pass (`AX-01`, `UX-02`, `TOK-01`, `COD-01`).
@@ -71,7 +71,7 @@ To remove the #1 fear developers have about AI UI rewrites (lost callbacks, drop
 - Mobile: 375px (iPhone SE), 390px (iPhone 14/15), 430px (iPhone Max)
 - Tablet: 768px (iPad), 834px (iPad Pro)
 - Desktop: 1024px (Laptop), 1440px (Desktop Widescreen), 1920px (1080p Monitor)
-- **Static AST Fallback**: When Playwright or Chrome is not installed, Sloppy automatically falls back to static AST inspection, verifying responsive constraints without failing or crashing.
+- **Static Source-Scan Fallback**: When Playwright or Chrome is not installed, Sloppy automatically falls back to static source scanning, verifying responsive constraints without failing or crashing.
 
 ---
 
