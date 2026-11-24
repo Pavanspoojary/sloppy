@@ -1,6 +1,6 @@
 {
   "name": "sloppy-monorepo",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Sloppy: The ultimate AI slop UI fixer combining Stageshow's craft principles, React kit, 74 pattern directories, MCP server, and universal agent skill.",

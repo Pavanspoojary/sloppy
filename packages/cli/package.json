@@ -1,6 +1,6 @@
 {
   "name": "sloppy",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Developer CLI for Sloppy: The AI Slop UI Fixer",
   "type": "module",
   "bin": {
@@ -21,9 +21,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@sloppy/core": "^1.0.0",
-    "@sloppy/mcp": "^1.0.0",
-    "@sloppy/verify": "^1.0.0"
+    "@sloppy/core": "^1.1.0",
+    "@sloppy/mcp": "^1.1.0",
+    "@sloppy/verify": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
