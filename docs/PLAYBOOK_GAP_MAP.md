@@ -8,9 +8,9 @@ honest about what Sloppy can and cannot evidence today. Update it when a gap clo
 | Layer | Current capability | Where | Gap |
 | :--- | :--- | :--- | :--- |
 | Static/source | Tag, class, attribute, text, and comment scanning. Findings now carry file, line, selector, confidence, evidence kind, and applicability notes. | `packages/core/src/linter/index.ts`, `rule-metadata.ts` | Cross-file semantics and type inference remain out of scope. |
-| Browser/DOM/computed | Multi-width overflow, rendered contrast, and rendered accessibility (names, labels, focus visibility, 24x24 target size, aria references, duplicate ids, reduced motion) via Playwright. Static fallback is labeled and never reports a pass. | `packages/verify/multi-width.mjs`, `accessibility.mjs` | No keyboard focus-order sequence, no 200% zoom/reflow task, and no interaction suite for tabs, menus, forms, or state transitions yet. |
+| Browser/DOM/computed | Multi-width overflow, rendered contrast, and rendered accessibility (names, labels, focus visibility, tab-sequence order, 24x24 target size with spacing exception, aria references, duplicate ids, 320px reflow, 200% text resize clipping, reduced motion) via Playwright. Static fallback is labeled and never reports a pass. | `packages/verify/multi-width.mjs`, `accessibility.mjs` | No interaction suite for tabs, menus, forms, or state transitions. Focus order and text-resize checks are heuristics with medium/low confidence, not full conformance evidence. |
 | Visual/perceptual | None in the core scanner. The rubric is a source heuristic, not a screenshot judgment. | `packages/core/src/linter/rubric.ts` | No screenshot regions, DOM anchors, or human-calibrated visual model. |
-| Standards | Source findings cite WCAG 1.4.3, 4.1.2, and 2.1.1. Rendered checks cite 4.1.2, 3.3.2, 2.4.7, and 2.5.8. Reduced-motion evidence is collected but classified as craft, not conformance. | `rule-metadata.ts`, `accessibility.mjs` | Reflow (1.4.10), 200% text resize (1.4.4), focus order (2.4.3), and focus appearance (2.4.11/2.4.13) are not verified. |
+| Standards | Source findings cite WCAG 1.4.3, 4.1.2, and 2.1.1. Rendered checks cite 4.1.2, 3.3.2, 2.4.3, 2.4.7, 2.5.8, 1.4.10, and 1.4.4. Reduced-motion evidence is collected but classified as craft, not conformance. | `rule-metadata.ts`, `accessibility.mjs` | Focus appearance (2.4.11/2.4.13), full keyboard task completion, and non-heuristic 1.4.4 verification are not covered. |
 | Runtime | `verify` fails closed when the browser is unavailable; no console/network/layout-shift collection. | `packages/verify/browser.mjs` | Add runtime logs and deterministic task assertions. |
 
 ## 2. Objective vs craft separation
@@ -79,17 +79,19 @@ The rule metadata and report wording are written to keep those limits visible.
 
 ## 8. Next slices, in order
 
-Done: rendered accessible names, form labels, focus visibility, 24x24 target size,
-aria references, duplicate ids, and reduced-motion checks in `verify --a11y` /
-`check --a11y`, with an honest `unavailable` result instead of a pass.
+Done: rendered accessible names, form labels, focus visibility, tab-sequence
+order, 24x24 target size, aria references, duplicate ids, 320px reflow, 200% text
+resize clipping, and reduced-motion checks in `verify --a11y` / `check --a11y`,
+with an honest `unavailable` result instead of a pass.
 
-1. Add keyboard focus-order sequencing and a 200% zoom / reflow task at 320 CSS px.
-2. Add deterministic interaction fixtures: tab switch, menu open/close, form
+1. Add deterministic interaction fixtures: tab switch, menu open/close, form
    validation, filter updates, and loading/empty/error states. Do not click
    arbitrary production buttons; scope runs to declared fixture selectors.
-3. Add screenshot capture with DOM anchors and viewport metadata; keep visual
+2. Add screenshot capture with DOM anchors and viewport metadata; keep visual
    findings in Reflex/Finish until calibrated.
-4. Build the stratified benchmark manifest and record precision/false-positive
+3. Build the stratified benchmark manifest and record precision/false-positive
    counts per rule before adding more aesthetic heuristics.
-5. Add before/after repair evidence and rollback when a Floor or interaction
+4. Add before/after repair evidence and rollback when a Floor or interaction
    regression appears.
+5. Replace the focus-order and text-resize heuristics with calibrated checks once
+   the interaction fixtures provide ground truth.

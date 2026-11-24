@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { auditA11ySnapshot, runAccessibilityAudit } from '../packages/verify/accessibility.mjs';
+import { analyzeFocusOrder, auditA11ySnapshot, runAccessibilityAudit } from '../packages/verify/accessibility.mjs';
 
 const cleanButton = {
   tag: 'BUTTON',
@@ -120,4 +120,45 @@ test('undersized targets are exempt when the 24px spacing exception holds', () =
     { ...cleanButton, selector: 'button.second', rect: { x: 218, y: 200, width: 20, height: 20 } }
   ]);
   assert.ok(crowded.some((finding) => finding.rule === 'a11y.targetTooSmall'));
+});
+
+test('positive tabindex is reported as a focus-order override without a high-confidence claim', () => {
+  const findings = auditA11ySnapshot([{ ...cleanButton, selector: 'button.hijack', explicitTabIndex: '3' }]);
+  const finding = findings.find((item) => item.rule === 'a11y.positiveTabindex');
+  assert.ok(finding);
+  assert.equal(finding.objective, false);
+  assert.match(finding.evidence.criterion, /2\.4\.3/);
+});
+
+test('focus-order analysis flags upward jumps but leaves normal sequence alone', () => {
+  const normal = analyzeFocusOrder([
+    { selector: '#header', docTop: 20 },
+    { selector: '#main', docTop: 240 },
+    { selector: '#footer', docTop: 900 }
+  ]);
+  assert.deepEqual(normal, []);
+
+  const jumped = analyzeFocusOrder([
+    { selector: '#header', docTop: 20 },
+    { selector: '#main', docTop: 640 },
+    { selector: '#footer', docTop: 120 }
+  ]);
+  assert.equal(jumped.length, 1);
+  assert.equal(jumped[0].from, '#main');
+  assert.equal(jumped[0].to, '#footer');
+});
+
+test('reflow and 200% text resize evidence is produced only when the browser reports it', () => {
+  const findings = auditA11ySnapshot([cleanButton], {
+    reflowOverflow: { scrollWidth: 420, clientWidth: 320 },
+    textResizeClipped: [{ selector: 'button.cta', scrollHeight: 64, clientHeight: 40 }]
+  });
+
+  const reflow = findings.find((item) => item.rule === 'a11y.reflowOverflow');
+  assert.equal(reflow.severity, 'high');
+  assert.match(reflow.evidence.criterion, /1\.4\.10/);
+
+  const resize = findings.find((item) => item.rule === 'a11y.textResizeClipped');
+  assert.equal(resize.confidence, 'medium');
+  assert.match(resize.evidence.criterion, /1\.4\.4/);
 });

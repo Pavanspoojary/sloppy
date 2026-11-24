@@ -30,6 +30,24 @@ function overlapsAnotherTarget(item, snapshot) {
   });
 }
 
+export function analyzeFocusOrder(stops) {
+  const jumps = [];
+  for (let index = 1; index < stops.length; index += 1) {
+    const previous = stops[index - 1];
+    const current = stops[index];
+    if (!previous || !current || current.selector === stops[0]?.selector) continue;
+    if (previous.positiveTabindex || current.positiveTabindex) continue;
+    const verticalDelta = previous.docTop - current.docTop;
+    const horizontalDelta = (previous.docLeft ?? 0) - (current.docLeft ?? 0);
+    const verticalJump = verticalDelta > 24;
+    const horizontalJump = Math.abs(previous.docTop - current.docTop) <= 8 && horizontalDelta > 50;
+    if (verticalJump || horizontalJump) {
+      jumps.push({ from: previous.selector, to: current.selector, delta: verticalJump ? verticalDelta : horizontalDelta });
+    }
+  }
+  return jumps;
+}
+
 export function auditA11ySnapshot(snapshot, options = {}) {
   const findings = [];
   const push = (rule, message, item, extra = {}) => {
@@ -92,6 +110,14 @@ export function auditA11ySnapshot(snapshot, options = {}) {
       }
     }
 
+    if (Number(item.explicitTabIndex) > 0) {
+      push('a11y.positiveTabindex', `Explicit tabindex="${item.explicitTabIndex}" overrides the natural focus order.`, item, {
+        severity: 'medium',
+        objective: false,
+        criterion: 'WCAG 2.4.3 Focus Order'
+      });
+    }
+
     if (item.ariaExpanded !== undefined && item.ariaExpanded !== null && !item.ariaControls) {
       push('a11y.stateUnwired', `Element exposes aria-expanded="${item.ariaExpanded}" without aria-controls naming the region it expands.`, item, {
         severity: 'medium',
@@ -114,6 +140,32 @@ export function auditA11ySnapshot(snapshot, options = {}) {
     push('a11y.brokenReference', `${broken.attribute} references missing id "${broken.id}".`, { selector: broken.selector }, {
       severity: 'high',
       criterion: 'WCAG 4.1.2 Name, Role, Value'
+    });
+  }
+
+  for (const jump of options.focusOrderJumps || []) {
+    push('a11y.focusOrderJump', `Tab order moves from "${jump.from}" to "${jump.to}" (${Math.round(Math.abs(jump.delta))}px backwards); confirm the focus sequence follows the visual reading order.`, { selector: jump.to }, {
+      severity: 'low',
+      confidence: 'low',
+      objective: false,
+      kind: 'interaction',
+      criterion: 'WCAG 2.4.3 Focus Order'
+    });
+  }
+
+  if (options.reflowOverflow) {
+    push('a11y.reflowOverflow', `At 320 CSS px the page scrolls horizontally (${options.reflowOverflow.scrollWidth}px content in ${options.reflowOverflow.clientWidth}px viewport).`, { selector: 'document' }, {
+      severity: 'high',
+      criterion: 'WCAG 1.4.10 Reflow'
+    });
+  }
+
+  for (const clipped of options.textResizeClipped || []) {
+    push('a11y.textResizeClipped', `At 200% text size, text is clipped inside a fixed-height element (${clipped.scrollHeight}px content in ${clipped.clientHeight}px box).`, { selector: clipped.selector }, {
+      severity: 'medium',
+      confidence: 'medium',
+      kind: 'computed-style',
+      criterion: 'WCAG 1.4.4 Resize Text'
     });
   }
 
@@ -229,6 +281,7 @@ export async function runAccessibilityAudit(target, options = {}) {
           disabled: Boolean(el.disabled),
           rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
           tabIndex: el.tabIndex,
+          explicitTabIndex: el.getAttribute('tabindex'),
           inlineLink: tag === 'A' && style.display === 'inline',
           hasLabel,
           focusVisible,
@@ -259,6 +312,64 @@ export async function runAccessibilityAudit(target, options = {}) {
       return { items, duplicateIds, brokenReferences };
     });
 
+    let focusOrderJumps = [];
+    if (options.checkFocusOrder !== false) {
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const stops = [];
+      for (let index = 0; index < 30; index += 1) {
+        await page.keyboard.press('Tab');
+        const stop = await page.evaluate(() => {
+          const el = document.activeElement;
+          if (!el || el === document.body || el === document.documentElement) return null;
+          const rect = el.getBoundingClientRect();
+          const label = el.getAttribute('aria-label') || (el.innerText || el.textContent || el.tagName).trim().slice(0, 40);
+          return {
+            selector: el.id ? `#${el.id}` : `${el.tagName.toLowerCase()}${label ? `[${label}]` : ''}`,
+            docTop: rect.top + window.scrollY,
+            docLeft: rect.left,
+            positiveTabindex: Number(el.getAttribute('tabindex')) > 0
+          };
+        });
+        if (stop) stops.push(stop);
+        if (stops.length > 2 && stop?.selector === stops[0]?.selector) break;
+      }
+      focusOrderJumps = analyzeFocusOrder(stops);
+    }
+
+    const viewport = page.viewportSize();
+    let reflowOverflow = null;
+    let textResizeClipped = [];
+    try {
+      await page.setViewportSize({ width: 320, height: 800 });
+      await page.waitForTimeout(120);
+      const reflow = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth
+      }));
+      if (reflow.scrollWidth > reflow.clientWidth + 1) reflowOverflow = reflow;
+
+      await page.evaluate(() => { document.documentElement.style.fontSize = '32px'; });
+      await page.waitForTimeout(120);
+      textResizeClipped = await page.evaluate(() => {
+        const clipped = [];
+        for (const el of document.querySelectorAll('body *')) {
+          const style = getComputedStyle(el);
+          if (style.overflow !== 'hidden' && style.overflowY !== 'hidden') continue;
+          const text = (el.innerText || el.textContent || '').trim();
+          if (!text || el.children.length > 0) continue;
+          if (el.scrollHeight > el.clientHeight + 2) {
+            const cls = [...el.classList].filter((value) => /^[A-Za-z0-9_-]+$/.test(value)).slice(0, 2);
+            clipped.push({ selector: el.id ? `#${el.id}` : `${el.tagName.toLowerCase()}${cls.map((value) => `.${value}`).join('')}`, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight });
+          }
+          if (clipped.length >= 5) break;
+        }
+        return clipped;
+      });
+      await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+    } finally {
+      if (viewport) await page.setViewportSize(viewport);
+    }
+
     let reducedMotionIgnored = false;
     if (options.checkReducedMotion !== false) {
       await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -273,6 +384,9 @@ export async function runAccessibilityAudit(target, options = {}) {
     const findings = auditA11ySnapshot(snapshot.items, {
       duplicateIds: snapshot.duplicateIds,
       brokenReferences: snapshot.brokenReferences,
+      focusOrderJumps,
+      reflowOverflow,
+      textResizeClipped,
       reducedMotionIgnored,
       viewport: { width: options.width || 1440, height: options.height || 900 }
     });
@@ -285,8 +399,8 @@ export async function runAccessibilityAudit(target, options = {}) {
       findings,
       summary: findings.length
         ? `Found ${findings.length} accessibility issue(s) in the rendered DOM.`
-        : 'Rendered DOM passes the name, label, focus, target-size, reference, and reduced-motion checks.',
-      checked: ['accessible name', 'form labels', 'focus visibility', 'target size 24x24', 'aria references', 'reduced motion']
+        : 'Rendered DOM passes the name, label, focus, target-size, reference, reflow, text-resize, and reduced-motion checks.',
+      checked: ['accessible name', 'form labels', 'focus visibility', 'focus order', 'target size 24x24', 'aria references', 'reflow at 320px', '200% text resize', 'reduced motion']
     };
   } catch (error) {
     const reason = String(error?.message || error).split('\n')[0];
