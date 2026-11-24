@@ -263,7 +263,7 @@ echo '<div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl 
 | Command | Usage | Description |
 |---|---|---|
 | `setup` | `sloppy setup [--write]` | Configure MCP clients (Cursor, VS Code, Claude, Codex) and link Agent Skills. |
-| `check` | `sloppy check <paths...> [--format sarif\|json] [--watch]` | Primary quality gate with machine-readable verdicts, SARIF export, and exit codes. |
+| `check` | `sloppy check <paths...\|url> [--format sarif\|json] [--render] [--a11y] [--watch]` | Primary quality gate with machine-readable verdicts, SARIF export, rendered checks, and exit codes. |
 | `audit` | `sloppy audit <file\|dir>` | Detailed anti-pattern scan with line numbers, code snippets, and remediations. |
 | `rubric` | `sloppy rubric <file> [--strict]` | 10-dimension craft rubric score (0-100) and certification grade (A+ to F). |
 | `plan` | `sloppy plan <file>` | Structured repair plan with confidence levels, risk ratings, and patch diffs. |
@@ -277,7 +277,7 @@ echo '<div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl 
 | `list` | `sloppy list [library]` | Search and list curated components across the ecosystem. |
 | `init` | `sloppy init [--from <url>]` | Scaffold React kit, or extract design DNA from live URL/dev-server into `sloppy.config.json` and `DESIGN.md`. |
 | `looks` | `sloppy looks [--next]` | Display tokens or deal fresh material from anti-repetition memory. |
-| `verify` | `sloppy verify [target] [--multi-width] [--static]` | Multi-width responsive verification (8 widths) with static source-scan fallback. |
+| `verify` | `sloppy verify [target] [--multi-width] [--a11y] [--static]` | Multi-width responsive verification (8 widths) or rendered accessibility verification, both failing closed when unavailable. |
 | `hook` | `sloppy hook install [--cursor\|--claude\|--git]` | Install lightweight sub-30ms Floor checks for edit-time validation. |
 
 ---
@@ -298,6 +298,8 @@ Before any automated fix or agent redesign touches a file, Sloppy snapshots all 
 
 ### 3. Multi-Width Render Verification (8 Widths with Static Fallback)
 Tests real rendered contrast, mobile horizontal overflow, and above-the-fold hero framing across 8 canonical viewports (375px to 1920px). When Playwright or Chrome is not installed, Sloppy cleanly falls back to static source scanning without failing or crashing.
+
+**Rendered accessibility (`--a11y`)** checks the live DOM for accessible names, form labels, focus visibility, WCAG 2.2 target size (24x24), broken `aria-*` references, duplicate ids, and animation that ignores `prefers-reduced-motion`. It requires a served URL: a source file or an unavailable browser returns `unavailable` and exit code `2`, never a fabricated pass. Add it to the same report with `sloppy check https://localhost:3000 --a11y --json`.
 
 ### 4. Decoupled Materials & Anti-Repetition Engine
 Themes are treated as pure lightweight materials (≤8 KB of surface, border, typography, and accent tokens) completely separated from page layout. `sloppy looks --next` tracks recently dealt looks so generated outputs never repeat the same theme twice.

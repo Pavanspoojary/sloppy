@@ -220,3 +220,23 @@ test('check --render merges multi-width contrast and overflow findings into one 
   assert.match(human.stdout, /mobile-small/);
   assert.match(human.stdout, /runtime findings included/);
 });
+
+test('check --a11y reports rendered accessibility findings in the same payload', () => {
+  const run = runCli(['check', 'https://127.0.0.1:1', '--a11y', '--json']);
+  assert.equal(run.status, 2, 'an unavailable browser audit must fail closed, not pass');
+  const payload = parseJsonStdout(run);
+  assert.equal(payload.ok, false);
+  assert.ok(payload.accessibility, 'check must include the accessibility result');
+  assert.equal(payload.accessibility.mode, 'browser');
+  assert.ok(payload.accessibility.unavailable);
+  assert.equal(payload.accessibility.findings.length, 0, 'no findings may be invented without a DOM snapshot');
+});
+
+test('verify --a11y refuses to claim a pass for a source file with no rendered DOM', () => {
+  const run = runCli(['verify', fixture('clean-component.tsx'), '--a11y', '--json']);
+  assert.equal(run.status, 2, run.stderr);
+  const payload = parseJsonStdout(run);
+  assert.equal(payload.ok, false);
+  assert.equal(payload.isStaticFallback, true);
+  assert.match(payload.unavailable, /served|DOM/i);
+});

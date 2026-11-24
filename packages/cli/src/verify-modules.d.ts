@@ -37,3 +37,32 @@ declare module '@sloppy/verify/multi-width' {
   }
   export function runMultiWidthVerification(target: string, options?: { staticOnly?: boolean }): Promise<MultiWidthResult>;
 }
+
+declare module '@sloppy/verify/accessibility' {
+  export interface A11yEvidence {
+    kind: string;
+    description: string;
+    selector?: string;
+    viewport?: { width: number; height: number };
+    criterion?: string;
+  }
+  export interface A11yFinding {
+    rule: string;
+    message: string;
+    severity: string;
+    confidence: string;
+    objective: boolean;
+    evidence: A11yEvidence;
+  }
+  export function auditA11ySnapshot(snapshot: unknown[], options?: Record<string, unknown>): A11yFinding[];
+  export function runAccessibilityAudit(target: string, options?: Record<string, unknown>): Promise<{
+    target: string;
+    ok: boolean;
+    mode: string;
+    isStaticFallback: boolean;
+    findings: A11yFinding[];
+    summary: string;
+    unavailable?: string;
+    checked?: string[];
+  }>;
+}

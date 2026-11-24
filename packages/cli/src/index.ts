@@ -187,9 +187,9 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
   if (args.includes('--help') && ['check', 'fix', 'verify', 'install-mcp', 'setup'].includes(command)) {
     const help: Record<string, string> = {
       setup: 'Usage: sloppy setup [--write|-w] [--global|-g] [--json]',
-      check: 'Usage: sloppy check <paths...|url> [--json] [--max-score <n>] [--fail-on <none|low|medium|high|critical>] [--min-grade <A+|A|B|C|D|F>] [--type <illustration|feature-card|hero|application|bento>] [--render|--multi-width] [--static] [--quiet]',
+      check: 'Usage: sloppy check <paths...|url> [--json] [--max-score <n>] [--fail-on <none|low|medium|high|critical>] [--min-grade <A+|A|B|C|D|F>] [--type <illustration|feature-card|hero|application|bento>] [--render|--multi-width] [--a11y] [--static] [--quiet]',
       fix: 'Usage: sloppy fix <file> [--diff|--check|--write] [--look <look>] [--json]\n       sloppy fix --stdin [--json]',
-      verify: 'Usage: sloppy verify [target] [--json] (verification timeout: 15000ms)',
+      verify: 'Usage: sloppy verify [target] [--json] [--multi-width] [--a11y] (verification timeout: 15000ms)',
       'install-mcp': 'Usage: sloppy install-mcp --client <cursor|vscode|claude|codex> [--dir <path>] [--write] [--json]'
     };
     console.log(help[command]); return true;
@@ -205,7 +205,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       else if (args[i] === '--min-grade') { opts.minGrade = args[++i]; if (!gradeOrder.includes(opts.minGrade)) { fail('--min-grade must be A+, A, B, C, D, or F'); return true; } }
       else if (args[i] === '--type') { const value = args[++i]; if (!['illustration', 'feature-card', 'hero', 'application', 'bento'].includes(value)) { fail('--type must be illustration, feature-card, hero, application, or bento'); return true; } }
       else if (args[i] === '--format') { const fmt = args[++i]; if (fmt !== 'sarif' && fmt !== 'json') { fail('--format must be sarif or json'); return true; } }
-      else if (args[i] === '--sarif' || args[i] === '--watch' || args[i] === '-w' || args[i] === '--code' || args[i] === '--code-only' || args[i] === '--strict' || args[i] === '--compact' || args[i] === '--render' || args[i] === '--multi-width' || args[i] === '--static') { /* recognized flag */ }
+      else if (args[i] === '--sarif' || args[i] === '--watch' || args[i] === '-w' || args[i] === '--code' || args[i] === '--code-only' || args[i] === '--strict' || args[i] === '--compact' || args[i] === '--render' || args[i] === '--multi-width' || args[i] === '--a11y' || args[i] === '--static') { /* recognized flag */ }
       else if (args[i].startsWith('-')) { if (args[i] !== '--json' && args[i] !== '--quiet') { fail(`Unknown check option: ${args[i]}`); return true; } }
       else paths.push(args[i]);
     }
@@ -214,11 +214,12 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       const isSarif = args.includes('--sarif') || (args.includes('--format') && args[args.indexOf('--format') + 1] === 'sarif');
       const isWatch = args.includes('--watch') || args.includes('-w');
       const wantsRuntime = args.includes('--render') || args.includes('--multi-width');
+      const wantsA11y = args.includes('--a11y');
       const runInspection = async () => {
         const urlTargets = paths.filter(p => /^https?:\/\//i.test(p));
         const fileTargets = paths.filter(p => !/^https?:\/\//i.test(p));
-        if (!fileTargets.length && !wantsRuntime) {
-          const message = 'check needs a file path, or a URL together with --render/--multi-width';
+        if (!fileTargets.length && !wantsRuntime && !wantsA11y) {
+          const message = 'check needs a file path, or a URL together with --render/--a11y';
           if (json) emitJson({ version: cliVersion(), ok: false, error: message });
           fail(message);
           return null;
@@ -232,6 +233,8 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
         };
 
         let runtime: Record<string, unknown> | null = null;
+        let accessibility: Awaited<ReturnType<typeof import('@sloppy/verify/accessibility').runAccessibilityAudit>> | null = null;
+        let accessibilityUnavailable = false;
         if (wantsRuntime) {
           const target = urlTargets[0] || fileTargets[0];
           const module = await import('@sloppy/verify/multi-width').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs')));
@@ -242,7 +245,24 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
           result.totals.violations += findings.length;
         }
 
-        const payload = { ...result, runtime };
+        if (wantsA11y) {
+          const target = urlTargets[0] || (fileTargets[0] ? path.resolve(fileTargets[0]) : '');
+          const module = await import('@sloppy/verify/accessibility').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/accessibility.mjs')));
+          accessibility = await module.runAccessibilityAudit(target, { timeoutMs: 15000 });
+          const findings = accessibility?.findings || [];
+          const blocking = findings.filter(f => f.severity === 'critical' || f.severity === 'high').length;
+          result.totals.violations += findings.length;
+          for (const finding of findings) {
+            const severity = finding.severity as keyof typeof result.totals.bySeverity;
+            if (severity in result.totals.bySeverity) result.totals.bySeverity[severity] += 1;
+            if (finding.objective) result.totals.objective += 1;
+            else result.totals.craft += 1;
+          }
+          if (blocking) result.ok = false;
+          if (accessibility?.unavailable) { accessibilityUnavailable = true; result.ok = false; }
+        }
+
+        const payload = { ...result, runtime, accessibility };
         if (isSarif) emitJson(formatSarif(result));
         else if (json) emitJson(payload);
         else {
@@ -253,9 +273,15 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
             for (const f of r.findings) console.log(`  [${f.severity.toUpperCase()}] ${f.viewportName} (${f.width}px): ${f.message}`);
             if (!r.findings.length) console.log('  contrast and overflow: no rendered defects found');
           }
-          console.log(`Check ${result.ok ? 'passed' : 'failed'}: ${result.totals.files} files, ${result.totals.violations} violations (${result.totals.objective} objective, ${result.totals.craft} craft), peak score ${result.score}, worst grade ${result.grade}${runtime ? ', runtime findings included' : ''}`);
+          if (accessibility) {
+            console.log(`\nAccessibility ${accessibility.ok ? 'passed' : accessibility.unavailable ? 'unavailable' : 'failed'} (${accessibility.mode}): ${accessibility.summary}`);
+            for (const finding of accessibility.findings) console.log(`  [${finding.severity.toUpperCase()}] ${finding.rule}: ${finding.message}${finding.evidence?.criterion ? ` (${finding.evidence.criterion})` : ''}`);
+          }
+          const renderedNote = accessibility?.findings.length ? `, ${accessibility.findings.length} rendered accessibility finding(s)` : '';
+          console.log(`Check ${result.ok ? 'passed' : 'failed'}: ${result.totals.files} files, ${result.totals.violations} violations (${result.totals.objective} objective, ${result.totals.craft} craft)${renderedNote}, peak score ${result.score}, worst grade ${result.grade}${runtime ? ', runtime findings included' : ''}`);
         }
-        if (!result.ok) process.exitCode = 1;
+        if (accessibilityUnavailable) process.exitCode = 2;
+        else if (!result.ok) process.exitCode = 1;
         return result;
       };
 
@@ -813,6 +839,24 @@ export async function runCli(args: string[]) {
       const staticOnly = args.includes('--static');
 
       try {
+        if (args.includes('--a11y')) {
+          const module = await import('@sloppy/verify/accessibility').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/accessibility.mjs')));
+          const res = await module.runAccessibilityAudit(target, { timeoutMs: 15000 });
+          if (json) emitJson(res);
+          else {
+            console.log(`\n======================================================`);
+            console.log(`SLOPPY RENDERED ACCESSIBILITY VERIFICATION`);
+            console.log(`======================================================\n`);
+            console.log(`Target:   ${res.target} (${res.mode})`);
+            console.log(`Summary:  ${res.summary}`);
+            for (const finding of res.findings) console.log(`  [${finding.severity.toUpperCase()}] ${finding.rule}: ${finding.message}${finding.evidence?.criterion ? ` (${finding.evidence.criterion})` : ''}`);
+            if (res.unavailable) console.error(`Accessibility unavailable: ${res.unavailable}`);
+          }
+          if (res.unavailable) process.exitCode = 2;
+          else if (!res.ok) process.exitCode = 1;
+          break;
+        }
+
         if (isMultiWidth) {
           const moduleName = '@sloppy/verify/multi-width';
           const module = await import(moduleName).catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs')));

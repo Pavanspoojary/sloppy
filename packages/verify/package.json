@@ -7,7 +7,8 @@
   "exports": {
     ".": "./verification.mjs",
     "./verification": "./verification.mjs",
-    "./multi-width": "./multi-width.mjs"
+    "./multi-width": "./multi-width.mjs",
+    "./accessibility": "./accessibility.mjs"
   },
   "files": [
     "verification.mjs",
@@ -21,7 +22,8 @@
     "layout-core.mjs",
     "layout.mjs",
     "motion-watch.mjs",
-    "multi-width.mjs"
+    "multi-width.mjs",
+    "accessibility.mjs"
   ],
   "publishConfig": {
     "access": "public"

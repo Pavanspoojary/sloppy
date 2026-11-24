@@ -1,0 +1,123 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { auditA11ySnapshot, runAccessibilityAudit } from '../packages/verify/accessibility.mjs';
+
+const cleanButton = {
+  tag: 'BUTTON',
+  role: 'button',
+  name: 'Save changes',
+  selector: 'button.save',
+  tabIndex: 0,
+  rect: { width: 120, height: 40 },
+  focusVisible: true,
+  hasLabel: true,
+  inlineLink: false
+};
+
+test('a clean interactive snapshot produces no accessibility findings', () => {
+  const findings = auditA11ySnapshot([
+    cleanButton,
+    {
+      tag: 'INPUT',
+      role: 'textbox',
+      name: 'Workspace name',
+      selector: 'input#workspace',
+      type: 'text',
+      tabIndex: 0,
+      rect: { width: 240, height: 40 },
+      focusVisible: true,
+      hasLabel: true
+    }
+  ], { viewport: { width: 1440, height: 900 } });
+
+  assert.deepEqual(findings, []);
+});
+
+test('unnamed buttons and unlabeled form controls are high-confidence defects', () => {
+  const findings = auditA11ySnapshot([
+    { ...cleanButton, name: '' },
+    { ...cleanButton, tag: 'INPUT', role: 'textbox', type: 'email', name: '', selector: 'input.email' }
+  ]);
+
+  const rules = findings.map((finding) => finding.rule);
+  assert.ok(rules.includes('a11y.nameMissing'));
+  assert.ok(rules.includes('a11y.inputUnlabeled'));
+  assert.ok(findings.every((finding) => finding.objective === true));
+  assert.ok(findings.every((finding) => finding.evidence.criterion.includes('4.1.2') || finding.evidence.criterion.includes('3.3.2')));
+});
+
+test('disabled controls are not reported because they are not operable', () => {
+  const findings = auditA11ySnapshot([
+    { ...cleanButton, name: '', disabled: true },
+    { ...cleanButton, tag: 'INPUT', role: 'textbox', name: '', disabled: true }
+  ]);
+  assert.deepEqual(findings, []);
+});
+
+test('target size uses the WCAG 2.2 24x24 threshold and exempts inline links', () => {
+  const findings = auditA11ySnapshot([
+    { ...cleanButton, selector: 'button.icon', rect: { width: 20, height: 20 } },
+    { ...cleanButton, tag: 'A', role: 'link', name: 'Read more', selector: 'a.inline', inlineLink: true, rect: { width: 70, height: 18 } }
+  ]);
+
+  const targets = findings.filter((finding) => finding.rule === 'a11y.targetTooSmall');
+  assert.equal(targets.length, 1);
+  assert.match(targets[0].message, /20x20px/);
+  assert.match(targets[0].evidence.criterion, /2\.5\.8/);
+});
+
+test('focus visibility, duplicate ids, broken references, and unwired state are reported honestly', () => {
+  const findings = auditA11ySnapshot(
+    [
+      { ...cleanButton, selector: 'button.ghost', focusVisible: false },
+      { ...cleanButton, selector: 'button.disclosure', ariaExpanded: 'false' }
+    ],
+    {
+      duplicateIds: ['workspace'],
+      brokenReferences: [{ attribute: 'aria-controls', id: 'panel-missing', selector: 'button.disclosure' }],
+      reducedMotionIgnored: true
+    }
+  );
+
+  const rules = new Set(findings.map((finding) => finding.rule));
+  assert.ok(rules.has('a11y.focusInvisible'));
+  assert.ok(rules.has('a11y.duplicateId'));
+  assert.ok(rules.has('a11y.brokenReference'));
+  assert.ok(rules.has('a11y.stateUnwired'));
+  assert.ok(rules.has('a11y.reducedMotionIgnored'));
+
+  const focus = findings.find((finding) => finding.rule === 'a11y.focusInvisible');
+  assert.equal(focus.confidence, 'medium');
+  const duplicate = findings.find((finding) => finding.rule === 'a11y.duplicateId');
+  assert.equal(duplicate.objective, false);
+  const motion = findings.find((finding) => finding.rule === 'a11y.reducedMotionIgnored');
+  assert.equal(motion.confidence, 'low');
+});
+
+test('a local file target returns unavailable instead of a fake accessibility pass', async () => {
+  const result = await runAccessibilityAudit('test/fixtures/clean-component.tsx');
+  assert.equal(result.ok, false);
+  assert.equal(result.isStaticFallback, true);
+  assert.equal(result.findings.length, 0);
+  assert.match(result.unavailable, /served|DOM/i);
+});
+
+test('an unreachable URL fails closed with an explicit unavailable reason', async () => {
+  const result = await runAccessibilityAudit('https://127.0.0.1:1', { timeoutMs: 2500 });
+  assert.equal(result.ok, false);
+  assert.equal(result.findings.length, 0);
+  assert.ok(result.unavailable, 'an unreachable target must not report a pass');
+});
+
+test('undersized targets are exempt when the 24px spacing exception holds', () => {
+  const isolated = auditA11ySnapshot([
+    { ...cleanButton, selector: 'button.isolated', rect: { x: 200, y: 200, width: 20, height: 20 } }
+  ]);
+  assert.equal(isolated.some((finding) => finding.rule === 'a11y.targetTooSmall'), false);
+
+  const crowded = auditA11ySnapshot([
+    { ...cleanButton, selector: 'button.first', rect: { x: 200, y: 200, width: 20, height: 20 } },
+    { ...cleanButton, selector: 'button.second', rect: { x: 218, y: 200, width: 20, height: 20 } }
+  ]);
+  assert.ok(crowded.some((finding) => finding.rule === 'a11y.targetTooSmall'));
+});

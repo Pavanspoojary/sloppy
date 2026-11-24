@@ -8,9 +8,9 @@ honest about what Sloppy can and cannot evidence today. Update it when a gap clo
 | Layer | Current capability | Where | Gap |
 | :--- | :--- | :--- | :--- |
 | Static/source | Tag, class, attribute, text, and comment scanning. Findings now carry file, line, selector, confidence, evidence kind, and applicability notes. | `packages/core/src/linter/index.ts`, `rule-metadata.ts` | Cross-file semantics and type inference remain out of scope. |
-| Browser/DOM/computed | Multi-width overflow and rendered contrast via Playwright, with a labeled static fallback. | `packages/verify/multi-width.mjs` | No accessible-role/name tree, focus order, state-machine, or interaction suite yet. |
+| Browser/DOM/computed | Multi-width overflow, rendered contrast, and rendered accessibility (names, labels, focus visibility, 24x24 target size, aria references, duplicate ids, reduced motion) via Playwright. Static fallback is labeled and never reports a pass. | `packages/verify/multi-width.mjs`, `accessibility.mjs` | No keyboard focus-order sequence, no 200% zoom/reflow task, and no interaction suite for tabs, menus, forms, or state transitions yet. |
 | Visual/perceptual | None in the core scanner. The rubric is a source heuristic, not a screenshot judgment. | `packages/core/src/linter/rubric.ts` | No screenshot regions, DOM anchors, or human-calibrated visual model. |
-| Standards | Contrast findings cite WCAG 1.4.3; fake controls cite 4.1.2/2.1.1. | `rule-metadata.ts` | Target size, reflow, zoom, focus appearance, and reduced motion are not verified. |
+| Standards | Source findings cite WCAG 1.4.3, 4.1.2, and 2.1.1. Rendered checks cite 4.1.2, 3.3.2, 2.4.7, and 2.5.8. Reduced-motion evidence is collected but classified as craft, not conformance. | `rule-metadata.ts`, `accessibility.mjs` | Reflow (1.4.10), 200% text resize (1.4.4), focus order (2.4.3), and focus appearance (2.4.11/2.4.13) are not verified. |
 | Runtime | `verify` fails closed when the browser is unavailable; no console/network/layout-shift collection. | `packages/verify/browser.mjs` | Add runtime logs and deterministic task assertions. |
 
 ## 2. Objective vs craft separation
@@ -79,10 +79,14 @@ The rule metadata and report wording are written to keep those limits visible.
 
 ## 8. Next slices, in order
 
-1. Add DOM/computed evidence to `verify`: accessible role/name, focus order, target
-   size, 200% zoom/reflow, and reduced-motion checks with cited criteria.
+Done: rendered accessible names, form labels, focus visibility, 24x24 target size,
+aria references, duplicate ids, and reduced-motion checks in `verify --a11y` /
+`check --a11y`, with an honest `unavailable` result instead of a pass.
+
+1. Add keyboard focus-order sequencing and a 200% zoom / reflow task at 320 CSS px.
 2. Add deterministic interaction fixtures: tab switch, menu open/close, form
-   validation, filter updates, and loading/empty/error states.
+   validation, filter updates, and loading/empty/error states. Do not click
+   arbitrary production buttons; scope runs to declared fixture selectors.
 3. Add screenshot capture with DOM anchors and viewport metadata; keep visual
    findings in Reflex/Finish until calibrated.
 4. Build the stratified benchmark manifest and record precision/false-positive
