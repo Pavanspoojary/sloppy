@@ -1,3 +1,5 @@
+import type { EvidenceKind, FindingConfidence } from './rule-metadata.js';
+
 export type SlopSeverity = 'critical' | 'high' | 'medium' | 'low';
 
 export type RuleTier = 'floor' | 'reflex' | 'finish';
@@ -39,6 +41,17 @@ export type SlopViolationType =
   | 'NON_NULL_ASSERTION_SLOP';
 
 export type RuleMode = 'auto-fix' | 'detect-only';
+
+export interface FindingEvidence {
+  kind: EvidenceKind;
+  description: string;
+  file?: string;
+  line?: number;
+  column?: number;
+  selector?: string;
+  viewport?: { width: number; height: number };
+  criterion?: string;
+}
 
 export interface CanonicalRule {
   ruleId: string;
@@ -113,6 +126,10 @@ export interface SlopViolation {
   column?: number;
   snippet?: string;
   recommendation: string;
+  confidence: FindingConfidence;
+  objective: boolean;
+  evidence: FindingEvidence;
+  context?: string;
   overruled?: boolean;
   overruleRationale?: string;
   index?: number; // Sequential finding index (1, 2, 3...) for approval-gated fixes
@@ -128,6 +145,8 @@ export interface AuditResult {
   floorViolations: SlopViolation[];
   reflexViolations: SlopViolation[];
   finishViolations: SlopViolation[];
+  objectiveViolations: SlopViolation[];
+  craftViolations: SlopViolation[];
   overruledViolations: SlopViolation[];
   stats: {
     totalViolations: number;
@@ -138,8 +157,12 @@ export interface AuditResult {
     criticalCount: number;
     highCount: number;
     mediumCount: number;
+    objectiveCount: number;
+    craftCount: number;
     estimatedWordCount: number;
     byRule?: Partial<Record<SlopViolationType, number>>;
+    byConfidence?: { high: number; medium: number; low: number };
+    byEvidenceKind?: Partial<Record<EvidenceKind, number>>;
     suppressedCount?: number;
   };
   summary: string;

@@ -36,8 +36,8 @@ If any of these anti-patterns appear in your output, the code is considered brok
 1. **Banned: Purple and Indigo Gradients (`VIS-02`)**:
    - Forbidden: `bg-gradient-to-r from-purple-600 to-indigo-600` or `bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500`.
    - Mandatory: Monochromatic dark or light surface elevation:
-     - Dark mode: `bg-neutral-900/90 border border-neutral-800 text-neutral-100 shadow-2xl`
-     - Light mode: `bg-neutral-50/80 border border-neutral-200 text-neutral-900 shadow-sm`
+     - Dark mode: `bg-neutral-900 border border-neutral-800 text-neutral-100`
+     - Light mode: `bg-neutral-50 border border-neutral-200 text-neutral-900`
 2. **Banned: Hero Gradient Text (`VIS-01`)**:
    - Forbidden: `bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600`.
    - Mandatory: Solid high-contrast text with weight and letter-spacing contrast: `text-white font-semibold tracking-tight`.
@@ -72,7 +72,7 @@ If any of these anti-patterns appear in your output, the code is considered brok
 - **Ground (Step 0)**: `bg-neutral-950` (`#09090b`)
 - **Stage Container (Step 1)**: `bg-neutral-900/90 border border-neutral-800/60`
 - **Card Panel (Step 2)**: `bg-neutral-800/80 border border-neutral-700/50`
-- **Modal / Popover (Step 3)**: `bg-neutral-800/95 border border-neutral-700 shadow-2xl`
+- **Modal / Popover (Step 3)**: `bg-neutral-800/95 border border-neutral-700 shadow-lg`
 
 ---
 
@@ -91,3 +91,17 @@ If any of these anti-patterns appear in your output, the code is considered brok
 Stripping AI slop without design direction leaves a sterile, lifeless gray box.
 - Pair dark monochromatic surfaces with subtle border contrast (`border-neutral-800/60`), subtle backdrop blur (`backdrop-blur-sm`), and purposeful hover affordances (`hover:border-neutral-700 transition-colors`).
 - Introduce intentional typographic hierarchy: bold primary headings, medium subheadings, and muted labels (`text-neutral-400`).
+
+---
+
+## 6. Evidence Discipline
+
+Do not report a finding as fact unless you can point to the evidence Sloppy collected:
+
+- **Objective** findings cite a file/line, selector, and a standard or hard invariant. They can block.
+- **Craft** findings are contextual judgments. They need a reason, a screenshot, or a before/after comparison. They should not auto-rewrite art direction.
+- Never claim DOM, screenshot, runtime, or cross-file evidence from a static scan.
+- Never invent metrics, testimonials, logos, or copy to make a repair look complete.
+- If confidence is low or the context is ambiguous, report it for human review instead of forcing a fix.
+
+`docs/PLAYBOOK_GAP_MAP.md` lists which evidence layers are implemented. `sloppy rules --json` exposes each rule's confidence, evidence kinds, false positives, and validation steps.

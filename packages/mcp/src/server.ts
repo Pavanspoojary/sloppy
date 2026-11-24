@@ -11,6 +11,8 @@ import {
   detectProjectStack,
   evaluateCraftRubric,
   getRulesByTopic,
+  CANONICAL_RULES,
+  RULE_METADATA,
   LOOKS,
   searchAllComponents,
   searchPatterns,
@@ -105,7 +107,7 @@ export const PRIMARY_TOOLS: Tool[] = [
       properties: {
         topic: {
           type: 'string',
-          enum: ['craft', 'framing', 'motion', 'bento', 'word_budget', 'stack', 'all'],
+          enum: ['craft', 'framing', 'motion', 'bento', 'word_budget', 'stack', 'evidence', 'all'],
           description: 'Design topic to query (default: "craft")',
           default: 'craft'
         }
@@ -312,6 +314,14 @@ export function createSloppyServer() {
         if (inputArgs.topic === 'stack') {
           const stackResult = detectProjectStack();
           return { content: [{ type: 'text', text: JSON.stringify(stackResult, null, 2) }] };
+        }
+        if (inputArgs.topic === 'all' || inputArgs.topic === 'evidence') {
+          const canonical = Object.entries(CANONICAL_RULES).map(([slug, rule]) => ({
+            slug,
+            ...rule,
+            ...(RULE_METADATA[slug as keyof typeof RULE_METADATA] || {})
+          }));
+          return { content: [{ type: 'text', text: JSON.stringify({ version: packageVersion, rules: canonical }, null, 2) }] };
         }
         const rules = getRulesByTopic(inputArgs.topic || 'craft');
         return { content: [{ type: 'text', text: JSON.stringify(rules, null, 2) }] };

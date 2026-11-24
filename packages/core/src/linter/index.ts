@@ -1,9 +1,11 @@
-import { AuditOptions, AuditResult, SlopViolation, SlopViolationType, SlopSeverity, CANONICAL_RULES, RULE_ALIASES } from './types.js';
+import { AuditOptions, AuditResult, SlopViolation, SlopViolationType, SlopSeverity, FindingEvidence, CANONICAL_RULES, RULE_ALIASES } from './types.js';
+import { RULE_METADATA } from './rule-metadata.js';
 import { classTokens, getClasses, scanSource, sourceLocation, SourceTag } from './source-scan.js';
 import { loadSloppyConfig } from './config.js';
 import { DEFAULT_BLUR_CAP, declaredAccentAllows, resolveDesignContract } from './design-contract.js';
 
 export * from './types.js';
+export * from './rule-metadata.js';
 export * from './design-contract.js';
 export * from './transform.js';
 export * from './rubric.js';
@@ -154,16 +156,22 @@ function textFromSource(code: string, tags: SourceTag[]): string {
 
 export function auditCode(code: string, options: AuditOptions = {}): AuditResult {
   const config = options.config || (options.filepath ? loadSloppyConfig(options.filepath) : null);
-  const scan = scanSource(code), tags = scan.tags.filter(t => !t.closing), candidates: Array<{ type: SlopViolationType; severity: SlopSeverity; at: number; message: string }> = [];
+  const scan = scanSource(code), tags = scan.tags.filter(t => !t.closing), candidates: Array<{ type: SlopViolationType; severity: SlopSeverity; at: number; message: string; evidence?: Partial<FindingEvidence>; context?: string }> = [];
   const parent = new Map<SourceTag, SourceTag | undefined>(), openStack: SourceTag[] = [];
   for (const tag of scan.tags) {
     if (tag.closing) { for (let i = openStack.length - 1; i >= 0; i--) if (openStack[i].name === tag.name) { openStack.length = i; break; } }
     else { parent.set(tag, openStack[openStack.length - 1]); if (!tag.selfClosing) openStack.push(tag); }
   }
   const ancestorsOf = (tag: SourceTag): SourceTag[] => { const found: SourceTag[] = []; let current = parent.get(tag); while (current) { found.push(current); current = parent.get(current); } return found; };
-  const push = (type: SlopViolationType, at: number, message: string, level?: SlopSeverity) => {
+  const push = (type: SlopViolationType, at: number, message: string, level?: SlopSeverity, evidence?: Partial<FindingEvidence>, context?: string) => {
     const defaultLevel = CANONICAL_RULES[type]?.defaultSeverity ?? 'medium';
-    candidates.push({ type, severity: level ?? defaultLevel, at, message });
+    candidates.push({ type, severity: level ?? defaultLevel, at, message, evidence, context });
+  };
+  const selectorAt = (at: number): string | undefined => {
+    const tag = tags.filter(t => t.start <= at).at(-1);
+    if (!tag) return undefined;
+    const safeTokens = getClasses(tag).filter(token => /^[A-Za-z0-9_-]+$/.test(token)).slice(0, 2);
+    return `${tag.name}${safeTokens.map(token => `.${token}`).join('')}`;
   };
   const tagClasses = tags.map(tag => ({ tag, tokens: getClasses(tag) }));
   const allowGradients = config?.brand?.allowGradients ?? false;
@@ -215,8 +223,16 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     const at = code.indexOf(emojiMatch[0]);
     push('EMOJI_ICON_SLOP', Math.max(0, at), `Raw emoji "${emojiMatch[0]}" detected in UI text instead of an SVG icon.`);
   }
-  for (const match of code.matchAll(/\bhref\s*=\s*["']#["']/g)) { push('DEAD_PLACEHOLDER_SLOP', match.index ?? 0, 'Dead placeholder href="#" detected.'); }
-  for (const match of code.matchAll(/\bonClick\s*=\s*\{\s*\(\s*\)\s*=>\s*\{\s*\}\s*\}/g)) { push('DEAD_PLACEHOLDER_SLOP', match.index ?? 0, 'Empty dead click handler onClick={() => {}} detected.'); }
+  for (const tag of tags) {
+    const href = tag.attributes.get('href')?.value?.trim();
+    if (href === '#' || href === 'javascript:void(0)') {
+      push('DEAD_PLACEHOLDER_SLOP', tag.start, `Dead placeholder href="${href}" detected on <${tag.name}>.`);
+    }
+    const onClick = tag.attributes.get('onClick')?.value?.trim() || tag.attributes.get('onclick')?.value?.trim();
+    if (onClick && /^\s*\(\s*\)\s*=>\s*\{\s*\}\s*$/.test(onClick)) {
+      push('DEAD_PLACEHOLDER_SLOP', tag.start, 'Empty dead click handler onClick={() => {}} detected.');
+    }
+  }
   for (const tag of tags) {
     if (tag.name === 'div' || tag.name === 'span') {
       const hasOnClick = tag.attributes.has('onClick') || tag.attributes.has('onclick');
@@ -508,6 +524,24 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     });
     if (ignored) { suppressedCount++; continue; }
     const snippet = lineText.trim().slice(0,160);
+    const metadata = RULE_METADATA[c.type];
+    const standardKind = metadata?.evidenceKinds.includes('standard');
+    const kind = standardKind ? 'standard' : (metadata?.evidenceKinds[0] ?? 'source');
+    const criteria: Partial<Record<SlopViolationType, string>> = {
+      LOW_CONTRAST_GRAY: 'WCAG 1.4.3 Contrast (Minimum)',
+      FAKE_CONTROL_SLOP: 'WCAG 4.1.2 Name, Role, Value / 2.1.1 Keyboard',
+      SCROLL_HIJACKING: 'WCAG 2.1.1 Keyboard'
+    };
+    const evidence: FindingEvidence = {
+      kind,
+      description: c.message,
+      file: options.filepath,
+      line: loc.line,
+      column: loc.column,
+      selector: selectorAt(c.at),
+      ...(kind === 'standard' && criteria[c.type] ? { criterion: criteria[c.type] } : {}),
+      ...(c.evidence ?? {})
+    };
     violations.push({
       id: `${(ruleCode || c.type).toLowerCase()}-${c.at}`,
       ruleId: ruleCode || c.type,
@@ -519,6 +553,10 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
       snippet,
       message: c.message,
       recommendation: advice[c.type],
+      confidence: metadata?.confidence ?? 'medium',
+      objective: metadata?.objective ?? false,
+      evidence,
+      ...(c.context ? { context: c.context } : {}),
       overruled: isOverruled,
       overruleRationale: rationale
     });
@@ -535,12 +573,20 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   const score = activeViolations.length ? Math.max(0,Math.min(100,Math.round(100 * (1 - Math.exp(-totalWeight / 55))))) : 0;
   const count = (level: SlopSeverity) => activeViolations.filter(v => v.severity === level).length;
   const byRule: Partial<Record<SlopViolationType,number>> = {};
-  for (const v of violations) byRule[v.type] = (byRule[v.type] || 0) + 1;
+  const byConfidence = { high: 0, medium: 0, low: 0 };
+  const byEvidenceKind: Partial<Record<FindingEvidence['kind'], number>> = {};
+  for (const v of violations) {
+    byRule[v.type] = (byRule[v.type] || 0) + 1;
+    byConfidence[v.confidence]++;
+    byEvidenceKind[v.evidence.kind] = (byEvidenceKind[v.evidence.kind] || 0) + 1;
+  }
   const remediationPlan = Array.from(new Set([...activeViolations].sort((a,b) => severity[b.severity]-severity[a.severity]).map(v => advice[v.type])));
 
   const floorViolations = violations.filter(v => v.tier === 'floor');
   const reflexViolations = violations.filter(v => v.tier === 'reflex');
   const finishViolations = violations.filter(v => v.tier === 'finish');
+  const objectiveViolations = violations.filter(v => v.objective);
+  const craftViolations = violations.filter(v => !v.objective);
   const overruledViolations = violations.filter(v => v.overruled);
 
   const passedFloor = floorViolations.length === 0;
@@ -566,7 +612,9 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
       floorViolations,
       reflexViolations,
       finishViolations,
-      overruledViolations
+      overruledViolations,
+      objectiveViolations,
+      craftViolations
     });
   }
 
@@ -580,6 +628,8 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     floorViolations,
     reflexViolations,
     finishViolations,
+    objectiveViolations,
+    craftViolations,
     overruledViolations,
     stats: {
       totalViolations: violations.length,
@@ -590,8 +640,12 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
       criticalCount: count('critical'),
       highCount: count('high'),
       mediumCount: count('medium'),
+      objectiveCount: objectiveViolations.length,
+      craftCount: craftViolations.length,
       estimatedWordCount: wordCount,
       byRule,
+      byConfidence,
+      byEvidenceKind,
       suppressedCount
     },
     summary,
@@ -612,6 +666,8 @@ export function generateAuditReport(
     reflexViolations: SlopViolation[];
     finishViolations: SlopViolation[];
     overruledViolations: SlopViolation[];
+    objectiveViolations: SlopViolation[];
+    craftViolations: SlopViolation[];
   }
 ): string {
   const dateStr = new Date().toISOString().split('T')[0];
@@ -627,6 +683,8 @@ export function generateAuditReport(
     `- **Floor Gates**: ${meta.floorViolations.length} blockers (${meta.passedFloor ? 'PASSED' : 'FAILED - CI BLOCKER'})`,
     `- **Reflex Gates**: ${meta.reflexViolations.length} AI defaults (${meta.overruledViolations.length} justified with written rationale)`,
     `- **Finish Polish**: ${meta.finishViolations.length} advisory suggestions`,
+    `- **Objective Defects**: ${meta.objectiveViolations.length}`,
+    `- **Craft Judgments**: ${meta.craftViolations.length}`,
     ``,
     `---`,
     ``,
@@ -637,15 +695,16 @@ export function generateAuditReport(
   if (violations.length === 0) {
     lines.push(`Zero AI slop detected. The codebase meets certified craft standards.`);
   } else {
-    lines.push(`| Item | Tier | Rule | Location | Code Snippet | Remedy |`);
-    lines.push(`| :--- | :--- | :--- | :--- | :--- | :--- |`);
+    lines.push(`| Item | Tier | Rule | Confidence | Evidence | Location | Code Snippet | Remedy |`);
+    lines.push(`| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |`);
     for (const v of violations) {
       const idx = v.index || 1;
       const tierBadge = v.tier ? v.tier.toUpperCase() : 'REFLEX';
       const loc = v.line ? `Line ${v.line}` : '-';
       const snippet = (v.snippet || '').replace(/\|/g, '\\|').slice(0, 50);
       const rec = (v.recommendation || '').replace(/\|/g, '\\|');
-      lines.push(`| **#${idx}** | \`${tierBadge}\` | \`${v.ruleId}\` (${v.type}) | ${loc} | \`${snippet}\` | ${rec} |`);
+      const evidence = `${v.confidence}/${v.evidence.kind}${v.objective ? '/objective' : '/craft'}${v.evidence.criterion ? ` (${v.evidence.criterion})` : ''}`;
+      lines.push(`| **#${idx}** | \`${tierBadge}\` | \`${v.ruleId}\` (${v.type}) | ${v.confidence} | ${evidence} | ${loc} | \`${snippet}\` | ${rec} |`);
     }
 
     lines.push(``);

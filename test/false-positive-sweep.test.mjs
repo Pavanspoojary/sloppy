@@ -68,3 +68,22 @@ test('False-Positive Sweep: Edge cases in copy rules do not flag legitimate tech
   const fakeProof = audit.violations.filter((v) => v.ruleId === 'FABRICATED_SOCIAL_PROOF');
   assert.equal(fakeProof.length, 0, 'Internal technical count must not trigger FABRICATED_SOCIAL_PROOF');
 });
+
+test('False-Positive Sweep: documentation strings that quote a dead link or handler are not findings', () => {
+  const code = `
+    export const ruleNotes = {
+      deadLinks: 'Never ship href="#" or onClick={() => {}} in product UI.',
+      message: 'Connect links to real routes.'
+    };
+    export function Notes() {
+      return <p className="text-sm text-neutral-400">See the rule notes.</p>;
+    }
+  `;
+
+  const audit = auditCode(code, { componentType: 'application' });
+  assert.equal(
+    audit.violations.some((violation) => violation.type === 'DEAD_PLACEHOLDER_SLOP'),
+    false,
+    'quoted examples in strings must not be treated as rendered attributes'
+  );
+});

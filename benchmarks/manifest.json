@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "updated": "2026-11-24",
+  "note": "Regression fixtures, not a calibrated quality benchmark. License and upstream provenance must be verified before redistribution or publication of measured results.",
+  "fixtures": [
+    {
+      "id": "v0-dashboard-slop",
+      "path": "benchmarks/fixtures/v0-dashboard-slop.tsx",
+      "pageType": "analytics-dashboard",
+      "stack": "react",
+      "visualDirection": "gen-1-saas",
+      "viewport": "desktop",
+      "condition": "deliberately-flawed",
+      "provenance": "Repository fixture styled after v0-generated dashboards; upstream source not recorded.",
+      "licenseStatus": "unverified",
+      "expected": ["PURPLE_GRADIENT_SLOP", "SPARKLE_ICON_OVERLOAD", "UNEARNED_ANIMATION", "MADE_UP_AI_BADGE", "BOXED_CARD_SYNDROME"]
+    },
+    {
+      "id": "bolt-pricing-slop",
+      "path": "benchmarks/fixtures/bolt-pricing-slop.tsx",
+      "pageType": "marketing-pricing",
+      "stack": "react",
+      "visualDirection": "centered-saas-pricing",
+      "viewport": "desktop",
+      "condition": "deliberately-flawed",
+      "provenance": "Repository fixture styled after Bolt-generated pricing pages; upstream source not recorded.",
+      "licenseStatus": "unverified",
+      "expected": ["BOXED_CARD_SYNDROME", "SPARKLE_ICON_OVERLOAD"]
+    },
+    {
+      "id": "aesthetic-legit-dashboard",
+      "path": "test/fixtures/aesthetic-legit.tsx",
+      "pageType": "operations-dashboard",
+      "stack": "react",
+      "visualDirection": "dense-neutral",
+      "viewport": "desktop-and-mobile",
+      "condition": "legitimate",
+      "provenance": "Authored for this repository as a false-positive counterexample.",
+      "licenseStatus": "repository-owned",
+      "expected": []
+    },
+    {
+      "id": "gen2-emerald",
+      "path": "test/fixtures/gen2-emerald.tsx",
+      "pageType": "component",
+      "stack": "react",
+      "visualDirection": "gen-2-emerald-dark",
+      "viewport": "not-rendered",
+      "condition": "deliberately-flawed",
+      "provenance": "Authored for this repository from the documented Gen-2 emerald pattern.",
+      "licenseStatus": "repository-owned",
+      "expected": ["EMERALD_MONOCULTURE"]
+    },
+    {
+      "id": "gen2-clean",
+      "path": "test/fixtures/gen2-clean.tsx",
+      "pageType": "component",
+      "stack": "react",
+      "visualDirection": "neutral",
+      "viewport": "not-rendered",
+      "condition": "legitimate",
+      "provenance": "Authored for this repository as the clean counterpart to the Gen-2 fixtures.",
+      "licenseStatus": "repository-owned",
+      "expected": []
+    }
+  ]
+}

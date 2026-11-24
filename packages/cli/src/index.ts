@@ -2,6 +2,7 @@ import {
   auditCode,
   AUTO_FIX_RULE_TYPES,
   CANONICAL_RULES,
+  RULE_METADATA,
   createRepairPlan,
   DESIGN_MD_TEMPLATE,
   detectProjectStack,
@@ -136,12 +137,20 @@ function checkFiles(paths: string[], options: { maxScore: number; failOn: string
       column: v.column || 1,
       snippet: v.snippet || '',
       message: v.message,
-      recommendation: v.recommendation
+      recommendation: v.recommendation,
+      confidence: v.confidence,
+      objective: v.objective,
+      evidence: v.evidence
     }));
     return { path: relative, score: audit.slopScore, grade: rubric.grade, isSlopFree: audit.isSlopFree, words: audit.stats.estimatedWordCount, suppressed: audit.stats.suppressedCount ?? 0, violations };
   });
   const bySeverity = { critical: 0, high: 0, medium: 0, low: 0 };
-  for (const file of files) for (const v of file.violations) bySeverity[v.severity as keyof typeof bySeverity]++;
+  let objectiveCount = 0;
+  let craftCount = 0;
+  for (const file of files) for (const v of file.violations) {
+    bySeverity[v.severity as keyof typeof bySeverity]++;
+    if (v.objective) objectiveCount++; else craftCount++;
+  }
   const score = files.reduce((peak, f) => Math.max(peak, f.score), 0);
   const grade = files.reduce((worst, f) => gradeOrder.indexOf(f.grade) < gradeOrder.indexOf(worst) ? f.grade : worst, 'A+');
   const threshold = options.failOn === 'none' ? -1 : severities.indexOf(options.failOn as typeof severities[number]);
@@ -149,7 +158,7 @@ function checkFiles(paths: string[], options: { maxScore: number; failOn: string
   const gradeFailed = options.minGrade ? gradeOrder.indexOf(grade) < gradeOrder.indexOf(options.minGrade) : false;
   const ok = files.every(f => f.score <= options.maxScore) && !files.some(f => f.violations.some(v => severities.indexOf(v.severity as typeof severities[number]) >= threshold && threshold >= 0)) && !gradeFailed;
   const nextActions = [...new Set(files.filter(f => f.violations.length).flatMap(f => [`Run: sloppy fix ${f.path} --diff`, `Re-run: sloppy check ${f.path}`]))].slice(0, 5);
-  return { version: cliVersion(), ok, score, grade, totals: { files: files.length, violations, bySeverity }, files, nextActions };
+  return { version: cliVersion(), ok, score, grade, totals: { files: files.length, violations, objective: objectiveCount, craft: craftCount, bySeverity }, files, nextActions };
 }
 async function handleAgentCommand(command: string, args: string[]): Promise<boolean> {
   const json = args.includes('--json');
@@ -163,14 +172,15 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
   if (command === '--help' || (command === 'help' && args.includes('--help'))) { console.log('Usage: sloppy <command> [options]\nCommands: setup, check, audit, plan, fix, rubric, verify, install-mcp, rules, version, looks, archetypes, list, mcp'); return true; }
   if (command === 'rules') {
     const rules = (Object.entries(CANONICAL_RULES) as Array<[string, typeof CANONICAL_RULES[keyof typeof CANONICAL_RULES]]>)
-      .map(([slug, rule]) => ({ slug, ...rule }))
+      .map(([slug, rule]) => ({ slug, ...rule, ...(RULE_METADATA[slug as keyof typeof RULE_METADATA] || {}) }))
       .sort((a, b) => a.ruleId.localeCompare(b.ruleId));
     if (json) emitJson({ version: cliVersion(), autoFix: AUTO_FIX_RULE_TYPES, rules });
     else {
-      console.log('\nID       SLUG                          TIER     SEVERITY  MODE         TITLE');
-      console.log('------------------------------------------------------------------------------------------------------');
-      for (const rule of rules) console.log(`${rule.ruleId.padEnd(8)} ${rule.slug.padEnd(29)} ${rule.tier.padEnd(8)} ${rule.defaultSeverity.padEnd(9)} ${rule.mode.padEnd(12)} ${rule.title}`);
-      console.log('\n"auto-fix" rules are rewritten by `sloppy fix`; "detect-only" rules need a human decision.\n');
+      console.log('\nID       SLUG                          TIER     CONF     KIND       MODE         TITLE');
+      console.log('----------------------------------------------------------------------------------------------------------------------');
+      for (const rule of rules) console.log(`${rule.ruleId.padEnd(8)} ${rule.slug.padEnd(29)} ${rule.tier.padEnd(8)} ${(rule.confidence || '-').padEnd(8)} ${(rule.objective ? 'objective' : 'craft').padEnd(10)} ${rule.mode.padEnd(12)} ${rule.title}`);
+      console.log('\n"auto-fix" rules are rewritten by `sloppy fix`; "detect-only" rules need a human decision.');
+      console.log('"objective" findings are verifiable defects; "craft" findings are contextual judgments. Use `sloppy rules --json` for evidence and false-positive notes.\n');
     }
     return true;
   }
@@ -217,7 +227,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
         const files = fileTargets.length ? collectFiles(fileTargets) : [];
         const result = files.length ? checkFiles(files, opts) : {
           version: cliVersion(), ok: true, score: 0, grade: 'A+',
-          totals: { files: 0, violations: 0, bySeverity: { critical: 0, high: 0, medium: 0, low: 0 } },
+          totals: { files: 0, violations: 0, objective: 0, craft: 0, bySeverity: { critical: 0, high: 0, medium: 0, low: 0 } },
           files: [], nextActions: []
         };
 
@@ -243,7 +253,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
             for (const f of r.findings) console.log(`  [${f.severity.toUpperCase()}] ${f.viewportName} (${f.width}px): ${f.message}`);
             if (!r.findings.length) console.log('  contrast and overflow: no rendered defects found');
           }
-          console.log(`Check ${result.ok ? 'passed' : 'failed'}: ${result.totals.files} files, ${result.totals.violations} violations, peak score ${result.score}, worst grade ${result.grade}${runtime ? ', runtime findings included' : ''}`);
+          console.log(`Check ${result.ok ? 'passed' : 'failed'}: ${result.totals.files} files, ${result.totals.violations} violations (${result.totals.objective} objective, ${result.totals.craft} craft), peak score ${result.score}, worst grade ${result.grade}${runtime ? ', runtime findings included' : ''}`);
         }
         if (!result.ok) process.exitCode = 1;
         return result;
@@ -555,6 +565,9 @@ export async function runCli(args: string[]) {
             const overruleNote = v.overruled ? ` (OVERRULED: "${v.overruleRationale}")` : '';
             console.log(`  ${idxBadge}${tierBadge} [${v.severity.toUpperCase()}] ${v.type}${overruleNote}`);
             console.log(`    ${loc}${v.message}`);
+            const selector = v.evidence?.selector ? ` at ${v.evidence.selector}` : '';
+            const criterion = v.evidence?.criterion ? ` (${v.evidence.criterion})` : '';
+            console.log(`    Evidence: ${v.confidence}/${v.evidence?.kind || 'source'}${selector}${criterion} - ${v.objective ? 'objective defect' : 'craft judgment'}`);
             if (v.snippet) {
               console.log(`    Code: "${v.snippet.slice(0, 80)}"`);
             }

@@ -20,7 +20,7 @@ Never render floating cards on a raw void. Every screen must follow a discipline
 | **Step 0** | Canvas / Viewport Ground | `bg-neutral-950` / `#09090b` | `bg-neutral-100` / `#f4f4f5` | None |
 | **Step 1** | Primary Container / Stage | `bg-neutral-900/90` | `bg-white` | `border border-neutral-800/60` |
 | **Step 2** | Elevated Card / Panel | `bg-neutral-800/80` | `bg-neutral-50` | `border border-neutral-700/50` |
-| **Step 3** | Floating Modal / Popover | `bg-neutral-800/95` | `bg-white` | `border border-neutral-700 shadow-2xl` |
+| **Step 3** | Floating Modal / Popover | `bg-neutral-800/95` | `bg-white` | `border border-neutral-700 shadow-lg` |
 
 ### Core Rules Enforced:
 - **`STR-03` (Flat Surface Monotony)**: At least two distinct elevation steps must exist in any composition. Repeating identical flat panels without depth is blocked.

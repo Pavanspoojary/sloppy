@@ -219,3 +219,41 @@ test('MCP sloppy_fix exposes only, wiringGuard, and manualReviewItems', async (t
   assert.ok(Array.isArray(payload.manualReviewItems));
   assert.equal(/from-purple-500/.test(payload.transformedCode), false);
 });
+
+test('MCP sloppy_rules evidence topic exposes confidence and false-positive controls', async (t) => {
+  const server = startServer();
+  t.after(() => {
+    server.child.kill('SIGTERM');
+  });
+
+  server.send({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'initialize',
+    params: {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: { name: 'sloppy-test', version: '1.0.0' }
+    }
+  });
+  await server.waitFor((message) => message.id === 1);
+  server.send({ jsonrpc: '2.0', method: 'notifications/initialized' });
+
+  server.send({
+    jsonrpc: '2.0',
+    id: 2,
+    method: 'tools/call',
+    params: { name: 'sloppy_rules', arguments: { topic: 'evidence' } }
+  });
+
+  const response = await server.waitFor((message) => message.id === 2);
+  assert.ok(response.result, `rules call failed: ${JSON.stringify(response)}`);
+  const text = response.result.content[0].text;
+  const payload = JSON.parse(text);
+  assert.ok(Array.isArray(payload.rules) && payload.rules.length >= 30);
+  const contrast = payload.rules.find((rule) => rule.ruleId === 'VIS-08');
+  assert.equal(contrast.confidence, 'high');
+  assert.equal(contrast.objective, true);
+  assert.ok(contrast.evidenceKinds.includes('standard'));
+  assert.ok(contrast.falsePositives.length > 0);
+});

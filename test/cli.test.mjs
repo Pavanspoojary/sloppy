@@ -206,7 +206,12 @@ test('check --render merges multi-width contrast and overflow findings into one 
   const payload = parseJsonStdout(jsonRun);
   assert.ok(payload.runtime, 'the check payload must include runtime findings');
   assert.equal(payload.runtime.isStaticFallback, true);
-  assert.ok(payload.runtime.findings.some((finding) => finding.type === 'STATIC_FIXED_WIDTH'));
+  const staticFinding = payload.runtime.findings.find((finding) => finding.type === 'STATIC_FIXED_WIDTH');
+  assert.ok(staticFinding);
+  assert.equal(staticFinding.objective, true);
+  assert.equal(staticFinding.confidence, 'medium');
+  assert.equal(staticFinding.evidence.kind, 'source');
+  assert.equal(staticFinding.evidence.viewport.width, 375);
   assert.ok(payload.totals.violations >= payload.runtime.findings.length);
 
   const human = runCli(['check', fixture('fixed-width.tsx'), '--render', '--static']);

@@ -10,14 +10,14 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 export const CANONICAL_VIEWPORT_WIDTHS = [
-  { width: 375, name: 'mobile-small', device: 'iPhone SE' },
-  { width: 390, name: 'mobile-standard', device: 'iPhone 14/15' },
-  { width: 430, name: 'mobile-plus', device: 'iPhone Max' },
-  { width: 768, name: 'tablet-portrait', device: 'iPad Mini/Standard' },
-  { width: 834, name: 'tablet-large', device: 'iPad Pro 11"' },
-  { width: 1024, name: 'desktop-compact', device: 'iPad Pro 12.9" / Small Laptop' },
-  { width: 1440, name: 'desktop-widescreen', device: 'MacBook Pro / Desktop' },
-  { width: 1920, name: 'desktop-full-hd', device: '1080p Monitor' }
+  { width: 375, height: 667, name: 'mobile-small', device: 'iPhone SE' },
+  { width: 390, height: 844, name: 'mobile-standard', device: 'iPhone 14/15' },
+  { width: 430, height: 932, name: 'mobile-plus', device: 'iPhone Max' },
+  { width: 768, height: 1024, name: 'tablet-portrait', device: 'iPad Mini/Standard' },
+  { width: 834, height: 1194, name: 'tablet-large', device: 'iPad Pro 11"' },
+  { width: 1024, height: 768, name: 'desktop-compact', device: 'iPad Pro 12.9" / Small Laptop' },
+  { width: 1440, height: 900, name: 'desktop-widescreen', device: 'MacBook Pro / Desktop' },
+  { width: 1920, height: 1080, name: 'desktop-full-hd', device: '1080p Monitor' }
 ];
 
 export async function runMultiWidthVerification(target, options = {}) {
@@ -40,7 +40,7 @@ async function runBrowserMultiWidth(browser, url) {
 
   try {
     for (const vp of CANONICAL_VIEWPORT_WIDTHS) {
-      const page = await browser.newPage({ viewport: { width: vp.width, height: 1000 } });
+      const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height } });
       let vpPassed = true;
 
       try {
@@ -62,7 +62,15 @@ async function runBrowserMultiWidth(browser, url) {
             viewportName: vp.name,
             type: 'HORIZONTAL_OVERFLOW',
             severity: 'critical',
-            message: `Document width (${overflow.docWidth}px) exceeds viewport (${overflow.winWidth}px) causing horizontal scroll.`
+            message: `Document width (${overflow.docWidth}px) exceeds viewport (${overflow.winWidth}px) causing horizontal scroll.`,
+            confidence: 'high',
+            objective: true,
+            evidence: {
+              kind: 'dom',
+              description: `documentElement.scrollWidth ${overflow.docWidth}px > innerWidth ${overflow.winWidth}px`,
+              viewport: { width: vp.width, height: vp.height },
+              criterion: 'WCAG 1.4.10 Reflow'
+            }
           });
         }
 
@@ -110,7 +118,15 @@ async function runBrowserMultiWidth(browser, url) {
             viewportName: vp.name,
             type: 'RENDERED_CONTRAST_DEFECT',
             severity: 'high',
-            message: `Text "${defect.text}" has ${defect.ratio}:1 contrast (minimum ${defect.minRatio}:1 at ${defect.fontSize}px).`
+            message: `Text "${defect.text}" has ${defect.ratio}:1 contrast (minimum ${defect.minRatio}:1 at ${defect.fontSize}px).`,
+            confidence: 'high',
+            objective: true,
+            evidence: {
+              kind: 'computed-style',
+              description: `Computed foreground/background contrast ${defect.ratio}:1 at ${defect.fontSize}px`,
+              viewport: { width: vp.width, height: vp.height },
+              criterion: 'WCAG 1.4.3 Contrast (Minimum)'
+            }
           });
         }
 
@@ -131,7 +147,14 @@ async function runBrowserMultiWidth(browser, url) {
               viewportName: vp.name,
               type: 'HERO_FRAMING_DEFECT',
               severity: 'high',
-              message: `Hero/Stage coverage (${Math.round(heroCoverage.ratio * 100)}%) is under the 66% threshold for desktop viewports.`
+              message: `Hero/Stage coverage (${Math.round(heroCoverage.ratio * 100)}%) is under the 66% threshold for desktop viewports.`,
+              confidence: 'medium',
+              objective: false,
+              evidence: {
+                kind: 'dom',
+                description: `Stage covers ${Math.round(heroCoverage.ratio * 100)}% of the viewport; threshold is 66%`,
+                viewport: { width: vp.width, height: vp.height }
+              }
             });
           }
         }
@@ -141,7 +164,14 @@ async function runBrowserMultiWidth(browser, url) {
           viewportName: vp.name,
           type: 'RENDER_EVALUATION_ERROR',
           severity: 'medium',
-          message: `Evaluation error at ${vp.width}px: ${err?.message || err}`
+          message: `Evaluation error at ${vp.width}px: ${err?.message || err}`,
+          confidence: 'low',
+          objective: false,
+          evidence: {
+            kind: 'runtime',
+            description: `Browser evaluation failed at ${vp.width}px`,
+            viewport: { width: vp.width, height: vp.height }
+          }
         });
         vpPassed = false;
       } finally {
@@ -190,7 +220,14 @@ function runStaticMultiWidthFallback(target) {
       viewportName: 'mobile-small',
       type: 'STATIC_FIXED_WIDTH',
       severity: 'critical',
-      message: `Fixed pixel width token "${m[0]}" detected without responsive constraints; causes mobile horizontal clipping.`
+      message: `Fixed pixel width token "${m[0]}" detected without responsive constraints; causes mobile horizontal clipping.`,
+      confidence: 'medium',
+      objective: true,
+      evidence: {
+        kind: 'source',
+        description: `Static source scan matched ${m[0]}; render confirmation is unavailable`,
+        viewport: { width: 375, height: 667 }
+      }
     });
   }
 

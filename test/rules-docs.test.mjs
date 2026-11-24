@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { CANONICAL_RULES } from '../packages/core/dist/index.js';
+import { CANONICAL_RULES, RULE_METADATA } from '../packages/core/dist/index.js';
 import { ROOT } from './helpers.mjs';
 
 const canonical = Object.entries(CANONICAL_RULES).map(([slug, rule]) => ({ slug, ...rule }));
@@ -16,8 +16,8 @@ function read(relative) {
 
 test('docs/RULES.md is generated from CANONICAL_RULES with one ID per slug', () => {
   const doc = read('docs/RULES.md');
-  const rows = [...doc.matchAll(/^\| `([A-Z]+-\d+)` \| `([A-Z_]+)` \| (.+?) \| (\w+) \| (\w+) \| (auto-fix|detect-only) \|/gm)]
-    .map((match) => ({ id: match[1], slug: match[2], title: match[3], tier: match[4], severity: match[5], mode: match[6] }));
+  const rows = [...doc.matchAll(/^\| `([A-Z]+-\d+)` \| `([A-Z_]+)` \| (.+?) \| (\w+) \| (\w+) \| (auto-fix|detect-only) \| (high|medium|low) \| (objective|craft) \|/gm)]
+    .map((match) => ({ id: match[1], slug: match[2], title: match[3], tier: match[4], severity: match[5], mode: match[6], confidence: match[7], kind: match[8] }));
 
   assert.equal(rows.length, canonical.length, 'docs/RULES.md must list every canonical rule exactly once');
   for (const row of rows) {
@@ -26,6 +26,13 @@ test('docs/RULES.md is generated from CANONICAL_RULES with one ID per slug', () 
     assert.equal(rule.slug, row.slug, `${row.id} must map to ${rule.slug}, not ${row.slug}`);
     assert.equal(rule.title, row.title);
     assert.equal(rule.mode, row.mode);
+    assert.equal(RULE_METADATA[rule.slug].confidence, row.confidence);
+    assert.equal(RULE_METADATA[rule.slug].objective ? 'objective' : 'craft', row.kind);
+    assert.ok(doc.includes('### `' + row.id + '` '), `${row.id} needs an evidence section`);
+  }
+  for (const rule of canonical) {
+    const meta = RULE_METADATA[rule.slug];
+    for (const note of meta.falsePositives) assert.ok(doc.includes(note), `docs/RULES.md is missing a false-positive note for ${rule.ruleId}`);
   }
   assert.equal(new Set(rows.map((row) => row.slug)).size, canonical.length, 'slugs must be unique');
 });
