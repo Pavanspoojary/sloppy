@@ -1,4 +1,5 @@
 import type { SloppyConfig } from './types.js';
+import { getNodeEnv } from '../node-env.js';
 
 export interface DesignContract {
   found: boolean;
@@ -54,13 +55,15 @@ export function parseDesignContract(content: string): Omit<DesignContract, 'foun
   const fenced = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
   if (fenced) {
     try {
-      const parsed = JSON.parse(fenced[1]) as Record<string, unknown>;
-      for (const [key, value] of Object.entries(parsed)) {
-        if (typeof value === 'string') assign(key, value);
-        else if (typeof value === 'number' && key.toLowerCase().includes('blur')) assign(key, String(value));
-        else if (value && typeof value === 'object' && !Array.isArray(value)) {
-          for (const [nestedKey, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-            if (typeof nestedValue === 'string') assign(nestedKey, nestedValue);
+      const parsed: unknown = JSON.parse(fenced[1]);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        for (const [key, value] of Object.entries(parsed)) {
+          if (typeof value === 'string') assign(key, value);
+          else if (typeof value === 'number' && key.toLowerCase().includes('blur')) assign(key, String(value));
+          else if (value && typeof value === 'object' && !Array.isArray(value)) {
+            for (const [nestedKey, nestedValue] of Object.entries(value)) {
+              if (typeof nestedValue === 'string') assign(nestedKey, nestedValue);
+            }
           }
         }
       }
@@ -74,11 +77,8 @@ export function parseDesignContract(content: string): Omit<DesignContract, 'foun
 
 export function loadDesignContract(startPath?: string): DesignContract {
   const empty: DesignContract = { found: false, lockedTokens: [] };
-  if (typeof process === 'undefined' || !process.versions?.node) return empty;
-
   try {
-    const fs = process.getBuiltinModule?.('node:fs');
-    const path = process.getBuiltinModule?.('node:path');
+    const { fs, path } = getNodeEnv();
     if (!fs || !path) return empty;
 
     let dir = startPath ? path.resolve(startPath) : process.cwd();

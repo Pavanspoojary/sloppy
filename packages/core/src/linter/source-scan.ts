@@ -16,13 +16,50 @@ function opensJsxElement(source: string, at: number): boolean {
 
 const genericArrow = /^<\s*[A-Za-z_$][\w$]*(?:\s+extends\s+[^>]+)?(?:\s*,\s*[A-Za-z_$][\w$]*)*\s*,?\s*>\s*\(/;
 
+const regexKeywords = /^(?:return|case|throw|in|of|typeof|void|delete|yield|await|else|do)$/;
+
+function isRegexPrefix(source: string, slashIndex: number): boolean {
+  let j = slashIndex - 1;
+  while (j >= 0 && isSpace(source[j])) j--;
+  if (j < 0) return true;
+  const prev = source[j];
+  if (prev === '>') return j > 0 && source[j - 1] === '=';
+  if ('({[=,;:!?&|*%^~'.includes(prev)) return true;
+  if (prev === '+' || prev === '-') return source[j - 1] !== prev;
+  if (/[A-Za-z_$]/.test(prev)) {
+    let start = j;
+    while (start > 0 && /[A-Za-z0-9_$]/.test(source[start - 1])) start--;
+    return regexKeywords.test(source.slice(start, j + 1));
+  }
+  return false;
+}
+
+function findRegexEnd(source: string, slashIndex: number): number {
+  let k = slashIndex + 1;
+  let inClass = false;
+  while (k < source.length) {
+    const ch = source[k];
+    if (ch === '\n' || ch === '\r') return -1;
+    if (ch === '\\') { k += 2; continue; }
+    if (ch === '[' && !inClass) { inClass = true; k++; continue; }
+    if (ch === ']' && inClass) { inClass = false; k++; continue; }
+    if (ch === '/' && !inClass) {
+      let end = k + 1;
+      while (end < source.length && /[a-z]/i.test(source[end])) end++;
+      return end;
+    }
+    k++;
+  }
+  return -1;
+}
+
 export function scanSource(source: string): SourceScan {
   const chars = source.split('');
   const lineStarts = [0];
+  for (let i = 0; i < source.length; i++) if (source[i] === '\n') lineStarts.push(i + 1);
   let quote = '', templateDepth = 0, inTemplateExpression = false, jsxDepth = 0;
   for (let i = 0; i < source.length; i++) {
     const c = source[i], n = source[i + 1];
-    if (c === '\n') lineStarts.push(i + 1);
     if (quote) {
       if (c !== '\n' && c !== '\r') chars[i] = ' ';
       if (c === '\\') { if (i + 1 < source.length && source[i + 1] !== '\n') chars[++i] = ' '; continue; }
@@ -37,6 +74,14 @@ export function scanSource(source: string): SourceScan {
     }
     if (c === '/' && n === '/') { for (let j = i; j < source.length && source[j] !== '\n'; j++) chars[j] = ' '; i = source.indexOf('\n', i); if (i < 0) break; i--; continue; }
     if (c === '/' && n === '*') { chars[i] = chars[i + 1] = ' '; i += 2; while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) { if (source[i] !== '\n' && source[i] !== '\r') chars[i] = ' '; i++; } if (i < source.length) { chars[i] = chars[i + 1] = ' '; i++; } continue; }
+    if (c === '/' && isRegexPrefix(source, i)) {
+      const regexEnd = findRegexEnd(source, i);
+      if (regexEnd > i + 1) {
+        for (let j = i + 1; j < regexEnd; j++) if (source[j] !== '/') chars[j] = ' ';
+        i = regexEnd - 1;
+        continue;
+      }
+    }
     if (c === '"' || c === "'" || c === '`') quote = c;
   }
   const masked = chars.join('');

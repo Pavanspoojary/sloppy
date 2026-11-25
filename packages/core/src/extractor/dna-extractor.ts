@@ -1,3 +1,5 @@
+import type { SloppyConfig } from '../linter/types.js';
+
 /**
  * Sloppy Design DNA Extractor
  * Extracts authentic typography, color palettes, surface hierarchy, and layout tokens
@@ -20,7 +22,7 @@ export interface ExtractedDesignDna {
     accent: string;
   };
   borderRadius: string;
-  sloppyConfig: Record<string, unknown>;
+  sloppyConfig: SloppyConfig;
   designMdContent: string;
 }
 
@@ -73,11 +75,9 @@ export async function extractDesignDna(targetUrl: string): Promise<ExtractedDesi
 
   const borderRadius = /rounded-2xl/i.test(html) ? '16px' : /rounded-xl/i.test(html) ? '12px' : '8px';
 
-  const sloppyConfig = {
-    $schema: 'https://raw.githubusercontent.com/Pavanspoojary/slopy/main/sloppy.schema.json',
+  const sloppyConfig: SloppyConfig = {
     brand: {
       name: new URL(targetUrl.startsWith('http') ? targetUrl : 'http://localhost').hostname,
-      theme: isDark ? 'dark' : 'light',
       allowColors: [ground, surface1, surface2, accent],
       fontSans,
       fontMono

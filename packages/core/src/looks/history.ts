@@ -1,4 +1,5 @@
 import { LOOKS, LookDefinition, getLook } from './index.js';
+import { getNodeEnv } from '../node-env.js';
 
 const HISTORY_FILE = '.sloppy/dealt-looks.json';
 const MAX_HISTORY = 5;
@@ -9,9 +10,8 @@ let inMemoryHistory: string[] = [];
 export function getRecentlyDealtLooks(cwd = typeof process !== 'undefined' && process.cwd ? process.cwd() : '/', limit = MAX_HISTORY): string[] {
   if (typeof window === 'undefined') {
     try {
-      const fs = (globalThis as any).process?.versions?.node ? awaitNodeFs() : null;
-      if (fs) {
-        const path = awaitNodePath();
+      const { fs, path } = getNodeEnv();
+      if (fs && path) {
         const fullPath = path.resolve(cwd, HISTORY_FILE);
         if (fs.existsSync(fullPath)) {
           const data = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
@@ -32,9 +32,8 @@ export function recordDealtLook(name: string, cwd = typeof process !== 'undefine
 
   if (typeof window === 'undefined') {
     try {
-      const fs = (globalThis as any).process?.versions?.node ? awaitNodeFs() : null;
-      if (fs) {
-        const path = awaitNodePath();
+      const { fs, path } = getNodeEnv();
+      if (fs && path) {
         const dir = path.resolve(cwd, '.sloppy');
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(path.resolve(dir, 'dealt-looks.json'), JSON.stringify(updated, null, 2));
@@ -42,22 +41,6 @@ export function recordDealtLook(name: string, cwd = typeof process !== 'undefine
     } catch {
       // If running in sandboxed environment, inMemoryHistory retains state
     }
-  }
-}
-
-function awaitNodeFs(): any {
-  try {
-    return (globalThis as any).process?.getBuiltinModule ? (globalThis as any).process.getBuiltinModule('node:fs') : null;
-  } catch {
-    return null;
-  }
-}
-
-function awaitNodePath(): any {
-  try {
-    return (globalThis as any).process?.getBuiltinModule ? (globalThis as any).process.getBuiltinModule('node:path') : null;
-  } catch {
-    return { resolve: (...parts: string[]) => parts.join('/') };
   }
 }
 

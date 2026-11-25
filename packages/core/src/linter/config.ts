@@ -1,4 +1,5 @@
 import { SloppyConfig } from './types.js';
+import { getNodeEnv } from '../node-env.js';
 
 const CONFIG_FILENAMES = [
   'sloppy.config.json',
@@ -11,15 +12,8 @@ const CONFIG_FILENAMES = [
  * Safely no-ops in browser / client environments where Node filesystem is unavailable.
  */
 export function loadSloppyConfig(startPath?: string): SloppyConfig | null {
-  if (typeof process === 'undefined' || !process.versions || !process.versions.node) {
-    return null;
-  }
-
   try {
-    // Dynamic import / require avoids bundling fs & path in browser environments
-    const fs = (globalThis as any).require ? (globalThis as any).require('fs') : undefined;
-    const path = (globalThis as any).require ? (globalThis as any).require('path') : undefined;
-
+    const { fs, path } = getNodeEnv();
     if (!fs || !path) return null;
 
     let dir = startPath ? path.resolve(startPath) : process.cwd();
