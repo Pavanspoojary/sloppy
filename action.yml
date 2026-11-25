@@ -55,12 +55,12 @@ runs:
         fi
 
         # Generate SARIF report for GitHub Code Scanning
-        npx --yes sloppy@latest check "$INPUT_PATH" \
+        npx --yes @sloppy-ai/cli@latest check "$INPUT_PATH" \
           --format sarif \
           > "$INPUT_SARIF_FILE" || true
 
         # Run quality gate to verify exit codes
-        npx --yes sloppy@latest check "$INPUT_PATH" \
+        npx --yes @sloppy-ai/cli@latest check "$INPUT_PATH" \
           --fail-on "$INPUT_FAIL_ON" \
           --max-score "$INPUT_MAX_SCORE" \
           "${STRICT_ARGS[@]}"
