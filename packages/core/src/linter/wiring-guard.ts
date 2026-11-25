@@ -189,7 +189,7 @@ export function verifyKeptWiring(originalSource: string, transformedSource: stri
 
   // Verify Navigation Links (ignore dead '#' links because Sloppy intentionally refactors those)
   for (const nav of before.navigation) {
-    if (nav.value && nav.value !== '#' && !nav.value.startsWith('javascript:')) {
+    if (nav.value && nav.value !== '#' && !/^(?:javascript|vbscript|data):/i.test(nav.value.trim())) {
       const retained = after.navigation.some(a => norm(a.value) === norm(nav.value));
       if (!retained) {
         dropped.push({

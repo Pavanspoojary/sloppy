@@ -916,8 +916,9 @@ export function generateAuditReport(
       const idx = v.index || 1;
       const tierBadge = v.tier ? v.tier.toUpperCase() : 'REFLEX';
       const loc = v.line ? `Line ${v.line}` : '-';
-      const snippet = (v.snippet || '').replace(/\|/g, '\\|').slice(0, 50);
-      const rec = (v.recommendation || '').replace(/\|/g, '\\|');
+      const escapeCell = (raw: string) => raw.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
+      const snippet = escapeCell(v.snippet || '').slice(0, 50);
+      const rec = escapeCell(v.recommendation || '');
       const evidence = `${v.confidence}/${v.evidence.kind}${v.objective ? '/objective' : '/craft'}${v.evidence.criterion ? ` (${v.evidence.criterion})` : ''}`;
       lines.push(`| **#${idx}** | \`${tierBadge}\` | \`${v.ruleId}\` (${v.type}) | ${v.confidence} | ${evidence} | ${loc} | \`${snippet}\` | ${rec} |`);
     }

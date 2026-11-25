@@ -47,8 +47,14 @@ export function parseDesignContract(content: string): Omit<DesignContract, 'foun
   };
 
   for (const line of content.split('\n')) {
-    const match = line.match(/^\s*(?:[-*]\s*)?(?:\*\*)?([A-Za-z][\w -]{1,40})(?:\*\*)?\s*:\s*(.+?)\s*$/);
-    if (match) assign(match[1], match[2]);
+    let trimmed = line.trim();
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) trimmed = trimmed.slice(2).trim();
+    const colonIdx = trimmed.indexOf(':');
+    if (colonIdx <= 0) continue;
+    let rawKey = trimmed.slice(0, colonIdx).trim();
+    if (rawKey.startsWith('**') && rawKey.endsWith('**') && rawKey.length > 4) rawKey = rawKey.slice(2, -2).trim();
+    const rawVal = trimmed.slice(colonIdx + 1).trim();
+    if (rawVal && rawKey.length <= 42 && /^[A-Za-z][\w -]{1,40}$/.test(rawKey)) assign(rawKey, rawVal);
   }
 
   // Also accept the JSON fenced block used by `sloppy init --design` via linear index scanning.
