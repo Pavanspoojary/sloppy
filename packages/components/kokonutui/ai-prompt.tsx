@@ -263,11 +263,16 @@ function AttachmentChip({
     if (!isImage) {
       return;
     }
-    const url = URL.createObjectURL(file);
-    if (url.startsWith("blob:")) {
-      setPreviewUrl(url);
+    const rawUrl = URL.createObjectURL(file);
+    try {
+      const parsed = new URL(rawUrl);
+      if (parsed.protocol === "blob:") {
+        setPreviewUrl(parsed.href);
+      }
+    } catch {
+      // Invalid URL fallback
     }
-    return () => URL.revokeObjectURL(url);
+    return () => URL.revokeObjectURL(rawUrl);
   }, [file, isImage]);
 
   return (
