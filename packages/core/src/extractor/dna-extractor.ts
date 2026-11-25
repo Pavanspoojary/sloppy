@@ -26,13 +26,31 @@ export interface ExtractedDesignDna {
   designMdContent: string;
 }
 
+function sanitizeLabel(value: string, fallback: string, pattern = /^[A-Za-z0-9 .,_-]+$/): string {
+  const clean = value.replace(/[\r\n`<>]/g, ' ').trim().slice(0, 64);
+  return clean && pattern.test(clean) ? clean : fallback;
+}
+
 export async function extractDesignDna(targetUrl: string): Promise<ExtractedDesignDna> {
   let html = '';
+  let parsedUrl: URL | null = null;
+  try {
+    const candidate = new URL(targetUrl.startsWith('http') ? targetUrl : `http://${targetUrl}`);
+    if (candidate.protocol === 'http:' || candidate.protocol === 'https:') parsedUrl = candidate;
+  } catch {
+    parsedUrl = null;
+  }
+  const safeUrl = parsedUrl ? parsedUrl.href : 'http://localhost';
+  const safeHost = sanitizeLabel(parsedUrl?.hostname || 'localhost', 'localhost', /^[A-Za-z0-9.-]+$/);
 
   try {
-    const res = await fetch(targetUrl, { headers: { 'User-Agent': 'Sloppy-DNA-Extractor/1.0' } });
-    html = await res.text();
-  } catch (err) {
+    if (parsedUrl) {
+      const res = await fetch(safeUrl, { headers: { 'User-Agent': 'Sloppy-DNA-Extractor/1.0' } });
+      html = await res.text();
+    } else {
+      html = '<html><head></head><body></body></html>';
+    }
+  } catch {
     // If fetch failed (e.g. offline or invalid URL), generate sensible craft defaults
     html = '<html><head></head><body></body></html>';
   }
@@ -43,11 +61,14 @@ export async function extractDesignDna(targetUrl: string): Promise<ExtractedDesi
 
   const googleFontMatch = html.match(/fonts\.googleapis\.com\/css2\?family=([^&"'>]+)/i);
   if (googleFontMatch) {
-    const extractedFamily = decodeURIComponent(googleFontMatch[1].split(':')[0].replace(/\+/g, ' '));
-    if (/mono/i.test(extractedFamily)) {
-      fontMono = `'${extractedFamily}', monospace`;
-    } else {
-      fontSans = `'${extractedFamily}', sans-serif`;
+    const rawFamily = decodeURIComponent(googleFontMatch[1].split(':')[0].replace(/\+/g, ' '));
+    const extractedFamily = sanitizeLabel(rawFamily, '');
+    if (extractedFamily) {
+      if (/mono/i.test(extractedFamily)) {
+        fontMono = `'${extractedFamily}', monospace`;
+      } else {
+        fontSans = `'${extractedFamily}', sans-serif`;
+      }
     }
   }
 
@@ -77,7 +98,7 @@ export async function extractDesignDna(targetUrl: string): Promise<ExtractedDesi
 
   const sloppyConfig: SloppyConfig = {
     brand: {
-      name: new URL(targetUrl.startsWith('http') ? targetUrl : 'http://localhost').hostname,
+      name: safeHost,
       allowColors: [ground, surface1, surface2, accent],
       fontSans,
       fontMono
@@ -94,7 +115,7 @@ export async function extractDesignDna(targetUrl: string): Promise<ExtractedDesi
   };
 
   const designMdContent = `# Design System Specification (DESIGN.md)
-*Extracted via Sloppy Design DNA Extractor from ${targetUrl}*
+*Extracted via Sloppy Design DNA Extractor from ${safeHost}*
 
 ---
 
@@ -136,7 +157,7 @@ All UI components must step through disciplined surface depths rather than flat 
 `;
 
   return {
-    sourceUrl: targetUrl,
+    sourceUrl: safeUrl,
     theme: isDark ? 'dark' : 'light',
     fontSans,
     fontMono,

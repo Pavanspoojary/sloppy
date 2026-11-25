@@ -13,6 +13,8 @@ import {
   getNextMaterial,
   getPatternById,
   getSynthesizedArchetype,
+  loadSloppyConfig,
+  resolveDesignContract,
   toMaterial,
   LOOKS,
   MOTION_ECOSYSTEMS,
@@ -24,10 +26,14 @@ import {
   SLOPPY_LIBRARIES,
   SYNTHESIZED_ARCHETYPES,
   transformSlopToCraft,
-  verifyKeptWiring
+  verifyKeptWiring,
+  type AuditResult,
+  type DesignContract,
+  type SloppyConfig
 } from '@sloppy/core';
 import { runServer } from '@sloppy/mcp';
-import { spawn } from 'child_process';
+import { execFileSync, spawn } from 'child_process';
+import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createRequire } from 'module';
@@ -64,6 +70,98 @@ function cliVersion(): string {
     }
   }
 }
+function readOptionalFile(filePath: string): string | null {
+  try {
+    return fs.readFileSync(filePath, 'utf8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return null;
+    throw err;
+  }
+}
+
+function writeFileSafe(filePath: string, data: string, overwrite: boolean): 'written' | 'created' | 'exists' {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  if (overwrite) {
+    fs.writeFileSync(filePath, data, 'utf8');
+    return 'written';
+  }
+  try {
+    fs.writeFileSync(filePath, data, { encoding: 'utf8', flag: 'wx' });
+    return 'created';
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'EEXIST') return 'exists';
+    throw err;
+  }
+}
+
+interface ResolvedDirContext {
+  config: SloppyConfig | null;
+  designContract: DesignContract;
+  signature: string;
+}
+
+function createDirContextResolver() {
+  const dirCache = new Map<string, ResolvedDirContext>();
+  return (filePath: string): ResolvedDirContext => {
+    const dir = path.dirname(path.resolve(filePath));
+    const hit = dirCache.get(dir);
+    if (hit) return hit;
+    const config = loadSloppyConfig(dir);
+    const designContract = resolveDesignContract(dir, config);
+    const resolved: ResolvedDirContext = {
+      config,
+      designContract,
+      signature: JSON.stringify({ config, designContract })
+    };
+    dirCache.set(dir, resolved);
+    return resolved;
+  };
+}
+
+function collectGitChangedFiles(mode: 'changed' | 'staged', targets: string[]): string[] {
+  const roots = (targets.length ? targets : ['.']).map(t => path.resolve(process.cwd(), t));
+  const raw = new Set<string>();
+  try {
+    if (mode === 'staged') {
+      const out = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR', '-z'], { encoding: 'utf8' });
+      for (const f of out.split('\0')) if (f) raw.add(path.resolve(process.cwd(), f));
+    } else {
+      const tracked = execFileSync('git', ['diff', '--name-only', '--diff-filter=ACMR', 'HEAD', '-z'], { encoding: 'utf8' });
+      const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard', '-z'], { encoding: 'utf8' });
+      for (const f of `${tracked}\0${untracked}`.split('\0')) if (f) raw.add(path.resolve(process.cwd(), f));
+    }
+  } catch {
+    return collectFiles(targets.length ? targets : ['.']);
+  }
+  return [...raw]
+    .filter(f => sourceExtensions.test(f) && roots.some(r => f === r || f.startsWith(`${r}${path.sep}`)))
+    .filter(f => { try { return fs.statSync(f).isFile(); } catch { return false; } })
+    .sort();
+}
+
+const CACHE_FILE = path.resolve(process.cwd(), '.sloppy/cache.json');
+type CacheMap = Record<string, { hash: string; entry: unknown }>;
+function loadScanCache(enabled: boolean): CacheMap {
+  if (!enabled) return {};
+  const raw = readOptionalFile(CACHE_FILE);
+  if (!raw) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as CacheMap) : {};
+  } catch {
+    return {};
+  }
+}
+function saveScanCache(enabled: boolean, cache: CacheMap): void {
+  if (!enabled) return;
+  try {
+    fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(cache), 'utf8');
+  } catch {
+    // Cache persistence failures must never fail linting
+  }
+}
+
 function collectFiles(targets: string[]): string[] {
   const found: string[] = [];
   const visit = (file: string, isSubEntry = false) => {
@@ -115,12 +213,39 @@ function formatSarif(result: ReturnType<typeof checkFiles>) {
   };
 }
 
-function checkFiles(paths: string[], options: { maxScore: number; failOn: string; minGrade?: string; type?: 'illustration' | 'feature-card' | 'hero' | 'application' | 'bento'; codeOnly?: boolean; strict?: boolean }) {
+function checkFiles(paths: string[], options: { maxScore: number; failOn: string; minGrade?: string; type?: 'illustration' | 'feature-card' | 'hero' | 'application' | 'bento'; codeOnly?: boolean; strict?: boolean; cache?: boolean }) {
+  const version = cliVersion();
+  const resolveContext = createDirContextResolver();
+  const cacheEnabled = Boolean(options.cache);
+  const scanCache = loadScanCache(cacheEnabled);
+  const nextCache: CacheMap = cacheEnabled ? { ...scanCache } : {};
+  let cacheDirty = false;
+  const optSignature = JSON.stringify({ maxScore: options.maxScore, failOn: options.failOn, minGrade: options.minGrade, type: options.type, codeOnly: options.codeOnly, strict: options.strict, version });
+
   const files = paths.map(file => {
     const code = fs.readFileSync(file, 'utf8');
     const relative = path.relative(process.cwd(), file) || file;
-    const audit = auditCode(code, { filepath: relative, componentType: options.type, codeOnly: options.codeOnly, strict: options.strict });
-    const rubric = evaluateCraftRubric(code, { filepath: relative, componentType: options.type, strict: options.strict });
+    const ctx = resolveContext(file);
+    let contentHash = '';
+    if (cacheEnabled) {
+      contentHash = createHash('sha256').update(optSignature).update(ctx.signature).update(code).digest('hex');
+      const cached = scanCache[`check:${relative}`];
+      if (cached && cached.hash === contentHash && cached.entry && typeof cached.entry === 'object') {
+        return cached.entry as {
+          path: string; score: number; grade: string; isSlopFree: boolean; words: number; suppressed: number;
+          violations: Array<{ id: string; type: string; severity: string; line: number; column: number; snippet: string; message: string; recommendation: string; confidence: string; objective: boolean; evidence: unknown }>;
+        };
+      }
+    }
+    const audit: AuditResult = auditCode(code, {
+      filepath: relative,
+      componentType: options.type,
+      codeOnly: options.codeOnly,
+      strict: options.strict,
+      config: ctx.config ?? undefined,
+      designContract: ctx.designContract
+    });
+    const rubric = evaluateCraftRubric(code, { filepath: relative, componentType: options.type, strict: options.strict, audit });
     const violations = audit.violations.map(v => ({
       id: v.id,
       type: v.type,
@@ -134,8 +259,14 @@ function checkFiles(paths: string[], options: { maxScore: number; failOn: string
       objective: v.objective,
       evidence: v.evidence
     }));
-    return { path: relative, score: audit.slopScore, grade: rubric.grade, isSlopFree: audit.isSlopFree, words: audit.stats.estimatedWordCount, suppressed: audit.stats.suppressedCount ?? 0, violations };
+    const entry = { path: relative, score: audit.slopScore, grade: rubric.grade, isSlopFree: audit.isSlopFree, words: audit.stats.estimatedWordCount, suppressed: audit.stats.suppressedCount ?? 0, violations };
+    if (cacheEnabled) {
+      nextCache[`check:${relative}`] = { hash: contentHash, entry };
+      cacheDirty = true;
+    }
+    return entry;
   });
+  if (cacheDirty) saveScanCache(cacheEnabled, nextCache);
   const bySeverity = { critical: 0, high: 0, medium: 0, low: 0 };
   let objectiveCount = 0;
   let craftCount = 0;
@@ -149,8 +280,9 @@ function checkFiles(paths: string[], options: { maxScore: number; failOn: string
   const violations = files.reduce((sum, f) => sum + f.violations.length, 0);
   const gradeFailed = options.minGrade ? gradeOrder.indexOf(grade) < gradeOrder.indexOf(options.minGrade) : false;
   const ok = files.every(f => f.score <= options.maxScore) && !files.some(f => f.violations.some(v => severities.indexOf(v.severity as typeof severities[number]) >= threshold && threshold >= 0)) && !gradeFailed;
-  const nextActions = [...new Set(files.filter(f => f.violations.length).flatMap(f => [`Run: sloppy fix ${f.path} --diff`, `Re-run: sloppy check ${f.path}`]))].slice(0, 5);
-  return { version: cliVersion(), ok, score, grade, totals: { files: files.length, violations, objective: objectiveCount, craft: craftCount, bySeverity }, files, nextActions };
+  const firstBad = files.find(f => f.violations.length > 0);
+  const nextActions = firstBad ? [`Run: sloppy fix ${firstBad.path} --diff`, `Re-run: sloppy check ${firstBad.path}`] : [];
+  return { version, ok, score, grade, totals: { files: files.length, violations, objective: objectiveCount, craft: craftCount, bySeverity }, files, nextActions };
 }
 async function handleAgentCommand(command: string, args: string[]): Promise<boolean> {
   const json = args.includes('--json');
@@ -167,14 +299,25 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
   }
   if (command === '--help' || (command === 'help' && args.includes('--help'))) { console.log('Usage: sloppy <command> [options]\nCommands: setup, check, audit, plan, fix, rubric, verify, install-mcp, rules, version, looks, archetypes, list, mcp'); return true; }
   if (command === 'rules') {
+    const isCompact = args.includes('--compact');
+    const ruleIdx = args.indexOf('--rule');
+    const ruleFilter = ruleIdx !== -1 && args[ruleIdx + 1] ? args[ruleIdx + 1].trim().toUpperCase() : undefined;
     const rules = (Object.entries(CANONICAL_RULES) as Array<[string, typeof CANONICAL_RULES[keyof typeof CANONICAL_RULES]]>)
-      .map(([slug, rule]) => ({ slug, ...rule, ...(RULE_METADATA[slug as keyof typeof RULE_METADATA] || {}) }))
+      .filter(([slug, rule]) => !ruleFilter || rule.ruleId.toUpperCase() === ruleFilter || slug.toUpperCase() === ruleFilter)
+      .map(([slug, rule]) =>
+        isCompact
+          ? { ruleId: rule.ruleId, slug, tier: rule.tier, mode: rule.mode, defaultSeverity: rule.defaultSeverity, title: rule.title }
+          : { slug, ...rule, ...(RULE_METADATA[slug as keyof typeof RULE_METADATA] || {}) }
+      )
       .sort((a, b) => a.ruleId.localeCompare(b.ruleId));
-    if (json) emitJson({ version: cliVersion(), autoFix: AUTO_FIX_RULE_TYPES, rules });
+    if (json) emitJson({ version: cliVersion(), ...(isCompact ? {} : { autoFix: AUTO_FIX_RULE_TYPES }), rules });
     else {
       console.log('\nID       SLUG                          TIER     CONF     KIND       MODE         TITLE');
       console.log('----------------------------------------------------------------------------------------------------------------------');
-      for (const rule of rules) console.log(`${rule.ruleId.padEnd(8)} ${rule.slug.padEnd(29)} ${rule.tier.padEnd(8)} ${(rule.confidence || '-').padEnd(8)} ${(rule.objective ? 'objective' : 'craft').padEnd(10)} ${rule.mode.padEnd(12)} ${rule.title}`);
+      for (const rule of rules) {
+        const meta = RULE_METADATA[rule.slug as keyof typeof RULE_METADATA];
+        console.log(`${rule.ruleId.padEnd(8)} ${rule.slug.padEnd(29)} ${rule.tier.padEnd(8)} ${(meta?.confidence || '-').padEnd(8)} ${(meta?.objective ? 'objective' : 'craft').padEnd(10)} ${rule.mode.padEnd(12)} ${rule.title}`);
+      }
       console.log('\n"auto-fix" rules are rewritten by `sloppy fix`; "detect-only" rules need a human decision.');
       console.log('"objective" findings are verifiable defects; "craft" findings are contextual judgments. Use `sloppy rules --json` for evidence and false-positive notes.\n');
     }
@@ -183,7 +326,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
   if (args.includes('--help') && ['check', 'fix', 'verify', 'install-mcp', 'setup'].includes(command)) {
     const help: Record<string, string> = {
       setup: 'Usage: sloppy setup [--write|-w] [--global|-g] [--json]',
-      check: 'Usage: sloppy check <paths...|url> [--json] [--max-score <n>] [--fail-on <none|low|medium|high|critical>] [--min-grade <A+|A|B|C|D|F>] [--type <illustration|feature-card|hero|application|bento>] [--render|--multi-width] [--a11y] [--static] [--quiet]',
+      check: 'Usage: sloppy check [paths...|url] [--changed|--staged] [--cache] [--compact] [--strict] [--json] [--max-score <n>] [--fail-on <none|low|medium|high|critical>] [--min-grade <A+|A|B|C|D|F>] [--type <illustration|feature-card|hero|application|bento>] [--render|--multi-width] [--a11y] [--static] [--quiet]',
       fix: 'Usage: sloppy fix <file> [--diff|--check|--write] [--look <look>] [--json]\n       sloppy fix --stdin [--json]',
       verify: 'Usage: sloppy verify [target] [--json] [--multi-width] [--a11y] (verification timeout: 15000ms)',
       'install-mcp': 'Usage: sloppy install-mcp --client <cursor|vscode|claude|codex> [--dir <path>] [--write] [--json]'
@@ -193,7 +336,10 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
   if (command === 'check') {
     const isCodeOnly = args.includes('--code') || args.includes('--code-only');
     const isStrict = args.includes('--strict');
-    const opts = { maxScore: 0, failOn: 'medium', minGrade: undefined as string | undefined, type: surfaceType(args), codeOnly: isCodeOnly, strict: isStrict };
+    const isChanged = args.includes('--changed');
+    const isStaged = args.includes('--staged');
+    const useCache = args.includes('--cache') && !args.includes('--no-cache');
+    const opts = { maxScore: 0, failOn: 'medium', minGrade: undefined as string | undefined, type: surfaceType(args), codeOnly: isCodeOnly, strict: isStrict, cache: useCache };
     const paths: string[] = [];
     for (let i = 0; i < args.length; i++) {
       if (args[i] === '--max-score') { opts.maxScore = Number(args[++i]); if (!Number.isFinite(opts.maxScore) || opts.maxScore < 0) { fail('--max-score must be a non-negative number'); return true; } }
@@ -201,11 +347,11 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       else if (args[i] === '--min-grade') { opts.minGrade = args[++i]; if (!gradeOrder.includes(opts.minGrade)) { fail('--min-grade must be A+, A, B, C, D, or F'); return true; } }
       else if (args[i] === '--type') { const value = args[++i]; if (!['illustration', 'feature-card', 'hero', 'application', 'bento'].includes(value)) { fail('--type must be illustration, feature-card, hero, application, or bento'); return true; } }
       else if (args[i] === '--format') { const fmt = args[++i]; if (fmt !== 'sarif' && fmt !== 'json') { fail('--format must be sarif or json'); return true; } }
-      else if (args[i] === '--sarif' || args[i] === '--watch' || args[i] === '-w' || args[i] === '--code' || args[i] === '--code-only' || args[i] === '--strict' || args[i] === '--compact' || args[i] === '--render' || args[i] === '--multi-width' || args[i] === '--a11y' || args[i] === '--static') { /* recognized flag */ }
+      else if (args[i] === '--sarif' || args[i] === '--watch' || args[i] === '-w' || args[i] === '--code' || args[i] === '--code-only' || args[i] === '--strict' || args[i] === '--compact' || args[i] === '--render' || args[i] === '--multi-width' || args[i] === '--a11y' || args[i] === '--static' || args[i] === '--changed' || args[i] === '--staged' || args[i] === '--cache' || args[i] === '--no-cache') { /* recognized flag */ }
       else if (args[i].startsWith('-')) { if (args[i] !== '--json' && args[i] !== '--quiet') { fail(`Unknown check option: ${args[i]}`); return true; } }
       else paths.push(args[i]);
     }
-    if (!paths.length) { fail('Usage: sloppy check <path...|url> [--max-score <n>] [--fail-on <level>] [--min-grade <grade>] [--type <surface>] [--format <json|sarif>] [--render] [--watch]'); return true; }
+    if (!paths.length && !isChanged && !isStaged) { fail('Usage: sloppy check <path...|url> [--changed|--staged] [--cache] [--max-score <n>] [--fail-on <level>] [--min-grade <grade>] [--type <surface>] [--format <json|sarif>] [--render] [--watch]'); return true; }
     try {
       const isSarif = args.includes('--sarif') || (args.includes('--format') && args[args.indexOf('--format') + 1] === 'sarif');
       const isWatch = args.includes('--watch') || args.includes('-w');
@@ -215,14 +361,18 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       const runInspection = async () => {
         const urlTargets = paths.filter(p => /^https?:\/\//i.test(p));
         const fileTargets = paths.filter(p => !/^https?:\/\//i.test(p));
-        if (!fileTargets.length && !wantsRuntime && !wantsA11y) {
+        if (!fileTargets.length && !wantsRuntime && !wantsA11y && !isChanged && !isStaged) {
           const message = 'check needs a file path, or a URL together with --render/--a11y';
           if (json) emitJson({ version: cliVersion(), ok: false, error: message });
           fail(message);
           return null;
         }
 
-        const files = fileTargets.length ? collectFiles(fileTargets) : [];
+        const files = isStaged
+          ? collectGitChangedFiles('staged', fileTargets)
+          : isChanged
+            ? collectGitChangedFiles('changed', fileTargets)
+            : (fileTargets.length ? collectFiles(fileTargets) : []);
         const result = files.length ? checkFiles(files, opts) : {
           version: cliVersion(), ok: true, score: 0, grade: 'A+',
           totals: { files: 0, violations: 0, objective: 0, craft: 0, bySeverity: { critical: 0, high: 0, medium: 0, low: 0 } },
@@ -338,19 +488,22 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     const snippet = '[mcp_servers.sloppy]\ncommand = "npx"\nargs = ["-y", "sloppy", "mcp"]';
     if (client === 'codex') {
       if (!args.includes('--write')) { if (json) emitJson({ client, written: false, snippet }); else console.log(`${snippet}\nNo file written. Pass --write to append this entry to ~/.codex/config.toml.`); return true; }
-      const dest = path.join(process.env.HOME || dir, '.codex/config.toml'); fs.mkdirSync(path.dirname(dest), { recursive: true });
-      let content = fs.existsSync(dest) ? fs.readFileSync(dest, 'utf8') : '';
+      const dest = path.join(process.env.HOME || dir, '.codex/config.toml');
+      let content = readOptionalFile(dest) || '';
       content = content.replace(/\n?\[mcp_servers\.sloppy\][\s\S]*?(?=\n\[|$)/, '').trimEnd();
-      fs.writeFileSync(dest, `${content}${content ? '\n\n' : ''}${snippet}\n`);
+      writeFileSafe(dest, `${content}${content ? '\n\n' : ''}${snippet}\n`, true);
       if (json) emitJson({ client, written: true, path: dest }); else console.log(`Wrote ${dest}`); return true;
     }
     const relative = { cursor: '.cursor/mcp.json', vscode: '.vscode/mcp.json', claude: '.mcp.json' }[client as 'cursor'|'vscode'|'claude'];
-    const dest = path.join(dir, relative); fs.mkdirSync(path.dirname(dest), { recursive: true });
+    const dest = path.join(dir, relative);
     let config: any = {};
-    try { if (fs.existsSync(dest)) config = JSON.parse(fs.readFileSync(dest, 'utf8')); } catch (error) { fail(`Cannot parse ${dest}: ${(error as Error).message}`); return true; }
+    try {
+      const raw = readOptionalFile(dest);
+      if (raw !== null) config = JSON.parse(raw);
+    } catch (error) { fail(`Cannot parse ${dest}: ${(error as Error).message}`); return true; }
     const key = client === 'vscode' ? 'servers' : 'mcpServers';
     config[key] ||= {}; config[key].sloppy = { command: 'npx', args: ['-y', 'sloppy', 'mcp'] };
-    fs.writeFileSync(dest, `${JSON.stringify(config, null, 2)}\n`);
+    writeFileSafe(dest, `${JSON.stringify(config, null, 2)}\n`, true);
     if (json) emitJson({ client, written: true, path: dest }); else console.log(`Wrote ${dest}`); return true;
   }
   if (command === 'setup') {
@@ -373,14 +526,14 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     for (const client of mcpClients) {
       try {
         if (shouldWrite) {
-          fs.mkdirSync(path.dirname(client.file), { recursive: true });
           let config: any = {};
-          if (fs.existsSync(client.file)) {
-            try { config = JSON.parse(fs.readFileSync(client.file, 'utf8')); } catch {}
+          const raw = readOptionalFile(client.file);
+          if (raw !== null) {
+            try { config = JSON.parse(raw); } catch {}
           }
           config[client.key] = config[client.key] || {};
           config[client.key].sloppy = { command: 'npx', args: ['-y', 'sloppy', 'mcp'] };
-          fs.writeFileSync(client.file, `${JSON.stringify(config, null, 2)}\n`);
+          writeFileSafe(client.file, `${JSON.stringify(config, null, 2)}\n`, true);
           mcpResults.push({ client: client.id, path: client.file, status: 'configured' });
         } else {
           mcpResults.push({ client: client.id, path: client.file, status: 'dry-run (pass --write to save)' });
@@ -394,10 +547,9 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     const codexSnippet = '[mcp_servers.sloppy]\ncommand = "npx"\nargs = ["-y", "sloppy", "mcp"]';
     if (shouldWrite) {
       try {
-        fs.mkdirSync(path.dirname(codexFile), { recursive: true });
-        let content = fs.existsSync(codexFile) ? fs.readFileSync(codexFile, 'utf8') : '';
+        let content = readOptionalFile(codexFile) || '';
         content = content.replace(/\n?\[mcp_servers\.sloppy\][\s\S]*?(?=\n\[|$)/, '').trimEnd();
-        fs.writeFileSync(codexFile, `${content}${content ? '\n\n' : ''}${codexSnippet}\n`);
+        writeFileSafe(codexFile, `${content}${content ? '\n\n' : ''}${codexSnippet}\n`, true);
         mcpResults.push({ client: 'codex', path: codexFile, status: 'configured' });
       } catch (err) {
         mcpResults.push({ client: 'codex', path: codexFile, status: `error: ${(err as Error).message}` });
@@ -418,16 +570,16 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
         if (shouldWrite) {
           try {
             fs.mkdirSync(path.dirname(target.dir), { recursive: true });
-            if (!fs.existsSync(target.dir)) {
-              try {
-                fs.symlinkSync(sourceSkillDir, target.dir, 'dir');
-                skillResults.push({ target: target.name, path: target.dir, status: 'symlinked' });
-              } catch {
+            try {
+              fs.symlinkSync(sourceSkillDir, target.dir, 'dir');
+              skillResults.push({ target: target.name, path: target.dir, status: 'symlinked' });
+            } catch (err) {
+              if ((err as NodeJS.ErrnoException)?.code === 'EEXIST') {
+                skillResults.push({ target: target.name, path: target.dir, status: 'already-installed' });
+              } else {
                 fs.cpSync(sourceSkillDir, target.dir, { recursive: true });
                 skillResults.push({ target: target.name, path: target.dir, status: 'copied' });
               }
-            } else {
-              skillResults.push({ target: target.name, path: target.dir, status: 'already-installed' });
             }
           } catch (err) {
             skillResults.push({ target: target.name, path: target.dir, status: `error: ${(err as Error).message}` });
@@ -447,28 +599,25 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     ];
 
     for (const door of pluginDoors) {
-      if (fs.existsSync(door.path)) {
-        pluginDoorResults.push({ platform: door.platform, path: door.path, status: 'active' });
-      } else if (shouldWrite) {
+      if (shouldWrite) {
         try {
-          fs.mkdirSync(path.dirname(door.path), { recursive: true });
-          fs.writeFileSync(door.path, `${JSON.stringify(door.content, null, 2)}\n`, 'utf8');
-          pluginDoorResults.push({ platform: door.platform, path: door.path, status: 'configured' });
+          const outcome = writeFileSafe(door.path, `${JSON.stringify(door.content, null, 2)}\n`, false);
+          pluginDoorResults.push({ platform: door.platform, path: door.path, status: outcome === 'exists' ? 'active' : 'configured' });
         } catch (err) {
           pluginDoorResults.push({ platform: door.platform, path: door.path, status: `error: ${(err as Error).message}` });
         }
       } else {
-        pluginDoorResults.push({ platform: door.platform, path: door.path, status: 'dry-run (pass --write to save)' });
+        pluginDoorResults.push({ platform: door.platform, path: door.path, status: fs.existsSync(door.path) ? 'active' : 'dry-run (pass --write to save)' });
       }
     }
 
     const stack = detectProjectStack(process.cwd());
     const configPath = path.resolve(process.cwd(), 'sloppy.config.json');
     let configStatus = 'already-exists';
-    if (!fs.existsSync(configPath) && shouldWrite) {
+    if (shouldWrite) {
       try {
-        fs.writeFileSync(configPath, JSON.stringify(stack.suggestedConfig, null, 2) + '\n', 'utf8');
-        configStatus = 'generated';
+        const outcome = writeFileSafe(configPath, JSON.stringify(stack.suggestedConfig, null, 2) + '\n', false);
+        configStatus = outcome === 'exists' ? 'already-exists' : 'generated';
       } catch (err) {
         configStatus = `error: ${(err as Error).message}`;
       }
@@ -521,6 +670,8 @@ export async function runCli(args: string[]) {
   switch (command) {
     case 'audit': {
       const valueFlags = new Set(['--type', '--tier', '--mode']);
+      const isChanged = args.includes('--changed');
+      const isStaged = args.includes('--staged');
       const auditTargets: string[] = [];
       for (let i = 0; i < commandArgs.length; i++) {
         if (valueFlags.has(commandArgs[i])) { i++; continue; }
@@ -528,20 +679,27 @@ export async function runCli(args: string[]) {
         auditTargets.push(commandArgs[i]);
       }
 
-      if (!auditTargets.length) {
-        console.error('[ERROR] Please specify a file or directory to audit: sloppy audit <path...>');
+      if (!auditTargets.length && !isChanged && !isStaged) {
+        console.error('[ERROR] Please specify a file or directory to audit: sloppy audit <path...> [--changed|--staged]');
         process.exit(2);
       }
 
       for (const target of auditTargets) {
         const resolved = path.resolve(process.cwd(), target);
-        if (!fs.existsSync(resolved)) {
+        try {
+          fs.statSync(resolved);
+        } catch {
           console.error(`[ERROR] Target not found: ${resolved}`);
           process.exit(2);
         }
       }
 
-      const filesToAudit = collectFiles(auditTargets);
+      const filesToAudit = isStaged
+        ? collectGitChangedFiles('staged', auditTargets)
+        : isChanged
+          ? collectGitChangedFiles('changed', auditTargets)
+          : collectFiles(auditTargets);
+      const resolveContext = createDirContextResolver();
 
       const isFloorOnly = args.includes('--floor-only');
       const isStrict = args.includes('--strict');
@@ -582,6 +740,7 @@ export async function runCli(args: string[]) {
       for (const file of filesToAudit) {
         const content = fs.readFileSync(file, 'utf8');
         const relPath = path.relative(process.cwd(), file);
+        const ctx = resolveContext(file);
         const result = auditCode(content, {
           filepath: relPath,
           componentType: surfaceType(args),
@@ -590,7 +749,9 @@ export async function runCli(args: string[]) {
           mode: isAfterMode ? 'after' : 'during',
           report: isAfterMode,
           codeOnly: isCodeOnly,
-          strict: isStrict
+          strict: isStrict,
+          config: ctx.config ?? undefined,
+          designContract: ctx.designContract
         });
 
         totalViolations += result.violations.length;
@@ -1153,11 +1314,22 @@ export async function runCli(args: string[]) {
         console.log(`======================================================\n`);
         console.log(`Extracting typography, color tokens, and layout DNA...`);
         const dna = await extractDesignDna(sourceUrl);
-        
-        fs.writeFileSync(path.resolve(process.cwd(), 'sloppy.config.json'), JSON.stringify(dna.sloppyConfig, null, 2) + '\n');
-        fs.writeFileSync(path.resolve(process.cwd(), 'DESIGN.md'), dna.designMdContent);
+        const safeConfigJson = JSON.stringify({
+          brand: {
+            name: String(dna.sloppyConfig.brand?.name || 'localhost').slice(0, 64),
+            allowColors: (dna.sloppyConfig.brand?.allowColors || []).filter(c => /^#[0-9a-f]{6}$/i.test(c)),
+            fontSans: String(dna.sloppyConfig.brand?.fontSans || '').slice(0, 80),
+            fontMono: String(dna.sloppyConfig.brand?.fontMono || '').slice(0, 80)
+          },
+          rules: dna.sloppyConfig.rules || {},
+          overrules: {}
+        }, null, 2) + '\n';
+        const safeDesignMd = `# Design System Specification (DESIGN.md)\n\n- **Theme Mode**: ${dna.theme === 'light' ? 'Light Mode' : 'Dark Mode'}\n- **Border Radius**: ${dna.borderRadius}\n- **Ground**: \`${dna.colors.ground}\`\n- **Accent**: \`${dna.colors.accent}\`\n- **Primary Sans**: \`${dna.fontSans}\`\n- **Monospace**: \`${dna.fontMono}\`\n`;
 
-        console.log(`[SUCCESS] Extracted design DNA from ${sourceUrl}:`);
+        writeFileSafe(path.resolve(process.cwd(), 'sloppy.config.json'), safeConfigJson, true);
+        writeFileSafe(path.resolve(process.cwd(), 'DESIGN.md'), safeDesignMd, true);
+
+        console.log(`[SUCCESS] Extracted design DNA from ${dna.sourceUrl}:`);
         console.log(`  - Theme:      ${dna.theme}`);
         console.log(`  - Font Sans:  ${dna.fontSans}`);
         console.log(`  - Font Mono:  ${dna.fontMono}`);
@@ -1179,17 +1351,16 @@ export async function runCli(args: string[]) {
         console.log(`  - ${item}`);
       }
 
+      const force = args.includes('--force');
       const configPath = path.resolve(process.cwd(), 'sloppy.config.json');
-      if (!fs.existsSync(configPath) || args.includes('--force')) {
-        fs.writeFileSync(configPath, JSON.stringify(stack.suggestedConfig, null, 2) + '\n', 'utf8');
+      if (writeFileSafe(configPath, JSON.stringify(stack.suggestedConfig, null, 2) + '\n', force) !== 'exists') {
         console.log(`\n[SUCCESS] Generated ./sloppy.config.json tailored to detected stack.`);
       } else {
         console.log(`\n[INFO] ./sloppy.config.json already exists. Pass --force to regenerate.`);
       }
 
       const designPath = path.resolve(process.cwd(), 'DESIGN.md');
-      if (!fs.existsSync(designPath) || args.includes('--force')) {
-        fs.writeFileSync(designPath, DESIGN_MD_TEMPLATE, 'utf8');
+      if (writeFileSafe(designPath, DESIGN_MD_TEMPLATE, force) !== 'exists') {
         console.log(`[SUCCESS] Generated ./DESIGN.md design contract (token lock: palette, type, radius, blur cap, signature).`);
       } else {
         console.log(`[INFO] ./DESIGN.md already exists. Pass --force to regenerate the token-lock template.`);

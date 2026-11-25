@@ -13,7 +13,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHECK_ONLY = process.argv.includes('--check');
 let drift = 0;
 const writeIfChanged = (file, content) => {
-  const current = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+  let current = '';
+  try { current = fs.readFileSync(file, 'utf8'); } catch {}
   if (current === content) return;
   if (CHECK_ONLY) {
     drift++;

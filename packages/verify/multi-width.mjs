@@ -203,7 +203,7 @@ function runStaticMultiWidthFallback(target) {
   let code = '';
 
   try {
-    if (fs.existsSync(target) && fs.statSync(target).isFile()) {
+    if (fs.statSync(target).isFile()) {
       code = fs.readFileSync(target, 'utf8');
     }
   } catch {

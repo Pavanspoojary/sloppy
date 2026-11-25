@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+
 // Shared reporting and page discovery. Browser functions below are deliberately
 // self-contained: Playwright installs their source before application code runs.
 export function visibleStages(selector = null) {
@@ -95,8 +98,6 @@ export function motionFindings(motion, slow = 1) {
   if (most && low.length) lines.push(`near-empty frames: visible content falls to ${Math.min(...low.map((r) => r.min))} of ${most} elements around ${low[0].start.toFixed(1)}s for ${Math.round((low[0].end - low[0].start) * 1000)}ms${low.length > 1 ? ` (${low.length} times)` : ''}; inspect the handoff and overlap the old and new content`)
   return lines
 }
-import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
 
 const violation = (rule, message, evidence) => ({ rule, message, ...(evidence ? { evidence } : {}) })
 
