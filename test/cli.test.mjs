@@ -264,3 +264,31 @@ test('audit accepts multiple targets and flags in any order', () => {
   assert.equal(payload.totals.files, 2, 'audit must inspect all target paths passed');
   assert.equal(payload.files.length, 1, 'compact audit JSON only emits files with violations');
 });
+
+test('rules supports --compact and --rule filtering, and check supports --cache and --changed', async (t) => {
+  const ruleRun = runCli(['rules', '--json', '--compact', '--rule', 'MOT-03']);
+  assert.equal(ruleRun.status, 0, ruleRun.stderr);
+  const rulePayload = parseJsonStdout(ruleRun);
+  assert.equal(rulePayload.rules.length, 1);
+  assert.equal(rulePayload.rules[0].ruleId, 'MOT-03');
+  assert.equal(rulePayload.autoFix, undefined);
+
+  const os = await import('node:os');
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sloppy-cache-test-'));
+  const tmpFile = path.join(tmpDir, 'clean.tsx');
+  fs.writeFileSync(tmpFile, fs.readFileSync(fixture('clean-component.tsx'), 'utf8'));
+  const { execFileSync } = await import('node:child_process');
+  const cliBin = path.resolve(path.dirname(fixture('clean-component.tsx')), '../../packages/cli/bin/sloppy.js');
+  t.after(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+
+  const first = JSON.parse(execFileSync(process.execPath, [cliBin, 'check', tmpFile, '--cache', '--json', '--compact'], { cwd: tmpDir, encoding: 'utf8' }));
+  assert.equal(first.ok, true);
+  assert.equal(fs.existsSync(path.join(tmpDir, '.sloppy/cache.json')), true, '--cache must persist .sloppy/cache.json');
+  const second = JSON.parse(execFileSync(process.execPath, [cliBin, 'check', tmpFile, '--cache', '--json', '--compact'], { cwd: tmpDir, encoding: 'utf8' }));
+  assert.equal(second.ok, true);
+
+  const changedRun = runCli(['check', '--changed', '--json', '--compact']);
+  assert.ok([0, 1].includes(changedRun.status));
+  const changedPayload = parseJsonStdout(changedRun);
+  assert.equal(typeof changedPayload.ok, 'boolean');
+});

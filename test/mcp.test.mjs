@@ -257,3 +257,44 @@ test('MCP sloppy_rules evidence topic exposes confidence and false-positive cont
   assert.ok(contrast.evidenceKinds.includes('standard'));
   assert.ok(contrast.falsePositives.length > 0);
 });
+
+test('MCP sloppy_catalog defaults to summary mode and sloppy_rules supports ruleId and compact filters', async (t) => {
+  const server = startServer();
+  t.after(() => {
+    server.child.kill('SIGTERM');
+  });
+
+  server.send({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'initialize',
+    params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'sloppy-test', version: '1.0.0' } }
+  });
+  await server.waitFor((message) => message.id === 1);
+  server.send({ jsonrpc: '2.0', method: 'notifications/initialized' });
+
+  server.send({
+    jsonrpc: '2.0',
+    id: 2,
+    method: 'tools/call',
+    params: { name: 'sloppy_catalog', arguments: { query: 'motion', limit: 5 } }
+  });
+  const catalogRes = await server.waitFor((message) => message.id === 2);
+  const catalog = JSON.parse(catalogRes.result.content[0].text);
+  assert.equal(catalog.detail, 'summary');
+  if (catalog.components.length) {
+    assert.equal(catalog.components[0].description, undefined);
+  }
+
+  server.send({
+    jsonrpc: '2.0',
+    id: 3,
+    method: 'tools/call',
+    params: { name: 'sloppy_rules', arguments: { topic: 'evidence', ruleId: 'MOT-03', compact: true } }
+  });
+  const ruleRes = await server.waitFor((message) => message.id === 3);
+  const rulePayload = JSON.parse(ruleRes.result.content[0].text);
+  assert.equal(rulePayload.rules.length, 1);
+  assert.equal(rulePayload.rules[0].ruleId, 'MOT-03');
+  assert.equal(rulePayload.rules[0].falsePositives, undefined);
+});

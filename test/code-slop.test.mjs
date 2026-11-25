@@ -191,3 +191,22 @@ export function Panel() {
   assert.equal(emojiViolations.length, 1, 'should only flag real emoji 🚀, not ❯/✓/✕ or comment 👀');
   assert.equal(emojiViolations[0].line, 11, `expected JSX line 11, not comment line 2 (got ${emojiViolations[0].line})`);
 });
+
+test('auditCode resists pathological polynomial-ReDoS inputs within budget', () => {
+  const adversarial = [
+    '// ' + ' '.repeat(12000),
+    '/* ' + 'a/*'.repeat(4000) + ' */',
+    'import{{|'.repeat(2500),
+    'conic-gradient('.repeat(2500),
+    '...((>?'.repeat(2500),
+    'const s = ' + '$'.repeat(4000) + ';',
+    '// sloppy-ignore-next-line\t' + '\t'.repeat(5000) + ': COD-02',
+    '<div ' + '<div '.repeat(2000) + '/>'
+  ].join('\n');
+
+  const t0 = performance.now();
+  const audit = auditCode(adversarial, { strict: true });
+  const elapsedMs = performance.now() - t0;
+  assert.ok(Array.isArray(audit.violations));
+  assert.ok(elapsedMs < 500, `expected linear scan under 500ms, took ${elapsedMs.toFixed(1)}ms`);
+});
