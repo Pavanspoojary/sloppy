@@ -38,7 +38,7 @@ npm install
 npm run build
 
 # Link the CLI globally in user space
-npm link --workspace=sloppy
+npm link --workspace=@sloppy-ai/cli
 
 # Run initial setup to register MCP servers and agent skills
 sloppy setup --write
@@ -46,8 +46,15 @@ sloppy setup --write
 
 ### 3. Registry & Direct Execution Status
 
-* **NPM Registry**: Official publication to the npm registry with provenance is currently in progress. During this release phase, running `npx sloppy` from the registry is replaced by the direct curl installer or local repository checkout shown above.
-* **Direct Execution from GitHub**: You can execute the CLI directly via npx using the GitHub source:
+* **NPM Registry**: Official npm package published under the `@sloppy-ai` organization:
+  ```bash
+  # Execute directly via npx
+  npx @sloppy-ai/cli check ./src
+
+  # Or install globally (exposes both `sloppy` and `sloppy-ai` binaries)
+  npm install -g @sloppy-ai/cli
+  ```
+* **Direct Execution from GitHub**: You can also execute the CLI directly via npx using the GitHub source:
   ```bash
   npx github:Pavanspoojary/sloppy check ./src
   ```
@@ -65,10 +72,10 @@ The installer and CLI recognize the following environment variables:
 
 | Layer | Component | Description |
 |---|---|---|
-| **CLI & Quality Gate** | `sloppy` | Deterministic linter, syntax-validated auto-fixer, repair planner, and CI quality gate. |
-| **Agent Protocol** | `@sloppy/mcp` | Lean 5-tool stdio server enabling autonomous agents to audit, plan, and repair code in a closed loop. |
+| **CLI & Quality Gate** | `@sloppy-ai/cli` | Deterministic linter, syntax-validated auto-fixer, repair planner, and CI quality gate. Provides both `sloppy` and `sloppy-ai` commands. |
+| **Agent Protocol** | `@sloppy-ai/mcp` | Lean 5-tool stdio server enabling autonomous agents to audit, plan, and repair code in a closed loop. |
 | **Agent Skill** | `skills/sloppy` | Universal skill with 7 reference manuals (`craft`, `framing`, `motion`, `bento`, `word_budget`, `looks`, `rehearse`). |
-| **UI Primitives** | `@sloppy/kit` | Portable React and plain CSS components enforcing grounded framing, surface elevation, and caused motion. |
+| **UI Primitives** | `@sloppy-ai/kit` | Portable React and plain CSS components enforcing grounded framing, surface elevation, and caused motion. |
 | **Master Archetypes** | 10 Archetypes | Production-grade blueprints combining 7 UI libraries into cohesive, Grade A+ interfaces. |
 | **Design Looks** | 15 Token Sets | Curated looks (`minimal`, `linear`, `blueprint`, `dark-hero`, `raycast`) and Refero production looks (`nuxt`, `grafana`, `modern-treasury`). |
 
@@ -506,13 +513,13 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm run build
-      - run: npx sloppy check ./src --fail-on high --max-score 0
-      - run: npx sloppy check ./src --format sarif > results.sarif
-      - uses: github/codeql-action/upload-sarif@v3
+      - run: npx @sloppy-ai/cli check ./src --fail-on high --max-score 0
+      - run: npx @sloppy-ai/cli check ./src --format sarif > results.sarif
+      - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: results.sarif
-      - run: npx sloppy rubric ./src/components/Hero.tsx --strict
+      - run: npx @sloppy-ai/cli rubric ./src/components/Hero.tsx --strict
 ```
 
 ### Configuration (`sloppy.config.json`)

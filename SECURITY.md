@@ -19,7 +19,7 @@ Report vulnerabilities privately through GitHub Security Advisories:
 
 Include as much detail as possible so the report can be reproduced and triaged quickly:
 
-- Affected package (`@sloppy/core`, `sloppy`, `@sloppy/mcp`, `@sloppy/verify`, `@sloppy/kit`, `@sloppy/playground`, or `action.yml`)
+- Affected package (`@sloppy-ai/core`, `@sloppy-ai/cli`, `@sloppy-ai/mcp`, `@sloppy-ai/verify`, `@sloppy-ai/kit`, `@sloppy-ai/playground`, or `action.yml`)
 - Minimal reproduction steps or proof-of-concept input
 - Potential impact (for example: path traversal, command injection, unsafe file writes during `sloppy fix`, or CI bypass)
 
