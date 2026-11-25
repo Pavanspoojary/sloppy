@@ -13,8 +13,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const coreDist = path.resolve(__dirname, '../packages/core/dist/index.js');
 
 if (!fs.existsSync(coreDist)) {
-  console.log('[ARCHETYPE AUDIT] Building @sloppy/core prerequisite...');
-  execSync('npm run build --workspace=@sloppy/core', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+  console.log('[ARCHETYPE AUDIT] Building @sloppy-ai/core prerequisite...');
+  execSync('npm run build --workspace=@sloppy-ai/core', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
 }
 
 const { evaluateCraftRubric, SYNTHESIZED_ARCHETYPES } = await import(pathToFileURL(coreDist).href);

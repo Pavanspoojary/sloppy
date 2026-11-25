@@ -6,7 +6,7 @@ import {
   SLOPPY_LIBRARIES,
   SYNTHESIZED_ARCHETYPES,
   transformSlopToCraft
-} from '@sloppy/core';
+} from '@sloppy-ai/core';
 
 const SAMPLE_SLOP_SNIPPETS: { name: string; code: string }[] = [
   {

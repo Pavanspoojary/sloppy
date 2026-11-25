@@ -1,4 +1,4 @@
-import { Window } from '@sloppy/kit';
+import { Window } from '@sloppy-ai/kit';
 
 export function FloatingFrame() {
   return (

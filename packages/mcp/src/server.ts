@@ -19,7 +19,7 @@ import {
   searchPatterns,
   searchSynthesizedArchetypes,
   transformSlopToCraft
-} from '@sloppy/core';
+} from '@sloppy-ai/core';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';

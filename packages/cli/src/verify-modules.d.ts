@@ -1,4 +1,4 @@
-declare module '@sloppy/verify' {
+declare module '@sloppy-ai/verify' {
   export interface VerifyViolation {
     rule: string;
     message: string;
@@ -18,7 +18,7 @@ declare module '@sloppy/verify' {
   export default verifyTargetDefault;
 }
 
-declare module '@sloppy/verify/multi-width' {
+declare module '@sloppy-ai/verify/multi-width' {
   export interface MultiWidthFinding {
     width: number;
     viewportName: string;
@@ -38,7 +38,7 @@ declare module '@sloppy/verify/multi-width' {
   export function runMultiWidthVerification(target: string, options?: { staticOnly?: boolean }): Promise<MultiWidthResult>;
 }
 
-declare module '@sloppy/verify/accessibility' {
+declare module '@sloppy-ai/verify/accessibility' {
   export interface A11yEvidence {
     kind: string;
     description: string;
@@ -69,4 +69,18 @@ declare module '@sloppy/verify/accessibility' {
     unavailable?: string;
     checked?: string[];
   }>;
+}
+
+declare module '@sloppy/verify' {
+  export * from '@sloppy-ai/verify';
+  const verifyTargetDefault: typeof import('@sloppy-ai/verify').verifyTarget;
+  export default verifyTargetDefault;
+}
+
+declare module '@sloppy/verify/multi-width' {
+  export * from '@sloppy-ai/verify/multi-width';
+}
+
+declare module '@sloppy/verify/accessibility' {
+  export * from '@sloppy-ai/verify/accessibility';
 }

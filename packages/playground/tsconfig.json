@@ -14,7 +14,9 @@
       "../kit": ["../kit"],
       "../kit/*": ["../kit/*"],
       "../examples/*": ["../../patterns/*"],
+      "@sloppy-ai/kit": ["../kit"],
       "@sloppy/kit": ["../kit"],
+      "@sloppy-ai/core": ["../core/src"],
       "@sloppy/core": ["../core/src"]
     },
     "lib": ["ES2022", "DOM", "DOM.Iterable"],

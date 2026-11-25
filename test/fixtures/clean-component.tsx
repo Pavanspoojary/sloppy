@@ -1,5 +1,5 @@
 import React from 'react';
-import { Stage, Window, Bar } from '@sloppy/kit';
+import { Stage, Window, Bar } from '@sloppy-ai/kit';
 
 export function CleanFeatureCard() {
   return (

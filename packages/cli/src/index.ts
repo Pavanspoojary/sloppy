@@ -30,8 +30,8 @@ import {
   type AuditResult,
   type DesignContract,
   type SloppyConfig
-} from '@sloppy/core';
-import { runServer } from '@sloppy/mcp';
+} from '@sloppy-ai/core';
+import { runServer } from '@sloppy-ai/mcp';
 import { execFileSync, spawn } from 'child_process';
 import { createHash } from 'crypto';
 import * as fs from 'fs';
@@ -289,7 +289,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
   if (command === '--version' || command === 'version') {
     const version = cliVersion();
     let core: string | undefined;
-    try { core = require('@sloppy/core/package.json').version; } catch { try { core = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, 'packages/core/package.json'), 'utf8')).version; } catch {} }
+    try { core = require('@sloppy-ai/core/package.json').version; } catch { try { core = require('@sloppy/core/package.json').version; } catch { try { core = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, 'packages/core/package.json'), 'utf8')).version; } catch {} } }
     if (json) {
       const payload: { version: string; core?: string } = { version };
       if (core) payload.core = core;
@@ -379,13 +379,13 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
           files: [], nextActions: []
         };
 
-        let runtime: import('@sloppy/verify/multi-width').MultiWidthResult | null = null;
-        let accessibility: Awaited<ReturnType<typeof import('@sloppy/verify/accessibility').runAccessibilityAudit>> | null = null;
+        let runtime: import('@sloppy-ai/verify/multi-width').MultiWidthResult | null = null;
+        let accessibility: Awaited<ReturnType<typeof import('@sloppy-ai/verify/accessibility').runAccessibilityAudit>> | null = null;
         let accessibilityUnavailable = false;
         if (wantsRuntime) {
           const target = urlTargets[0] || fileTargets[0];
-          const module = await import('@sloppy/verify/multi-width').catch(
-            async (): Promise<typeof import('@sloppy/verify/multi-width')> => import(path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs'))
+          const module = await import('@sloppy-ai/verify/multi-width').catch(
+            async (): Promise<typeof import('@sloppy-ai/verify/multi-width')> => import(path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs'))
           );
           const resultRuntime = await module.runMultiWidthVerification(target, { staticOnly: args.includes('--static') });
           runtime = resultRuntime;
@@ -397,7 +397,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
 
         if (wantsA11y) {
           const target = urlTargets[0] || (fileTargets[0] ? path.resolve(fileTargets[0]) : '');
-          const module = await import('@sloppy/verify/accessibility').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/accessibility.mjs')));
+          const module = await import('@sloppy-ai/verify/accessibility').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/accessibility.mjs')));
           accessibility = await module.runAccessibilityAudit(target, { timeoutMs: 15000 });
           const findings = accessibility?.findings || [];
           const blocking = findings.filter(f => f.severity === 'critical' || f.severity === 'high').length;
@@ -1037,7 +1037,7 @@ export async function runCli(args: string[]) {
 
       try {
         if (args.includes('--a11y')) {
-          const module = await import('@sloppy/verify/accessibility').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/accessibility.mjs')));
+          const module = await import('@sloppy-ai/verify/accessibility').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/accessibility.mjs')));
           const res = await module.runAccessibilityAudit(target, { timeoutMs: 15000 });
           if (json) emitJson(res);
           else {
@@ -1055,7 +1055,7 @@ export async function runCli(args: string[]) {
         }
 
         if (isMultiWidth) {
-          const moduleName = '@sloppy/verify/multi-width';
+          const moduleName = '@sloppy-ai/verify/multi-width';
           const module = await import(moduleName).catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs')));
           const res = await module.runMultiWidthVerification(target, { staticOnly });
           if (json) emitJson(res);
@@ -1072,7 +1072,7 @@ export async function runCli(args: string[]) {
           break;
         }
 
-        const { verifyTarget } = await import('@sloppy/verify');
+        const { verifyTarget } = await import('@sloppy-ai/verify').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/verification.mjs')));
         const result = await verifyTarget(target, { timeoutMs: 15000 });
         if (json) emitJson(result);
         else {
