@@ -254,7 +254,7 @@ function AttachmentChip({
   onRemove: () => void;
 }) {
   const { file } = attachment;
-  const isImage = file.type.startsWith("image/");
+  const isImage = file.type.startsWith("image/") && file.type !== "image/svg+xml";
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Object URLs are created after mount and revoked on unmount, so a
@@ -264,7 +264,9 @@ function AttachmentChip({
       return;
     }
     const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
+    if (url.startsWith("blob:")) {
+      setPreviewUrl(url);
+    }
     return () => URL.revokeObjectURL(url);
   }, [file, isImage]);
 
@@ -281,7 +283,7 @@ function AttachmentChip({
       layout="position"
       transition={{ duration: 0.2, ease: EASE_OUT }}
     >
-      <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-black/5 text-black/50 dark:bg-white/10 dark:text-white/60">
+      <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-black/5 text-black/75 dark:bg-white/10 dark:text-white/80">
         {previewUrl ? (
           // biome-ignore lint/performance/noImgElement: object URL preview, nothing to optimise
           <img
@@ -299,13 +301,13 @@ function AttachmentChip({
         <span className="block truncate text-black text-xs dark:text-white">
           {file.name}
         </span>
-        <span className="block text-[10px] text-black/50 tabular-nums dark:text-white/50">
+        <span className="block text-[10px] text-black/75 tabular-nums dark:text-white/70">
           {formatSize(file.size)}
         </span>
       </span>
       <button
         aria-label={`Remove ${file.name}`}
-        className="flex size-6 shrink-0 items-center justify-center rounded-full text-black/40 transition-colors duration-150 hover:bg-black/5 hover:text-black focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-blue-500 dark:text-white/40 dark:hover:bg-white/10 dark:hover:text-white"
+        className="flex size-6 shrink-0 items-center justify-center rounded-full text-black/70 transition-colors duration-150 hover:bg-black/10 hover:text-black focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-blue-500 dark:text-white/70 dark:hover:bg-white/20 dark:hover:text-white"
         onClick={onRemove}
         type="button"
       >
@@ -335,7 +337,7 @@ function MatchedLabel({ label, query }: { label: string; query: string }) {
 
 function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-black/5 px-1 font-sans text-[10px] text-black/60 dark:bg-white/10 dark:text-white/60">
+    <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-black/5 px-1 font-sans text-[10px] text-black/75 dark:bg-white/10 dark:text-white/80">
       {children}
     </kbd>
   );
@@ -379,26 +381,32 @@ function CommandMenu({
             id={`${id}-${command.id}`}
             key={command.id}
             onClick={() => onSelect(command)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(command);
+              }
+            }}
             onMouseDown={(e) => e.preventDefault()}
             onPointerMove={() => onHover(i)}
             role="option"
-            tabIndex={-1}
+            tabIndex={0}
           >
-            <span className="flex size-6 shrink-0 items-center justify-center text-black/50 dark:text-white/60 [&_svg]:size-4">
+            <span className="flex size-6 shrink-0 items-center justify-center text-black/75 dark:text-white/80 [&_svg]:size-4">
               {command.icon ?? <Slash />}
             </span>
             <span className="shrink-0 text-black/80 text-sm dark:text-white/80">
               <MatchedLabel label={command.label} query={query ?? ""} />
             </span>
             {command.description && (
-              <span className="min-w-0 truncate text-black/40 text-xs dark:text-white/40">
+              <span className="min-w-0 truncate text-black/70 text-xs dark:text-white/70">
                 {command.description}
               </span>
             )}
           </div>
         ))}
       </div>
-      <div className="mt-1 flex items-center gap-3 border-black/5 border-t px-2 pt-1.5 pb-1 text-[11px] text-black/40 dark:border-white/5 dark:text-white/40">
+      <div className="mt-1 flex items-center gap-3 border-black/5 border-t px-2 pt-1.5 pb-1 text-[11px] text-black/70 dark:border-white/5 dark:text-white/70">
         <span className="flex items-center gap-1">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd>
@@ -1002,6 +1010,7 @@ export default function AI_Prompt({
               <motion.div
                 animate={{ height: "auto", opacity: 1 }}
                 className="overflow-hidden"
+                // sloppy-ignore-next-line MOT-04 -- Collapsible container requires height auto animation
                 exit={{ height: 0, opacity: 0 }}
                 initial={{ height: 0, opacity: 0 }}
                 transition={{
