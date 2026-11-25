@@ -203,9 +203,7 @@ function runStaticMultiWidthFallback(target) {
   let code = '';
 
   try {
-    if (fs.statSync(target).isFile()) {
-      code = fs.readFileSync(target, 'utf8');
-    }
+    code = fs.readFileSync(target, 'utf8');
   } catch {
     // Target is an inaccessible URL or missing file; test sample code
   }
