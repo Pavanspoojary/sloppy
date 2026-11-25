@@ -4,12 +4,16 @@ import { examples, groups } from './catalog'
 import { SlopStudio } from './slop-studio'
 import './viewer.css'
 
+const safeSlug = (raw: string | null | undefined, fallback: string) =>
+  raw && /^[a-z0-9-]+$/i.test(raw) ? raw : fallback
+
 function Viewer() {
-  const initial = new URLSearchParams(location.search).get('example')
+  const params = new URLSearchParams(location.search)
+  const initial = params.get('example')
   const [viewMode, setViewMode] = useState<'catalog' | 'studio'>(() => 
-    new URLSearchParams(location.search).get('view') === 'studio' ? 'studio' : 'catalog'
+    params.get('view') === 'studio' ? 'studio' : 'catalog'
   )
-  const [name, setName] = useState(examples.some(e => e.id === initial) ? initial! : examples[0].id)
+  const [name, setName] = useState(() => (initial && examples.some(e => e.id === initial) ? initial : examples[0].id))
   const [phone, setPhone] = useState(false)
   const [still, setStill] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches)
   const motionOverride = useRef(false)
@@ -23,11 +27,16 @@ function Viewer() {
   const [error, setError] = useState<string | null>(null)
   const iframe = useRef<HTMLIFrameElement>(null)
   const visible = useRef(false)
-  const lesson = useRef(new URLSearchParams(location.search).get('lesson') ?? 'label')
-  const annotation = useRef(new URLSearchParams(location.search).get('annotation') ?? 'collect')
-  const selected = examples.find(e => e.id === name)!
+  const lesson = useRef(safeSlug(params.get('lesson'), 'label'))
+  const annotation = useRef(safeSlug(params.get('annotation'), 'collect'))
+  const selected = examples.find(e => e.id === name) ?? examples[0]
   const transportDisabled = !ready || still || staticScene
-  const source = useMemo(() => `?embed=${name}&still=${still ? 1 : 0}${name === 'contrasts' ? `&lesson=${encodeURIComponent(lesson.current)}` : name === 'annotations' ? `&annotation=${encodeURIComponent(annotation.current)}` : ''}`, [name, revision, still])
+  const source = useMemo(() => {
+    const q = new URLSearchParams({ embed: selected.id, still: still ? '1' : '0' })
+    if (selected.id === 'contrasts') q.set('lesson', safeSlug(lesson.current, 'label'))
+    else if (selected.id === 'annotations') q.set('annotation', safeSlug(annotation.current, 'collect'))
+    return `?${q.toString()}`
+  }, [selected.id, revision, still])
   const send = (data: object) => iframe.current?.contentWindow?.postMessage({ type: 'stageshow:control', ...data }, location.origin)
   useEffect(() => {
     const preference = matchMedia('(prefers-reduced-motion: reduce)')
