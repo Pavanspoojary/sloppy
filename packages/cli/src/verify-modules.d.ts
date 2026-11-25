@@ -54,8 +54,12 @@ declare module '@sloppy/verify/accessibility' {
     objective: boolean;
     evidence: A11yEvidence;
   }
-  export function auditA11ySnapshot(snapshot: unknown[], options?: Record<string, unknown>): A11yFinding[];
-  export function runAccessibilityAudit(target: string, options?: Record<string, unknown>): Promise<{
+  export interface AuditA11yOptions {
+    timeoutMs?: number;
+    viewport?: { width: number; height: number };
+  }
+  export function auditA11ySnapshot(snapshot: unknown[], options?: AuditA11yOptions): A11yFinding[];
+  export function runAccessibilityAudit(target: string, options?: AuditA11yOptions): Promise<{
     target: string;
     ok: boolean;
     mode: string;

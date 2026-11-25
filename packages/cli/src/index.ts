@@ -15,6 +15,7 @@ import {
   getSynthesizedArchetype,
   toMaterial,
   LOOKS,
+  MOTION_ECOSYSTEMS,
   PATTERNS_CATALOG,
   searchAllComponents,
   searchPatterns,
@@ -65,12 +66,13 @@ function cliVersion(): string {
 }
 function collectFiles(targets: string[]): string[] {
   const found: string[] = [];
-  const visit = (file: string) => {
+  const visit = (file: string, isSubEntry = false) => {
+    if (isSubEntry && fs.lstatSync(file).isSymbolicLink()) return;
     const stat = fs.statSync(file);
     if (stat.isDirectory()) {
       for (const entry of fs.readdirSync(file).sort()) {
         if (['node_modules', '.git', 'dist'].includes(entry)) continue;
-        visit(path.join(file, entry));
+        visit(path.join(file, entry), true);
       }
     } else if (stat.isFile() && sourceExtensions.test(file)) found.push(file);
   };
@@ -88,21 +90,11 @@ function formatSarif(result: ReturnType<typeof checkFiles>) {
             name: 'Sloppy',
             version: result.version,
             informationUri: 'https://github.com/Pavanspoojary/sloppy',
-            rules: [
-              { id: 'PURPLE_GRADIENT_SLOP', name: 'PurpleGradientSlop', shortDescription: { text: 'Replace purple-family gradients with a restrained surface palette.' } },
-              { id: 'SPARKLE_ICON_OVERLOAD', name: 'SparkleIconOverload', shortDescription: { text: 'Replace decorative sparkle or magic-wand icons with authentic product icons.' } },
-              { id: 'UNANCHORED_FLOATING_WINDOW', name: 'UnanchoredFloatingWindow', shortDescription: { text: 'Let the frame fill its stage and bleed through at least one boundary.' } },
-              { id: 'BOXED_CARD_SYNDROME', name: 'BoxedCardSyndrome', shortDescription: { text: 'Vary surface hierarchy with layout and elevation instead of repeating identical cards.' } },
-              { id: 'AI_COPY_CLICHE', name: 'AiCopyCliche', shortDescription: { text: 'Replace generic AI marketing clichés with concrete product capabilities.' } },
-              { id: 'DEAD_PLACEHOLDER_SLOP', name: 'DeadPlaceholderSlop', shortDescription: { text: 'Connect buttons and links to real actions instead of dead anchor targets or empty callbacks.' } },
-              { id: 'LOW_CONTRAST_GRAY', name: 'LowContrastGray', shortDescription: { text: 'Increase text and background contrast to meet WCAG AA standards.' } },
-              { id: 'UNEARNED_ANIMATION', name: 'UnearnedAnimation', shortDescription: { text: 'Animate only when user-caused or progress-linked; remove looping bounces.' } },
-              { id: 'HERO_GRADIENT_TEXT', name: 'HeroGradientText', shortDescription: { text: 'Replace gradient text with solid high-contrast typography.' } },
-              { id: 'NEGATIVE_PARALLELISM', name: 'NegativeParallelism', shortDescription: { text: 'Rewrite contrast reframes ("Not just X, it\'s Y") as direct affirmative statements.' } },
-              { id: 'FABRICATED_SOCIAL_PROOF', name: 'FabricatedSocialProof', shortDescription: { text: 'Replace unverified round-number metrics with verified product data or TODOs.' } },
-              { id: 'CHATBOT_SIGN_OFF_SLOP', name: 'ChatbotSignOffSlop', shortDescription: { text: 'Strip meta-commentary, AI assistant sign-offs, and filler introductions.' } },
-              { id: 'FAKE_CONTROL_SLOP', name: 'FakeControlSlop', shortDescription: { text: 'Use semantic <button> or provide role="button" and tabIndex for accessibility.' } }
-            ]
+            rules: Object.entries(CANONICAL_RULES).map(([slug, rule]) => ({
+              id: slug,
+              name: rule.title.replace(/[^A-Za-z0-9]/g, ''),
+              shortDescription: { text: `${rule.ruleId}: ${rule.title}` }
+            }))
           }
         },
         results: result.files.flatMap(f => f.violations.map(v => ({
@@ -166,7 +158,11 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     const version = cliVersion();
     let core: string | undefined;
     try { core = require('@sloppy/core/package.json').version; } catch { try { core = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, 'packages/core/package.json'), 'utf8')).version; } catch {} }
-    if (json) emitJson({ version, ...(core ? { core } : {}) }); else console.log(version);
+    if (json) {
+      const payload: { version: string; core?: string } = { version };
+      if (core) payload.core = core;
+      emitJson(payload);
+    } else console.log(version);
     return true;
   }
   if (command === '--help' || (command === 'help' && args.includes('--help'))) { console.log('Usage: sloppy <command> [options]\nCommands: setup, check, audit, plan, fix, rubric, verify, install-mcp, rules, version, looks, archetypes, list, mcp'); return true; }
@@ -213,6 +209,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     try {
       const isSarif = args.includes('--sarif') || (args.includes('--format') && args[args.indexOf('--format') + 1] === 'sarif');
       const isWatch = args.includes('--watch') || args.includes('-w');
+      const isCompact = args.includes('--compact');
       const wantsRuntime = args.includes('--render') || args.includes('--multi-width');
       const wantsA11y = args.includes('--a11y');
       const runInspection = async () => {
@@ -232,14 +229,17 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
           files: [], nextActions: []
         };
 
-        let runtime: Record<string, unknown> | null = null;
+        let runtime: import('@sloppy/verify/multi-width').MultiWidthResult | null = null;
         let accessibility: Awaited<ReturnType<typeof import('@sloppy/verify/accessibility').runAccessibilityAudit>> | null = null;
         let accessibilityUnavailable = false;
         if (wantsRuntime) {
           const target = urlTargets[0] || fileTargets[0];
-          const module = await import('@sloppy/verify/multi-width').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs')));
-          runtime = await module.runMultiWidthVerification(target, { staticOnly: args.includes('--static') });
-          const findings = (runtime as unknown as { findings: Array<{ severity: string }> }).findings || [];
+          const module = await import('@sloppy/verify/multi-width').catch(
+            async (): Promise<typeof import('@sloppy/verify/multi-width')> => import(path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs'))
+          );
+          const resultRuntime = await module.runMultiWidthVerification(target, { staticOnly: args.includes('--static') });
+          runtime = resultRuntime;
+          const findings = resultRuntime.findings || [];
           const blocking = findings.filter(f => f.severity === 'critical' || f.severity === 'high').length;
           if (blocking > 0) result.ok = false;
           result.totals.violations += findings.length;
@@ -264,14 +264,37 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
 
         const payload = { ...result, runtime, accessibility };
         if (isSarif) emitJson(formatSarif(result));
+        else if (json && isCompact) {
+          const compactPayload: {
+            ok: boolean;
+            score: number;
+            grade: string;
+            totals: typeof result.totals;
+            files: Array<{ path: string; score: number; issues: string[] }>;
+            runtimeOk?: boolean;
+            a11yOk?: boolean;
+          } = {
+            ok: result.ok,
+            score: result.score,
+            grade: result.grade,
+            totals: result.totals,
+            files: result.files.filter(f => f.violations.length > 0).map(f => ({
+              path: f.path,
+              score: f.score,
+              issues: f.violations.map(v => `${v.type}@L${v.line}`)
+            }))
+          };
+          if (runtime) compactPayload.runtimeOk = runtime.allPassed;
+          if (accessibility) compactPayload.a11yOk = accessibility.ok;
+          emitJson(compactPayload);
+        }
         else if (json) emitJson(payload);
         else {
           if (!args.includes('--quiet')) for (const f of result.files) console.log(`${f.isSlopFree ? 'PASS' : 'FAIL'} ${f.path} score=${f.score} grade=${f.grade} violations=${f.violations.length}`);
           if (runtime) {
-            const r = runtime as unknown as { summary: string; isStaticFallback: boolean; findings: Array<{ severity: string; viewportName: string; width: number; message: string }> };
-            console.log(`\nRuntime ${r.isStaticFallback ? '(static source simulation)' : '(headless browser)'}: ${r.summary}`);
-            for (const f of r.findings) console.log(`  [${f.severity.toUpperCase()}] ${f.viewportName} (${f.width}px): ${f.message}`);
-            if (!r.findings.length) console.log('  contrast and overflow: no rendered defects found');
+            console.log(`\nRuntime ${runtime.isStaticFallback ? '(static source simulation)' : '(headless browser)'}: ${runtime.summary}`);
+            for (const f of runtime.findings) console.log(`  [${f.severity.toUpperCase()}] ${f.viewportName} (${f.width}px): ${f.message}`);
+            if (!runtime.findings.length) console.log('  contrast and overflow: no rendered defects found');
           }
           if (accessibility) {
             console.log(`\nAccessibility ${accessibility.ok ? 'passed' : accessibility.unavailable ? 'unavailable' : 'failed'} (${accessibility.mode}): ${accessibility.summary}`);
@@ -497,45 +520,36 @@ export async function runCli(args: string[]) {
 
   switch (command) {
     case 'audit': {
-      const target = args[1];
-      if (!target) {
-        console.error('[ERROR] Please specify a file or directory to audit: sloppy audit <path>');
+      const valueFlags = new Set(['--type', '--tier', '--mode']);
+      const auditTargets: string[] = [];
+      for (let i = 0; i < commandArgs.length; i++) {
+        if (valueFlags.has(commandArgs[i])) { i++; continue; }
+        if (commandArgs[i].startsWith('-')) continue;
+        auditTargets.push(commandArgs[i]);
+      }
+
+      if (!auditTargets.length) {
+        console.error('[ERROR] Please specify a file or directory to audit: sloppy audit <path...>');
         process.exit(2);
       }
 
-      const targetPath = path.resolve(process.cwd(), target);
-      if (!fs.existsSync(targetPath)) {
-        console.error(`[ERROR] Target not found: ${targetPath}`);
-        process.exit(2);
+      for (const target of auditTargets) {
+        const resolved = path.resolve(process.cwd(), target);
+        if (!fs.existsSync(resolved)) {
+          console.error(`[ERROR] Target not found: ${resolved}`);
+          process.exit(2);
+        }
       }
 
-      const stat = fs.statSync(targetPath);
-      const filesToAudit: string[] = [];
-
-      if (stat.isFile()) {
-        filesToAudit.push(targetPath);
-      } else if (stat.isDirectory()) {
-        const findFiles = (dir: string) => {
-          const entries = fs.readdirSync(dir);
-          for (const entry of entries) {
-            if (entry === 'node_modules' || entry === '.git' || entry === 'dist') continue;
-            const full = path.join(dir, entry);
-            if (fs.statSync(full).isDirectory()) {
-              findFiles(full);
-            } else if (/\.(tsx|jsx|ts|js|html|css)$/.test(entry)) {
-              filesToAudit.push(full);
-            }
-          }
-        };
-        findFiles(targetPath);
-      }
+      const filesToAudit = collectFiles(auditTargets);
 
       const isFloorOnly = args.includes('--floor-only');
       const isStrict = args.includes('--strict');
       const isCodeOnly = args.includes('--code') || args.includes('--code-only');
+      const isCompact = args.includes('--compact');
       const isAfterMode = (args.includes('--mode') && args[args.indexOf('--mode') + 1] === 'after') || args.includes('--report') || args.includes('--after');
       const tierIndex = args.indexOf('--tier');
-      const targetTier = tierIndex !== -1 && args[tierIndex + 1] ? (args[tierIndex + 1] as any) : undefined;
+      const targetTier = tierIndex !== -1 && args[tierIndex + 1] ? (args[tierIndex + 1] as 'floor' | 'reflex' | 'finish') : undefined;
 
       if (!json) {
         console.log(`\n======================================================`);
@@ -544,7 +558,18 @@ export async function runCli(args: string[]) {
         console.log(`======================================================\n`);
       }
 
-      const auditedFiles: Array<Record<string, unknown>> = [];
+      type AuditReport = ReturnType<typeof auditCode>;
+      const auditedFiles: Array<{
+        path: string;
+        score: number;
+        isSlopFree: boolean;
+        passedFloor: boolean;
+        passedReflex: boolean;
+        violations: AuditReport['violations'];
+        stats: AuditReport['stats'];
+        summary: string;
+        reportPath?: string;
+      }> = [];
       let totalViolations = 0;
       let totalFloorIssues = 0;
       let totalReflexIssues = 0;
@@ -611,14 +636,25 @@ export async function runCli(args: string[]) {
       }
 
       const gateOk = !anyFloorFailed && !(isStrict && anyReflexFailed) && (isFloorOnly || maxScore <= 40);
-      if (json) {
+      if (json && isCompact) {
+        emitJson({
+          ok: gateOk,
+          score: maxScore,
+          totals: { files: filesToAudit.length, violations: totalViolations, floor: totalFloorIssues, reflex: totalReflexIssues, overruled: totalOverruled, finish: totalFinishIssues },
+          files: auditedFiles.filter(f => f.violations.length > 0).map(f => ({
+            path: f.path,
+            score: f.score,
+            issues: f.violations.map(v => `${v.tier}:${v.ruleId || v.type}@L${v.line}`)
+          }))
+        });
+      } else if (json) {
         emitJson({
           version: cliVersion(),
           ok: gateOk,
           score: maxScore,
           totals: { files: filesToAudit.length, violations: totalViolations, floor: totalFloorIssues, reflex: totalReflexIssues, overruled: totalOverruled, finish: totalFinishIssues },
           files: auditedFiles,
-          nextActions: auditedFiles.filter((f) => (f.violations as unknown[]).length > 0).map((f) => `Run: sloppy fix ${f.path} --diff`)
+          nextActions: auditedFiles.filter((f) => f.violations.length > 0).map((f) => `Run: sloppy fix ${f.path} --diff`)
         });
       } else {
         console.log(`------------------------------------------------------`);
@@ -936,7 +972,7 @@ export async function runCli(args: string[]) {
       if (json) { emitJson(SYNTHESIZED_ARCHETYPES); break; }
       console.log(`\n======================================================`);
       console.log(`SLOPPY SYNTHESIZED MASTER ARCHETYPES (${SYNTHESIZED_ARCHETYPES.length})`);
-      console.log(`Fusing the best of all 7 libraries without slop`);
+      console.log(`Fusing the best MIT UI ecosystems without slop`);
       console.log(`======================================================\n`);
 
       for (const a of SYNTHESIZED_ARCHETYPES) {
@@ -951,7 +987,7 @@ export async function runCli(args: string[]) {
     }
 
     case 'list': {
-      if (json) { emitJson({ components: SLOPPY_COMPONENTS, patterns: PATTERNS_CATALOG }); break; }
+      if (json) { emitJson({ components: SLOPPY_COMPONENTS, patterns: PATTERNS_CATALOG, motionEcosystems: MOTION_ECOSYSTEMS }); break; }
       const libFilter = args[1]?.toLowerCase();
 
       if (libFilter && SLOPPY_LIBRARIES[libFilter]) {
@@ -970,9 +1006,24 @@ export async function runCli(args: string[]) {
         return;
       }
 
+      if (libFilter === 'motion') {
+        console.log(`\n======================================================`);
+        console.log(`SLOPPY PERMISSIVE MOTION, 3D & LOTTIE ECOSYSTEMS (${MOTION_ECOSYSTEMS.length} MIT/Apache-2.0)`);
+        console.log(`======================================================\n`);
+        for (const m of MOTION_ECOSYSTEMS) {
+          console.log(`* ${m.name} (${m.id}) [${m.category}] [${m.license}]`);
+          console.log(`  Repo:     ${m.githubUrl}`);
+          console.log(`  Guidance: ${m.antiSlopGuidance}`);
+          if (m.licenseNote) console.log(`  License:  ${m.licenseNote}`);
+          console.log();
+        }
+        return;
+      }
+
       console.log(`\n======================================================`);
       console.log(`SLOPPY UNIFIED COMPONENT & PATTERN REGISTRY`);
-      console.log(`7 Integrated Libraries: stageshow, shadcn, motion-primitives, magicui, react-bits, kokonutui, animate-ui`);
+      console.log(`5 MIT Component Libraries: stageshow, shadcn, motion-primitives, magicui, kokonutui`);
+      console.log(`Plus ${MOTION_ECOSYSTEMS.length} MIT/Apache-2.0 Motion/3D/Scroll/Lottie ecosystems (sloppy list motion)`);
       console.log(`======================================================\n`);
 
       console.log(`--- Highlighted Curated Components ---`);
@@ -989,17 +1040,17 @@ export async function runCli(args: string[]) {
         console.log(`  Focal Point: ${p.focalPoint}\n`);
       }
 
-      console.log(`Tip: Filter by library with: sloppy list <stageshow|shadcn|motion-primitives|magicui|react-bits|kokonutui|animate-ui>`);
+      console.log(`Tip: Filter by library with: sloppy list <stageshow|shadcn|motion-primitives|magicui|kokonutui|motion>`);
       break;
     }
 
     case 'libs': {
       console.log(`\n======================================================`);
-      console.log(`SLOPPY INTEGRATED LIBRARIES (7 Major Ecosystems)`);
+      console.log(`SLOPPY INTEGRATED LIBRARIES (MIT Component Ecosystems)`);
       console.log(`======================================================\n`);
 
       for (const lib of Object.values(SLOPPY_LIBRARIES)) {
-        console.log(`* ${lib.name.toUpperCase()} (id: "${lib.id}")`);
+        console.log(`* ${lib.name.toUpperCase()} (id: "${lib.id}") [${lib.license}]`);
         console.log(`  Author:         ${lib.author}`);
         console.log(`  Repository:     ${lib.githubUrl}`);
         console.log(`  Description:    ${lib.description}`);
@@ -1010,6 +1061,16 @@ export async function runCli(args: string[]) {
         }
         console.log();
       }
+
+      console.log(`======================================================`);
+      console.log(`SUPPORTED PERMISSIVE MOTION / SCROLL / 3D / LOTTIE ECOSYSTEMS (${MOTION_ECOSYSTEMS.length})`);
+      console.log(`======================================================\n`);
+      for (const m of MOTION_ECOSYSTEMS) {
+        console.log(`* ${m.name} (${m.id}) [${m.category}] [${m.license}] -> ${m.githubUrl}`);
+        console.log(`  Rules: ${m.enforcedRules.join(', ')} | ${m.antiSlopGuidance}`);
+        if (m.licenseNote) console.log(`  Note:  ${m.licenseNote}`);
+      }
+      console.log();
       break;
     }
 
@@ -1253,7 +1314,8 @@ export async function runCli(args: string[]) {
     default: {
       console.log(`
 SLOPPY: The AI Slop UI Fixer (MCP + Kit + Skill Engine)
-Combining: stageshow, shadcn, motion-primitives, magicui, react-bits, kokonutui, animate-ui
+Combining MIT Component Ecosystems (stageshow, shadcn, motion-primitives, magicui, kokonutui)
+& 21 Permissive Motion/Scroll/3D/Lottie Governors (Motion, Anime, Three.js, R3F, PixiJS, Lenis, Lottie, Rive)
 
 Usage:
   sloppy setup [--write|-w]     All-in-one setup: configure MCP clients and link Agent Skills
