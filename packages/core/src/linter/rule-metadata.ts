@@ -152,6 +152,34 @@ export const RULE_METADATA: Record<SlopViolationType, RuleMetadata> = {
     ['Check `prefers-reduced-motion` and confirm a non-motion state cue exists.'],
     ['source'], ['https://developer.apple.com/design/human-interface-guidelines/motion']
   ),
+  UNBOUNDED_INFINITE_MOTION: meta(
+    'motion', 'high', false,
+    ['Explicit loading spinners, progress indicators, or subtle ambient canvases gated by reduced motion.'],
+    ['The infinite loop lives inside a verified spinner or user-paused playback widget.'],
+    ['Replace `repeat: Infinity` or `loop: true` with a finite caused settle or add an explicit spinner/reduced-motion guard.'],
+    ['source'], ['https://developer.apple.com/design/human-interface-guidelines/motion']
+  ),
+  REDUCED_MOTION_BLINDNESS: meta(
+    'motion', 'high', true,
+    ['Reduced-motion handling is centralized in a root `<MotionConfig reducedMotion="user">` provider outside this file.'],
+    ['The file only wraps or exports static types without executing runtime animations or render loops.'],
+    ['Verify `prefers-reduced-motion: reduce` disables or simplifies movement in the browser.'],
+    ['source', 'standard'], ['https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html']
+  ),
+  LAYOUT_THRASH_ANIMATION: meta(
+    'motion', 'medium', true,
+    ['Accordion height reveals (`height: "auto"`) bounded by `overflow-hidden`.'],
+    ['The animation is handled via CSS transforms (`x`, `y`, `scale`) and `opacity`.'],
+    ['Inspect browser performance flamecharts and swap geometry properties for `transform` and `opacity`.'],
+    ['source']
+  ),
+  UNMANAGED_WEBGL_OR_MEDIA_LOOP: meta(
+    'motion', 'high', true,
+    ['Cleanup or throttling is managed by a parent controller or custom hook outside this component.'],
+    ['The file creates a one-shot static export rather than a mounted browser render loop.'],
+    ['Confirm `.dispose()`/`.destroy()` runs on unmount and `<Canvas>` specifies `frameloop="demand"` or capped `dpr`.'],
+    ['source']
+  ),
   CENTER_ALIGNED_EVERYTHING: meta(
     'layout', 'medium', false,
     ['A centered hero or campaign page with deliberately limited content.', 'Centered empty states and dialogs.'],

@@ -96,6 +96,16 @@ export const MOTION_RULES: RuleGuide = {
       name: 'Clean Loop Seam',
       description: 'Seamless or cause-driven resets.',
       rule: 'Animations either loop naturally back to origin or reset with an explicit cause (e.g. closing a drawer, navigating back).'
+    },
+    {
+      name: 'Reduced Motion & GPU Discipline',
+      description: 'Respect prefers-reduced-motion and animate compositor properties only.',
+      rule: 'With Motion/Anime/React Spring/Tween, guard with useReducedMotion() or prefers-reduced-motion, avoid repeat: Infinity on static cards, and animate transform/opacity instead of width/height/top/left.'
+    },
+    {
+      name: 'Scroll, WebGL & Lottie Lifecycle Hygiene',
+      description: 'Clean disposal, on-demand frames, and non-hijacking scroll.',
+      rule: 'Lenis/AOS/Rellax/Lax/Atropos must never break native scroll or hide hero content; Three.js/R3F/PixiJS must bound DPR, use frameloop="demand" where idle, and dispose on unmount; Lottie/dotLottie/Rive must tie playback to state and clean up instances.'
     }
   ],
   failureModes: [

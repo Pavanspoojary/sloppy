@@ -3,6 +3,7 @@ import { RULE_METADATA } from './rule-metadata.js';
 import { classTokens, getClasses, scanSource, sourceLocation, SourceTag } from './source-scan.js';
 import { loadSloppyConfig } from './config.js';
 import { DEFAULT_BLUR_CAP, declaredAccentAllows, resolveDesignContract } from './design-contract.js';
+import { getNodeEnv } from '../node-env.js';
 
 export * from './types.js';
 export * from './rule-metadata.js';
@@ -48,7 +49,11 @@ const advice: Record<SlopViolationType, string> = {
   UNVALIDATED_DYNAMIC_RETURN: 'Specify a concrete return type or runtime validator instead of returning unverified "any" or "unknown".',
   BROAD_RECORD_SLOP: 'Define explicit property keys or bounded unions instead of broad "Record<string, any>" dictionaries.',
   EMPTY_OBJECT_SPREAD: 'Use explicit optional properties instead of conditional empty object spreads ("...(cond ? { a } : {})").',
-  NON_NULL_ASSERTION_SLOP: 'Use optional chaining ("?.") or defensive null checks instead of chained non-null assertions ("!.").'
+  NON_NULL_ASSERTION_SLOP: 'Use optional chaining ("?.") or defensive null checks instead of chained non-null assertions ("!.").',
+  UNBOUNDED_INFINITE_MOTION: 'Replace unbounded infinite loops ("repeat: Infinity", "loop: true") with caused, finite transitions that settle cleanly.',
+  REDUCED_MOTION_BLINDNESS: 'Honor reduced-motion accessibility via useReducedMotion(), <MotionConfig reducedMotion="user">, or prefers-reduced-motion checks.',
+  LAYOUT_THRASH_ANIMATION: 'Animate compositor-friendly transform (x, y, scale, rotate) and opacity instead of layout-thrashing width, height, top, left, margin, or padding.',
+  UNMANAGED_WEBGL_OR_MEDIA_LOOP: 'Clean up WebGL/Lottie/scroll instances with .dispose()/.destroy() on unmount, and throttle R3F <Canvas> with frameloop="demand" and bounded dpr.'
 };
 
 export function isAiNarrationComment(text: string): { isSlop: boolean; reason?: string } {
@@ -118,40 +123,66 @@ function color(token: string): number[] | undefined {
 }
 function has(tokens: string[], re: RegExp): boolean { return tokens.some(t => re.test(t)); }
 function spacingAtLeastFour(token: string, prefix: string): boolean { const match = token.match(new RegExp(`^${prefix}-(\\d+(?:\\.\\d+)?)$`)); return !!match && Number(match[1]) >= 4; }
-function textFromSource(code: string, tags: SourceTag[]): string {
-  const parts: string[] = []; let cursor = 0, depth = 0;
+function extractVisibleText(code: string, tags: SourceTag[]): { text: string; offsetAt: (vIndex: number) => number } {
+  const spans: Array<{ vStart: number; vEnd: number; cStart: number }> = [];
+  const parts: string[] = [];
+  let vCursor = 0, cursor = 0, depth = 0;
+
+  const pushSpan = (segment: string, cStart: number) => {
+    if (!segment) return;
+    const maskedSegment = segment.replace(/https?:\/\/\S+/g, m => ' '.repeat(m.length));
+    spans.push({ vStart: vCursor, vEnd: vCursor + maskedSegment.length, cStart });
+    parts.push(maskedSegment);
+    vCursor += maskedSegment.length;
+  };
+
   // Only JSX text and single string literals render. Code inside expression
   // containers is discarded, including nested callbacks and inline comments.
-  const visible = (chunk: string) => {
-    const out: string[] = []; let i = 0;
-    while (i < chunk.length) {
-      const next = chunk.indexOf('{', i);
-      if (next < 0) { out.push(chunk.slice(i)); break; }
-      out.push(chunk.slice(i, next));
+  const visible = (chunkStart: number, chunkEnd: number) => {
+    let i = chunkStart;
+    while (i < chunkEnd) {
+      const next = code.indexOf('{', i);
+      if (next < 0 || next >= chunkEnd) { pushSpan(code.slice(i, chunkEnd), i); break; }
+      pushSpan(code.slice(i, next), i);
       let braces = 1, j = next + 1, quote = '';
-      for (; j < chunk.length && braces > 0; j++) {
-        const c = chunk[j];
+      for (; j < chunkEnd && braces > 0; j++) {
+        const c = code[j];
         if (quote) { if (c === '\\') j++; else if (c === quote) quote = ''; continue; }
         if (c === '"' || c === "'" || c === '`') quote = c;
         else if (c === '{') braces++;
         else if (c === '}') braces--;
       }
-      const expression = chunk.slice(next + 1, j - 1);
-      if (!expression.trim().startsWith('/*')) {
-        const literal = expression.trim().match(/^(['"`])([\s\S]*)\1$/);
-        if (literal) out.push(` ${literal[2]} `);
+      const exprRaw = code.slice(next + 1, j - 1);
+      const trimmed = exprRaw.trim();
+      if (!trimmed.startsWith('/*')) {
+        const literal = trimmed.match(/^(['"`])([\s\S]*)\1$/);
+        if (literal) {
+          const leading = exprRaw.indexOf(literal[1]);
+          const contentStart = next + 1 + leading + 1;
+          pushSpan(' ', Math.max(0, contentStart - 1));
+          pushSpan(literal[2], contentStart);
+          pushSpan(' ', Math.min(code.length - 1, contentStart + literal[2].length));
+        }
       }
       i = j;
     }
-    return out.join('');
   };
+
   for (const tag of tags) {
-    if (depth > 0) parts.push(visible(code.slice(cursor, tag.start)));
+    if (depth > 0) visible(cursor, tag.start);
     if (tag.closing) depth = Math.max(0, depth - 1);
     else if (!tag.selfClosing) depth++;
     cursor = tag.end;
   }
-  return parts.join('').replace(/https?:\/\/\S+/g, ' ');
+
+  const offsetAt = (vIndex: number): number => {
+    for (const s of spans) {
+      if (vIndex >= s.vStart && vIndex < s.vEnd) return s.cStart + (vIndex - s.vStart);
+    }
+    return spans[0]?.cStart ?? 0;
+  };
+
+  return { text: parts.join(''), offsetAt };
 }
 
 export function auditCode(code: string, options: AuditOptions = {}): AuditResult {
@@ -204,24 +235,23 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   for (const m of code.matchAll(/import\s*\{([^}]+)\}\s*from\s*["'][^"']+["']/g)) for (const part of m[1].split(',')) { const [original, alias] = part.trim().split(/\s+as\s+/); if (original && alias) importAliases.set(alias, original); }
   const iconNames = /^(?:Sparkles|LucideSparkles|Wand|MagicWand|Sparkle|IconSparkles|AiSparkle|SparkleIcon|MagicWand02)$/;
   for (const tag of tags) if (!tag.closing) { const base = tag.name.split('.').pop() || ''; if (iconNames.test(base) || iconNames.test(importAliases.get(base) || '')) push('SPARKLE_ICON_OVERLOAD', tag.start, `Decorative sparkle or magic-wand component <${tag.name}> detected.`); }
-  const visibleText = textFromSource(code, scan.tags);
+  const { text: visibleText, offsetAt } = extractVisibleText(code, scan.tags);
   const phrases = /Powered\s+by\s+AI|AI[- ]Powered|Smart\s+AI|Magical\s+AI|AI\s+Assistant|AI\s+Generated|Generate\s+with\s+AI|Supercharge\b[^.\n]{0,50}\bAI\b|\u{2728}/igu;
-  let phrase: RegExpExecArray | null; while ((phrase = phrases.exec(visibleText))) { const at = code.indexOf(phrase[0]); push('MADE_UP_AI_BADGE', Math.max(0, at), `Made-up AI marketing phrase "${phrase[0]}" detected.`); }
+  let phrase: RegExpExecArray | null; while ((phrase = phrases.exec(visibleText))) { push('MADE_UP_AI_BADGE', offsetAt(phrase.index), `Made-up AI marketing phrase "${phrase[0]}" detected.`); }
   const cliches = /\b(?:Unlock\s+the\s+power\s+of|Supercharge\s+your\s+(?:workflow|productivity|team|growth)|Seamless(?:ly)?\s+(?:integrate|connect|automate)|10x\s+your\s+(?:productivity|growth|output)|Revolutionize\s+the\s+way)\b/igu;
-  let clicheMatch: RegExpExecArray | null; while ((clicheMatch = cliches.exec(visibleText))) { const at = code.indexOf(clicheMatch[0]); push('AI_COPY_CLICHE', Math.max(0, at), `Generic AI marketing cliché "${clicheMatch[0]}" detected.`); }
+  let clicheMatch: RegExpExecArray | null; while ((clicheMatch = cliches.exec(visibleText))) { push('AI_COPY_CLICHE', offsetAt(clicheMatch.index), `Generic AI marketing cliché "${clicheMatch[0]}" detected.`); }
   const negativeParallelism = /\b(?:not\s+just\s+[^,.!?\n]{2,40}[,—-]\s*(?:it['’]s|but)\b|\bnot\s+a\s+[^,.!?\n]{2,30}[,—-]\s*it['’]s\b)/igu;
-  let npMatch: RegExpExecArray | null; while ((npMatch = negativeParallelism.exec(visibleText))) { const at = code.indexOf(npMatch[0]); push('NEGATIVE_PARALLELISM', Math.max(0, at), `Negative parallelism copy cliché ("${npMatch[0].trim()}") detected.`); }
+  let npMatch: RegExpExecArray | null; while ((npMatch = negativeParallelism.exec(visibleText))) { push('NEGATIVE_PARALLELISM', offsetAt(npMatch.index), `Negative parallelism copy cliché ("${npMatch[0].trim()}") detected.`); }
   const socialProof = /\b(?:(?:(?:[1-9][0-9]{0,2}(?:,\d{3})+|\d+(?:\.\d+)?[kKMB])\+\s*(?:users?|customers?|teams?|companies|developers)|(?:99\.99?%|100%)\s*(?:uptime|guarantee)|Loved\s+by\s+(?:thousands|millions)|Rated\s+5(?:\.0)?\s*(?:\/|out\s+of)\s*5\s*stars?))\b/igu;
-  let spMatch: RegExpExecArray | null; while ((spMatch = socialProof.exec(visibleText))) { const at = code.indexOf(spMatch[0]); push('FABRICATED_SOCIAL_PROOF', Math.max(0, at), `Fabricated social proof metric "${spMatch[0].trim()}" detected.`); }
+  let spMatch: RegExpExecArray | null; while ((spMatch = socialProof.exec(visibleText))) { push('FABRICATED_SOCIAL_PROOF', offsetAt(spMatch.index), `Fabricated social proof metric "${spMatch[0].trim()}" detected.`); }
   const chatbotPhrases = /\b(?:I\s+hope\s+this\s+helps[!.]?|In\s+conclusion,\s+|Overall,\s+(?:it|this)\s+|Let\s+me\s+know\s+if\s+you\s+(?:need|have)|It['’]s\s+important\s+to\s+note\s+that)\b/igu;
-  let cbMatch: RegExpExecArray | null; while ((cbMatch = chatbotPhrases.exec(visibleText))) { const at = code.indexOf(cbMatch[0]); push('CHATBOT_SIGN_OFF_SLOP', Math.max(0, at), `Leftover chatbot conversational phrasing "${cbMatch[0].trim()}" detected.`); }
+  let cbMatch: RegExpExecArray | null; while ((cbMatch = chatbotPhrases.exec(visibleText))) { push('CHATBOT_SIGN_OFF_SLOP', offsetAt(cbMatch.index), `Leftover chatbot conversational phrasing "${cbMatch[0].trim()}" detected.`); }
   const loremIpsum = /\b(?:lorem\s+ipsum|dolor\s+sit\s+amet|consectetur\s+adipiscing|sed\s+do\s+eiusmod|john\s+doe|jane\s+doe)\b/igu;
-  let liMatch: RegExpExecArray | null; while ((liMatch = loremIpsum.exec(visibleText))) { const at = code.indexOf(liMatch[0]); push('LOREM_IPSUM_SLOP', Math.max(0, at), `Placeholder copy or filler name "${liMatch[0].trim()}" detected.`); }
-  const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
+  let liMatch: RegExpExecArray | null; while ((liMatch = loremIpsum.exec(visibleText))) { push('LOREM_IPSUM_SLOP', offsetAt(liMatch.index), `Placeholder copy or filler name "${liMatch[0].trim()}" detected.`); }
+  const emojiRegex = /\p{Emoji_Presentation}|\p{Emoji}\uFE0F/gu;
   let emojiMatch: RegExpExecArray | null;
   while ((emojiMatch = emojiRegex.exec(visibleText))) {
-    const at = code.indexOf(emojiMatch[0]);
-    push('EMOJI_ICON_SLOP', Math.max(0, at), `Raw emoji "${emojiMatch[0]}" detected in UI text instead of an SVG icon.`);
+    push('EMOJI_ICON_SLOP', offsetAt(emojiMatch.index), `Raw emoji "${emojiMatch[0]}" detected in UI text instead of an SVG icon.`);
   }
   for (const tag of tags) {
     const href = tag.attributes.get('href')?.value?.trim();
@@ -308,16 +338,17 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
 
   // CPY-05: formulaic prose tics. Each sub-signal is reported at most once.
   const emDashCount = (visibleText.match(/[—–]/g) || []).length;
-  if (emDashCount >= 3) push('AI_PROSE_FILLER', Math.max(0, code.search(/[—–]/)), `${emDashCount} em/en dashes in visible copy; use commas or parentheses where they belong.`);
+  const firstDash = visibleText.match(/[—–]/);
+  if (emDashCount >= 3 && firstDash) push('AI_PROSE_FILLER', offsetAt(firstDash.index ?? 0), `${emDashCount} em/en dashes in visible copy; use commas or parentheses where they belong.`);
   const adjectiveTriplet = /\b(?:innovative|transformative|groundbreaking|cutting-edge|revolutionary|seamless|powerful|intuitive|scalable|robust)\b\s*,\s*(?:innovative|transformative|groundbreaking|cutting-edge|revolutionary|seamless|powerful|intuitive|scalable|robust)\b\s*,\s*and\s+(?:innovative|transformative|groundbreaking|cutting-edge|revolutionary|seamless|powerful|intuitive|scalable|robust)\b/iu;
   const tripletMatch = visibleText.match(adjectiveTriplet);
-  if (tripletMatch) push('AI_PROSE_FILLER', Math.max(0, code.indexOf(tripletMatch[0])), `Adjective triplet "${tripletMatch[0]}" detected.`);
+  if (tripletMatch) push('AI_PROSE_FILLER', offsetAt(tripletMatch.index ?? 0), `Adjective triplet "${tripletMatch[0]}" detected.`);
   const falseRange = visibleText.match(/\branging\s+from\s+[^.\n]{2,40}\s+to\s+[^.\n]{2,40}/iu);
-  if (falseRange) push('AI_PROSE_FILLER', Math.max(0, code.indexOf(falseRange[0])), `Formulaic false range "${falseRange[0].trim()}" detected.`);
+  if (falseRange) push('AI_PROSE_FILLER', offsetAt(falseRange.index ?? 0), `Formulaic false range "${falseRange[0].trim()}" detected.`);
   const vagueAttribution = visibleText.match(/\b(?:studies|research|experts|industry\s+reports?)\s+(?:show|shows|suggest|suggests|say|says|indicate|indicates)\b/iu);
-  if (vagueAttribution) push('AI_PROSE_FILLER', Math.max(0, code.indexOf(vagueAttribution[0])), `Vague attribution "${vagueAttribution[0]}" detected.`);
+  if (vagueAttribution) push('AI_PROSE_FILLER', offsetAt(vagueAttribution.index ?? 0), `Vague attribution "${vagueAttribution[0]}" detected.`);
   const spelledMetric = visibleText.match(/\b(?:across|for|with|in)\s+(?:three|four|five|six|seven|eight|nine|ten)\s+(?:tools|teams|steps|platforms|workflows|minutes|seconds)\b/iu);
-  if (spelledMetric) push('AI_PROSE_FILLER', Math.max(0, code.indexOf(spelledMetric[0])), `Spelled-out metric "${spelledMetric[0]}" detected; use numerals in UI copy.`);
+  if (spelledMetric) push('AI_PROSE_FILLER', offsetAt(spelledMetric.index ?? 0), `Spelled-out metric "${spelledMetric[0]}" detected; use numerals in UI copy.`);
 
   const lockedColors = new Set<string>();
   for (const token of designContract.lockedTokens) {
@@ -386,10 +417,14 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
 
   // LIV-01: Sterile surface and missing liveliness check
   const interactiveControls = tags.filter(t => t.name === 'button' || (t.name === 'a' && t.attributes.has('href')));
+  const hasStylesheetImport = /\bimport\s+['"][^'"]+\.(?:css|scss|sass|less)['"]/.test(code);
   if (interactiveControls.length >= 2) {
     const hasMicroInteractions = interactiveControls.some(ctrl => {
       const tokens = getClasses(ctrl);
-      return tokens.some(t => /^(?:hover:|focus:|active:|transition-|duration-|ease-)/.test(t));
+      if (tokens.some(t => /^(?:hover:|focus:|focus-visible:|active:|transition-|duration-|ease-|group-hover:)/.test(t))) return true;
+      const styleVal = ctrl.attributes.get('style')?.value || '';
+      if (/\b(?:transition|animation)\s*:/.test(styleVal)) return true;
+      return hasStylesheetImport && tokens.some(t => /^[a-z]+-[a-z0-9_-]+$/.test(t) && !/^(?:px|py|p|mx|my|m|bg|text|rounded|border|flex|grid|w|h)-/.test(t));
     });
     if (!hasMicroInteractions) {
       push('STERILE_SURFACE_SLOP', interactiveControls[0].start, 'Interactive controls lack hover, focus, or transition affordances, creating a sterile interface.');
@@ -429,6 +464,80 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   for (const match of scan.masked.matchAll(nonNullRegex)) {
     const at = match.index ?? 0;
     push('NON_NULL_ASSERTION_SLOP', at, `Unsafe non-null assertion ("${match[0]}") detected; use optional chaining or defensive guard.`);
+  }
+
+  // MOT-02: Unbounded infinite programmatic motion (Motion, Anime, Tween, Lottie, Rive, Magic UI)
+  const isLoaderNear = (at: number) => /Spinner|Loader|Loading|Skeleton|Shimmer|Progress/i.test(code.slice(Math.max(0, at - 140), at + 140));
+  for (const match of scan.masked.matchAll(/\brepeat\s*:\s*Infinity\b|\.repeat\s*\(\s*Infinity\s*\)/g)) {
+    const at = match.index ?? 0;
+    if (!isLoaderNear(at)) {
+      push('UNBOUNDED_INFINITE_MOTION', at, `Unbounded infinite motion ("${match[0].trim()}") detected; animations should settle cleanly after a visible cause.`);
+    }
+  }
+  for (const match of scan.masked.matchAll(/\b(?:anime|lottie\.loadAnimation|new\s+(?:DotLottie|Rive))\s*\(\s*\{[^}]*\bloop\s*:\s*true\b/g)) {
+    const at = match.index ?? 0;
+    if (!isLoaderNear(at)) {
+      push('UNBOUNDED_INFINITE_MOTION', at, 'Infinite programmatic loop ("loop: true") detected; bind playback to user state or hold after payoff.');
+    }
+  }
+  for (const tag of tags) {
+    if (/^(?:DotLottieReact|Lottie)$/.test(tag.name) && tag.attributes.has('loop')) {
+      const loopVal = tag.attributes.get('loop')?.value?.trim();
+      if (!loopVal || loopVal === 'true') {
+        push('UNBOUNDED_INFINITE_MOTION', tag.start, `<${tag.name} loop> runs indefinitely; trigger playback from an explicit interaction or finite state.`);
+      }
+    }
+  }
+
+  // MOT-03: Missing reduced-motion safeguard when active runtime motion/scroll/3D/Lottie libraries are invoked
+  const runtimeMotionImport = /\bfrom\s+['"](?:motion(?:\/react)?|framer-motion|animejs|@react-spring\/[^'"]+|@formkit\/auto-animate|@tweenjs\/tween\.js|@theatre\/core|lenis|@studio-freight\/lenis|aos|rellax|lax\.js|atropos|splitting|vivus|three|@react-three\/fiber|pixi\.js|lottie-web|@lottiefiles\/dotlottie-(?:web|react)|@rive-app\/[^'"]+)['"]/.exec(code);
+  const runtimeMotionCall = /<motion\.[a-z]+|\banime\s*\(|\buseSpring\s*\(|\buseAutoAnimate\s*\(|\bnew\s+(?:Lenis|Rellax|Vivus|THREE\.WebGLRenderer|PIXI\.Application|DotLottie|Rive)\b|\bAOS\.init\s*\(|\blax\.init\s*\(|\bSplitting\s*\(|<Canvas\b|\blottie\.loadAnimation\s*\(|\buseRive\s*\(|<DotLottieReact\b|<Atropos\b/.exec(code);
+  if (runtimeMotionImport && runtimeMotionCall) {
+    const hasReducedMotionGuard = /\b(?:useReducedMotion|MotionConfig|reducedMotion|prefers-reduced-motion|matchMedia)\b/.test(code);
+    if (!hasReducedMotionGuard) {
+      push('REDUCED_MOTION_BLINDNESS', runtimeMotionCall.index ?? runtimeMotionImport.index ?? 0, 'Active runtime animation/WebGL library used without a reduced-motion guard (useReducedMotion, MotionConfig, or prefers-reduced-motion).');
+    }
+  }
+
+  // MOT-04: Layout-thrashing geometric animation (width/height/top/left/margin/padding)
+  const layoutPropRe = /\b(?:width|height|top|left|right|bottom|margin(?:Top|Left|Right|Bottom)?|padding(?:Top|Left|Right|Bottom)?)\s*:/;
+  const nonHeightLayoutPropRe = /\b(?:width|top|left|right|bottom|margin(?:Top|Left|Right|Bottom)?|padding(?:Top|Left|Right|Bottom)?)\s*:/;
+  const layoutThrashMsg = 'Animating geometric layout properties triggers reflow thrashing; prefer transform (x, y, scale) and opacity.';
+  const isPureAutoHeight = (expr: string, rawExpr: string): boolean =>
+    /\bheight\s*:\s*['"]auto['"]/.test(rawExpr) && !nonHeightLayoutPropRe.test(expr);
+
+  for (const tag of scan.tags) {
+    for (const propName of ['animate', 'whileHover', 'whileTap', 'exit']) {
+      const attr = tag.attributes.get(propName);
+      if (!attr || !layoutPropRe.test(attr.value)) continue;
+      const rawExpr = code.slice(attr.valueStart, attr.valueStart + attr.value.length);
+      if (isPureAutoHeight(attr.value, rawExpr)) continue;
+      push('LAYOUT_THRASH_ANIMATION', attr.valueStart, layoutThrashMsg);
+    }
+  }
+  for (const match of scan.masked.matchAll(/\banime\s*\(\s*\{[^}]*\b(?:width|height|top|left|right|bottom|margin(?:Top|Left|Right|Bottom)?|padding(?:Top|Left|Right|Bottom)?)\s*:/g)) {
+    const at = match.index ?? 0;
+    const rawSlice = code.slice(at, at + match[0].length + 24);
+    if (isPureAutoHeight(match[0], rawSlice)) continue;
+    push('LAYOUT_THRASH_ANIMATION', at, layoutThrashMsg);
+  }
+
+  // MOT-05: Unmanaged WebGL, Lottie, or Smooth Scroll lifecycle / frame throttling
+  for (const tag of tags) {
+    if (tag.name === 'Canvas' && /\bfrom\s+['"]@react-three\/fiber['"]/.test(code)) {
+      const hasFrameloop = tag.attributes.has('frameloop');
+      const hasDpr = tag.attributes.has('dpr');
+      if (!hasFrameloop && !hasDpr) {
+        push('UNMANAGED_WEBGL_OR_MEDIA_LOOP', tag.start, 'React Three Fiber <Canvas> runs an unthrottled 60fps loop with unbounded DPR; set frameloop="demand" and/or dpr={[1, 2]}.');
+      }
+    }
+  }
+  const unmanagedInstance = /\b(?:new\s+(?:THREE\.WebGLRenderer|PIXI\.Application|DotLottie|Rive|Lenis|Rellax|Vivus)|lottie\.loadAnimation)\s*\(/.exec(scan.masked);
+  if (unmanagedInstance) {
+    const hasCleanup = /\.(?:dispose|destroy|cleanup|kill)\s*\(|\bcancelAnimationFrame\s*\(/.test(scan.masked);
+    if (!hasCleanup) {
+      push('UNMANAGED_WEBGL_OR_MEDIA_LOOP', unmanagedInstance.index ?? 0, `Imperative animation/WebGL instance ("${unmanagedInstance[0].trim()}") lacks .dispose()/.destroy() cleanup.`);
+    }
   }
 
   const ignoreFile = allComments.some(c => /sloppy-ignore-file/.test(c.text));
@@ -530,7 +639,8 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     const criteria: Partial<Record<SlopViolationType, string>> = {
       LOW_CONTRAST_GRAY: 'WCAG 1.4.3 Contrast (Minimum)',
       FAKE_CONTROL_SLOP: 'WCAG 4.1.2 Name, Role, Value / 2.1.1 Keyboard',
-      SCROLL_HIJACKING: 'WCAG 2.1.1 Keyboard'
+      SCROLL_HIJACKING: 'WCAG 2.1.1 Keyboard',
+      REDUCED_MOTION_BLINDNESS: 'WCAG 2.3.3 Animation from Interactions'
     };
     const evidence: FindingEvidence = {
       kind,
@@ -725,8 +835,7 @@ export function generateAuditReport(
 
   try {
     const cwd = typeof process !== 'undefined' && process.cwd ? process.cwd() : '/';
-    const fs = (globalThis as any).process?.getBuiltinModule ? (globalThis as any).process.getBuiltinModule('node:fs') : null;
-    const pathMod = (globalThis as any).process?.getBuiltinModule ? (globalThis as any).process.getBuiltinModule('node:path') : null;
+    const { fs, path: pathMod } = getNodeEnv();
     if (fs && pathMod) {
       reportPath = pathMod.resolve(cwd, filename);
       fs.writeFileSync(reportPath, lines.join('\n') + '\n', 'utf8');

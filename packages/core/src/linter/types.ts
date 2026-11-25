@@ -38,7 +38,11 @@ export type SlopViolationType =
   | 'UNVALIDATED_DYNAMIC_RETURN'
   | 'BROAD_RECORD_SLOP'
   | 'EMPTY_OBJECT_SPREAD'
-  | 'NON_NULL_ASSERTION_SLOP';
+  | 'NON_NULL_ASSERTION_SLOP'
+  | 'UNBOUNDED_INFINITE_MOTION'
+  | 'REDUCED_MOTION_BLINDNESS'
+  | 'LAYOUT_THRASH_ANIMATION'
+  | 'UNMANAGED_WEBGL_OR_MEDIA_LOOP';
 
 export type RuleMode = 'auto-fix' | 'detect-only';
 
@@ -78,6 +82,10 @@ export const CANONICAL_RULES: Record<SlopViolationType, CanonicalRule> = {
   FLAT_SURFACE_MONOTONY: { ruleId: 'STR-03', title: 'Flat Surface Monotony', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
   WORD_BUDGET_EXCEEDED: { ruleId: 'TYP-08', title: 'Word Budget Exceeded', defaultSeverity: 'high', tier: 'reflex', mode: 'auto-fix' },
   UNEARNED_ANIMATION: { ruleId: 'MOT-01', title: 'Unearned Looping Animation', defaultSeverity: 'high', tier: 'reflex', mode: 'auto-fix' },
+  UNBOUNDED_INFINITE_MOTION: { ruleId: 'MOT-02', title: 'Unbounded Infinite Programmatic Motion', defaultSeverity: 'high', tier: 'reflex', mode: 'detect-only' },
+  REDUCED_MOTION_BLINDNESS: { ruleId: 'MOT-03', title: 'Missing Reduced-Motion Guard', defaultSeverity: 'medium', tier: 'floor', mode: 'detect-only' },
+  LAYOUT_THRASH_ANIMATION: { ruleId: 'MOT-04', title: 'Layout-Thrashing Property Animation', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
+  UNMANAGED_WEBGL_OR_MEDIA_LOOP: { ruleId: 'MOT-05', title: 'Unmanaged WebGL, Lottie, or Scroll Loop', defaultSeverity: 'high', tier: 'floor', mode: 'detect-only' },
   CENTER_ALIGNED_EVERYTHING: { ruleId: 'LAY-01', title: 'Center-Aligned Monotony', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
   FABRICATED_SOCIAL_PROOF: { ruleId: 'CPY-01', title: 'Fabricated Social Proof Metrics', defaultSeverity: 'high', tier: 'floor', mode: 'detect-only' },
   STATUS_DOT_SLOP: { ruleId: 'CPY-02', title: 'Unwired Pulsing Status Dots', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
