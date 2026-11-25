@@ -1,6 +1,6 @@
 {
-  "name": "@sloppy/kit",
-  "version": "1.0.0",
+  "name": "@sloppy-ai/kit",
+  "version": "1.1.0",
   "description": "Portable React anti-slop UI and motion kit",
   "type": "module",
   "main": "./index.ts",

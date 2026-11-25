@@ -1,5 +1,5 @@
 {
-  "name": "@sloppy/mcp",
+  "name": "@sloppy-ai/mcp",
   "version": "1.1.0",
   "description": "Model Context Protocol (MCP) server for Sloppy: The AI Slop UI Fixer",
   "type": "module",
@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "@sloppy/core": "^1.1.0"
+    "@sloppy-ai/core": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",

@@ -8,10 +8,10 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=@sloppy/playground",
-    "build": "npm run build --workspace=@sloppy/core && npm run build --workspace=@sloppy/mcp && npm run build --workspace=sloppy && npm run build --workspace=@sloppy/playground",
-    "typecheck": "npm run typecheck --workspace=@sloppy/core && npm run typecheck --workspace=@sloppy/mcp && npm run typecheck --workspace=sloppy && npm run typecheck --workspace=@sloppy/kit && npm run typecheck --workspace=@sloppy/verify && npm run typecheck --workspace=@sloppy/playground",
-    "test": "npm run build --workspace=@sloppy/core && npm run test:rubric && npm run test:unit",
+    "dev": "npm run dev --workspace=@sloppy-ai/playground",
+    "build": "npm run build --workspace=@sloppy-ai/core && npm run build --workspace=@sloppy-ai/mcp && npm run build --workspace=@sloppy-ai/cli && npm run build --workspace=@sloppy-ai/playground",
+    "typecheck": "npm run typecheck --workspace=@sloppy-ai/core && npm run typecheck --workspace=@sloppy-ai/mcp && npm run typecheck --workspace=@sloppy-ai/cli && npm run typecheck --workspace=@sloppy-ai/kit && npm run typecheck --workspace=@sloppy-ai/verify && npm run typecheck --workspace=@sloppy-ai/playground",
+    "test": "npm run build --workspace=@sloppy-ai/core && npm run test:rubric && npm run test:unit",
     "test:rubric": "node scripts/verify-archetypes.js",
     "test:unit": "node --test --test-concurrency=1 test/*.test.mjs",
     "verify:commit": "node scripts/verify-commit-msg.js",

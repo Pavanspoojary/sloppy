@@ -1,6 +1,7 @@
 {
-  "name": "@sloppy/playground",
-  "version": "1.0.0",
+  "name": "@sloppy-ai/playground",
+  "version": "1.1.0",
+  "private": true,
   "description": "Interactive visual playground and catalog viewer for Sloppy patterns",
   "type": "module",
   "scripts": {
@@ -10,8 +11,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@sloppy/core": "*",
-    "@sloppy/kit": "*",
+    "@sloppy-ai/core": "*",
+    "@sloppy-ai/kit": "*",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

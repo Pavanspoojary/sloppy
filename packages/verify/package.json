@@ -1,5 +1,5 @@
 {
-  "name": "@sloppy/verify",
+  "name": "@sloppy-ai/verify",
   "version": "1.1.0",
   "description": "Perceptual & geometric verification engine for Sloppy UI components",
   "type": "module",
