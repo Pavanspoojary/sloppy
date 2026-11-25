@@ -85,7 +85,7 @@ test('install-mcp writes an idempotent client configuration', () => {
     assert.ok(fs.existsSync(dest));
     const content = fs.readFileSync(dest, 'utf8');
     const config = JSON.parse(content);
-    assert.deepEqual(config.mcpServers.sloppy, { command: 'npx', args: ['-y', 'sloppy', 'mcp'] });
+    assert.deepEqual(config.mcpServers.sloppy, { command: 'npx', args: ['-y', '@sloppy-ai/cli', 'mcp'] });
 
     const second = runCli(['install-mcp', '--client', 'cursor', '--dir', dir, '--json']);
     assert.equal(second.status, 0, second.stderr);

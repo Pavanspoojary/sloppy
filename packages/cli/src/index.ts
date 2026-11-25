@@ -485,7 +485,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     const client = args[args.indexOf('--client') + 1];
     const dir = args.includes('--dir') ? path.resolve(process.cwd(), args[args.indexOf('--dir') + 1]) : process.cwd();
     if (!['cursor', 'vscode', 'claude', 'codex'].includes(client)) { fail('Usage: sloppy install-mcp --client <cursor|vscode|claude|codex> [--dir <path>] [--write]'); return true; }
-    const snippet = '[mcp_servers.sloppy]\ncommand = "npx"\nargs = ["-y", "sloppy", "mcp"]';
+    const snippet = '[mcp_servers.sloppy]\ncommand = "npx"\nargs = ["-y", "@sloppy-ai/cli", "mcp"]';
     if (client === 'codex') {
       if (!args.includes('--write')) { if (json) emitJson({ client, written: false, snippet }); else console.log(`${snippet}\nNo file written. Pass --write to append this entry to ~/.codex/config.toml.`); return true; }
       const dest = path.join(process.env.HOME || dir, '.codex/config.toml');
@@ -502,7 +502,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       if (raw !== null) config = JSON.parse(raw);
     } catch (error) { fail(`Cannot parse ${dest}: ${(error as Error).message}`); return true; }
     const key = client === 'vscode' ? 'servers' : 'mcpServers';
-    config[key] ||= {}; config[key].sloppy = { command: 'npx', args: ['-y', 'sloppy', 'mcp'] };
+    config[key] ||= {}; config[key].sloppy = { command: 'npx', args: ['-y', '@sloppy-ai/cli', 'mcp'] };
     writeFileSafe(dest, `${JSON.stringify(config, null, 2)}\n`, true);
     if (json) emitJson({ client, written: true, path: dest }); else console.log(`Wrote ${dest}`); return true;
   }
@@ -532,7 +532,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
             try { config = JSON.parse(raw); } catch {}
           }
           config[client.key] = config[client.key] || {};
-          config[client.key].sloppy = { command: 'npx', args: ['-y', 'sloppy', 'mcp'] };
+          config[client.key].sloppy = { command: 'npx', args: ['-y', '@sloppy-ai/cli', 'mcp'] };
           writeFileSafe(client.file, `${JSON.stringify(config, null, 2)}\n`, true);
           mcpResults.push({ client: client.id, path: client.file, status: 'configured' });
         } else {
@@ -544,7 +544,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
     }
 
     const codexFile = path.join(homeDir, '.codex/config.toml');
-    const codexSnippet = '[mcp_servers.sloppy]\ncommand = "npx"\nargs = ["-y", "sloppy", "mcp"]';
+    const codexSnippet = '[mcp_servers.sloppy]\ncommand = "npx"\nargs = ["-y", "@sloppy-ai/cli", "mcp"]';
     if (shouldWrite) {
       try {
         let content = readOptionalFile(codexFile) || '';
@@ -558,34 +558,48 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       mcpResults.push({ client: 'codex', path: codexFile, status: 'dry-run (pass --write to save)' });
     }
 
-    const sourceSkillDir = path.resolve(ROOT_DIR, 'skills/sloppy');
-    const skillTargets = [
-      { name: 'Universal Agents', dir: path.join(homeDir, '.agents/skills/sloppy') },
-      { name: 'Antigravity', dir: path.join(homeDir, '.gemini/config/skills/sloppy') },
-      { name: 'Claude Code', dir: path.join(homeDir, '.claude/skills/sloppy') }
+    const skillList = [
+      'sloppy',
+      'sloppy-ui',
+      'sloppy-code',
+      'sloppy-copywriting',
+      'sloppy-human',
+      'sloppy-layoutmobile'
     ];
+    const sourceBaseDir = fs.existsSync(path.resolve(__dirname, '../skills'))
+      ? path.resolve(__dirname, '../skills')
+      : path.resolve(ROOT_DIR, 'skills');
 
-    if (fs.existsSync(sourceSkillDir)) {
-      for (const target of skillTargets) {
-        if (shouldWrite) {
-          try {
-            fs.mkdirSync(path.dirname(target.dir), { recursive: true });
+    for (const skillName of skillList) {
+      const sourceSkillDir = path.resolve(sourceBaseDir, skillName);
+      if (fs.existsSync(sourceSkillDir)) {
+        const skillTargets = [
+          { name: `Universal Agents (${skillName})`, dir: path.join(homeDir, '.agents/skills', skillName) },
+          { name: `Antigravity (${skillName})`, dir: path.join(homeDir, '.gemini/config/skills', skillName) },
+          { name: `Claude Code (${skillName})`, dir: path.join(homeDir, '.claude/skills', skillName) }
+        ];
+
+        for (const target of skillTargets) {
+          if (shouldWrite) {
             try {
-              fs.symlinkSync(sourceSkillDir, target.dir, 'dir');
-              skillResults.push({ target: target.name, path: target.dir, status: 'symlinked' });
-            } catch (err) {
-              if ((err as NodeJS.ErrnoException)?.code === 'EEXIST') {
-                skillResults.push({ target: target.name, path: target.dir, status: 'already-installed' });
-              } else {
-                fs.cpSync(sourceSkillDir, target.dir, { recursive: true });
-                skillResults.push({ target: target.name, path: target.dir, status: 'copied' });
+              fs.mkdirSync(path.dirname(target.dir), { recursive: true });
+              try {
+                fs.symlinkSync(sourceSkillDir, target.dir, 'dir');
+                skillResults.push({ target: target.name, path: target.dir, status: 'symlinked' });
+              } catch (err) {
+                if ((err as NodeJS.ErrnoException)?.code === 'EEXIST') {
+                  skillResults.push({ target: target.name, path: target.dir, status: 'already-installed' });
+                } else {
+                  fs.cpSync(sourceSkillDir, target.dir, { recursive: true });
+                  skillResults.push({ target: target.name, path: target.dir, status: 'copied' });
+                }
               }
+            } catch (err) {
+              skillResults.push({ target: target.name, path: target.dir, status: `error: ${(err as Error).message}` });
             }
-          } catch (err) {
-            skillResults.push({ target: target.name, path: target.dir, status: `error: ${(err as Error).message}` });
+          } else {
+            skillResults.push({ target: target.name, path: target.dir, status: 'dry-run (pass --write to save)' });
           }
-        } else {
-          skillResults.push({ target: target.name, path: target.dir, status: 'dry-run (pass --write to save)' });
         }
       }
     }

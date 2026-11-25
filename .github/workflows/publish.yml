@@ -59,6 +59,12 @@ jobs:
             "@sloppy-ai/kit"
             "@sloppy-ai/mcp"
             "@sloppy-ai/cli"
+            "@sloppy-ai/skill"
+            "@sloppy-ai/skill-ui"
+            "@sloppy-ai/skill-code"
+            "@sloppy-ai/skill-copywriting"
+            "@sloppy-ai/skill-human"
+            "@sloppy-ai/skill-layoutmobile"
           )
 
           for PKG in "${PACKAGES[@]}"; do
