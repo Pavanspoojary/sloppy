@@ -30,6 +30,10 @@ from the same table, so an ID has exactly one meaning everywhere.
 | `MED-01` | `EMOJI_ICON_SLOP` | Raw Emojis as UI Icons | reflex | medium | detect-only | high | craft | Raw Emojis as UI Icons |
 | `MED-02` | `SPARKLE_ICON_OVERLOAD` | Sparkle / Magic-Wand Icon Overload | reflex | high | auto-fix | high | craft | Decorative sparkle or magic-wand icons on generic actions. |
 | `MOT-01` | `UNEARNED_ANIMATION` | Unearned Looping Animation | reflex | high | auto-fix | high | craft | Unearned Looping Animation |
+| `MOT-02` | `UNBOUNDED_INFINITE_MOTION` | Unbounded Infinite Programmatic Motion | reflex | high | detect-only | high | craft | Infinite programmatic repeat/loop animations without a progress or spinner context. |
+| `MOT-03` | `REDUCED_MOTION_BLINDNESS` | Missing Reduced-Motion Guard | floor | medium | detect-only | high | objective | Active runtime motion, scroll, 3D, or Lottie code missing a prefers-reduced-motion guard. |
+| `MOT-04` | `LAYOUT_THRASH_ANIMATION` | Layout-Thrashing Property Animation | reflex | medium | detect-only | medium | objective | Programmatic animation of layout geometry (width, height, top, left, margin, padding). |
+| `MOT-05` | `UNMANAGED_WEBGL_OR_MEDIA_LOOP` | Unmanaged WebGL, Lottie, or Scroll Loop | floor | high | detect-only | high | objective | Uncleaned WebGL, Lottie, or scroll instances and unbounded R3F Canvas render loops. |
 | `STR-01` | `BOXED_CARD_SYNDROME` | Boxed Card Monotony | reflex | medium | detect-only | medium | craft | Boxed Card Monotony |
 | `STR-02` | `UNANCHORED_FLOATING_WINDOW` | Unanchored Floating Window | reflex | high | detect-only | medium | craft | Unanchored Floating Window |
 | `STR-03` | `FLAT_SURFACE_MONOTONY` | Flat Surface Monotony | reflex | medium | detect-only | medium | craft | Flat Surface Monotony |
@@ -220,6 +224,40 @@ quiet. `sloppy rules --json` exposes the same fields to agents.
 - **Not applicable when**: The animation is the only way the product communicates an asynchronous state.
 - **Validation**: Check `prefers-reduced-motion` and confirm a non-motion state cue exists.
 - **Sources**: https://developer.apple.com/design/human-interface-guidelines/motion
+
+### `MOT-02` Unbounded Infinite Programmatic Motion
+- **Family**: motion
+- **Confidence**: high (craft judgment)
+- **Evidence collected**: source
+- **False positives**: Explicit loading spinners, progress indicators, or subtle ambient canvases gated by reduced motion.
+- **Not applicable when**: The infinite loop lives inside a verified spinner or user-paused playback widget.
+- **Validation**: Replace `repeat: Infinity` or `loop: true` with a finite caused settle or add an explicit spinner/reduced-motion guard.
+- **Sources**: https://developer.apple.com/design/human-interface-guidelines/motion
+
+### `MOT-03` Missing Reduced-Motion Guard
+- **Family**: motion
+- **Confidence**: high (objective defect)
+- **Evidence collected**: source, standard
+- **False positives**: Reduced-motion handling is centralized in a root `<MotionConfig reducedMotion="user">` provider outside this file.
+- **Not applicable when**: The file only wraps or exports static types without executing runtime animations or render loops.
+- **Validation**: Verify `prefers-reduced-motion: reduce` disables or simplifies movement in the browser.
+- **Sources**: https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html
+
+### `MOT-04` Layout-Thrashing Property Animation
+- **Family**: motion
+- **Confidence**: medium (objective defect)
+- **Evidence collected**: source
+- **False positives**: Accordion height reveals (`height: "auto"`) bounded by `overflow-hidden`.
+- **Not applicable when**: The animation is handled via CSS transforms (`x`, `y`, `scale`) and `opacity`.
+- **Validation**: Inspect browser performance flamecharts and swap geometry properties for `transform` and `opacity`.
+
+### `MOT-05` Unmanaged WebGL, Lottie, or Scroll Loop
+- **Family**: motion
+- **Confidence**: high (objective defect)
+- **Evidence collected**: source
+- **False positives**: Cleanup or throttling is managed by a parent controller or custom hook outside this component.
+- **Not applicable when**: The file creates a one-shot static export rather than a mounted browser render loop.
+- **Validation**: Confirm `.dispose()`/`.destroy()` runs on unmount and `<Canvas>` specifies `frameloop="demand"` or capped `dpr`.
 
 ### `STR-01` Boxed Card Monotony
 - **Family**: structure

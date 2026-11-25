@@ -26,7 +26,7 @@ To preserve agent context windows while providing deep, domain-specific guidance
 2. **`sloppy-copywriting`**: Word budget enforcement (3-7 words per element), eliminating negative parallelism clichés, and preventing fabricated metrics and formulaic prose (`CPY-01`, `CPY-02`, `CPY-04`, `CPY-05`, `CPY-06`, `CPY-07`, `TYP-08`).
 3. **`sloppy-human`**: Engineering authenticity, realistic domain nouns, authentic macOS chrome headers, and grounded error/empty states (`REAL_WORLD_CHROME_MISSING`, `AUTHENTIC_MICROCOPY`).
 4. **`sloppy-layoutmobile`**: Viewport framing (>=66% stage coverage, edge bleeding), breaking boxed card syndrome, responsive density, and mobile scroll protection (`STR-01`, `STR-02`, `LAY-01`, `UX-05`).
-5. **`sloppy-code`**: Component semantics, keyboard accessibility (`role="button"`, `tabIndex={0}`), zero dead placeholder callbacks, and comment hygiene pass (`AX-01`, `UX-02`, `TOK-01`, `COD-01`).
+5. **`sloppy-code`**: Component semantics, keyboard accessibility (`role="button"`, `tabIndex={0}`), zero dead placeholder callbacks, comment hygiene, and low-evidence TypeScript code rules (`AX-01`, `UX-02`, `TOK-01`, `COD-01`..`COD-06`).
 
 Load specialist skills only when operating directly in their respective domains to save context tokens.
 
@@ -105,23 +105,29 @@ npx skills add Pavanspoojary/slopy -g
 
 ---
 
-## The 7 Integrated UI Ecosystems
+## The 5 Open-Source UI Ecosystems & 21 Permissive Motion Governors
 
-Sloppy unifies 757 component source files across 7 libraries and 74 gold pattern directories into a single anti-slop catalog:
+Sloppy unifies strictly permissive open-source component ecosystems (**MIT** / **Apache-2.0**) and 74 gold pattern directories into a single anti-slop catalog (excluding Commons-Clause or AGPL-licensed packages):
 
-1. **Stageshow (`stageshow`)**: Grounded product framing, cursor choreography, anti-slop primitives (`Stage`, `Window`, `Act`, `Ease`, `Bar`), and 74 gold product pattern directories.
-2. **shadcn/ui (`shadcn`)**: Essential, accessible Radix-based UI building blocks (Button, Dialog, Table, Popover) anchored to surface depth steps.
-3. **Motion Primitives (`motion-primitives`)**: Physics-based micro-interactions (Morphing Dialog, Sliding Number, Expandable Tabs) with disciplined damping.
-4. **Magic UI (`magicui`)**: Restrained marketing hero elements (max 1 beam/glow, opacity < 0.15, zero purple sparkle combos).
-5. **React Bits (`react-bits`)**: Ambient canvas shaders and kinetic typography with low particle counts and strict text contrast.
-6. **Kokonut UI (`kokonutui`)**: Modern AI prompt composers, agent execution lanes, and tool approval cards that eliminate AI sparkle clichés.
-7. **Animate UI (`animate-ui`)**: Fluid physics, staggered reveals, and clean transition variants (150-300ms durations).
+1. **Stageshow (`stageshow`, MIT)**: Grounded product framing, cursor choreography, anti-slop primitives (`Stage`, `Window`, `Act`, `Ease`, `Bar`), and 74 gold product pattern directories.
+2. **shadcn/ui (`shadcn`, MIT)**: Essential, accessible Radix-based UI building blocks (Button, Dialog, Table, Popover) anchored to surface depth steps.
+3. **Motion Primitives (`motion-primitives`, MIT)**: Physics-based micro-interactions (Morphing Dialog, Sliding Number, Expandable Tabs) with disciplined damping.
+4. **Magic UI (`magicui`, MIT)**: Restrained marketing hero elements (max 1 beam/glow, opacity < 0.15, zero purple sparkle combos).
+5. **Kokonut UI (`kokonutui`, MIT)**: Modern AI prompt composers, agent execution lanes, and tool approval cards that eliminate AI sparkle clichés.
+
+In addition, Sloppy governs **21 permissive MIT / Apache-2.0 animation, scroll, text/SVG, 3D/WebGL, and Lottie/Rive libraries** via `MOT-01`..`MOT-05` & `UX-05` (`sloppy list motion`):
+- **Core Animation**: Motion (`motion`), Anime.js, React Spring, AutoAnimate, Tween.js, Theatre.js Core (`@theatre/core` Apache-2.0 only; `@theatre/studio` AGPL-3.0 excluded), Motion Canvas
+- **Scroll & Parallax**: Lenis, AOS, Rellax, Lax.js, Atropos
+- **Text & SVG**: Splitting.js, Vivus
+- **3D & WebGL**: Three.js, React Three Fiber, PixiJS
+- **Lottie & Interactive**: lottie-web, dotlottie-web, Rive (`@rive-app/*`)
+- **Animated UI**: Magic UI
 
 ---
 
 ## 10 Synthesized Master Archetypes
 
-Sloppy fuses the 7 libraries into 10 unified master archetypes that eliminate AI slop entirely:
+Sloppy fuses the MIT libraries into 10 unified master archetypes that eliminate AI slop entirely:
 
 1. **AI Autonomous Agent Cockpit (`ai-agent-cockpit`)**: Swarm control room with parallel task lanes, tool verification diff, and subtle ambient backdrop.
 2. **Developer Platform High-Craft Hero (`developer-platform-hero`)**: Bento deploy terminal & edge telemetry with 2x2 dominant focal card.
@@ -154,57 +160,50 @@ Grade scale: **A+ (95-100)**, **A (90-94)**, **B (80-89)**, **C (70-79)**, **D (
 
 ---
 
-## The Sloppy MCP Server Tools
+## The Sloppy MCP Server Tools (5 Primary Verbs)
 
-When working in an agentic coding environment (Antigravity, Claude Code, Cursor, OpenHands), you have direct access to the `sloppy` MCP tools:
+When working in an agentic coding environment (Antigravity, Claude Code, Cursor, Codex), the `sloppy` MCP server exposes strictly 5 context-efficient primary tools:
 
-- `sloppy_check`: Audit-and-gate loop entry point. Returns `{ ok, score, grade, violations, nextActions }` with `componentType` for the visible word budget.
-- `sloppy_evaluate_rubric`: Evaluates code against the full 10-point Craft Rubric, returning letter grade (A+ to F), dimension scores, and SVG badge.
-- `sloppy_plan_repairs`: Generates a structured repair plan with confidence levels (high/medium/low), risk ratings, exact patch snippets, and a unified diff.
-- `sloppy_fix`: Transforms sloppy AI code into clean craft with syntax validation, a unified diff, and a post-fix audit. It is a dry run unless `write: true`.
-- `sloppy_get_archetype`: Retrieve any of the 10 multi-library synthesized master archetypes.
-- `sloppy_search_components`: Search 31 curated component entries spanning 757 source files across all 7 libraries by query, library, or category.
-- `sloppy_get_component`: Retrieve full source code (TSX/JSX), dependencies, and anti-slop craft guidance for any component ID.
-- `sloppy_list_libraries`: List all 7 integrated UI libraries with descriptions, strengths, and specific anti-slop rules.
-- `sloppy_list_catalog`: Inspect overall ecosystem statistics across components, libraries, looks, and patterns.
-- `sloppy_audit_code`: Scan JSX/TSX/CSS files or snippets to detect AI slop with line numbers and severity scores.
-- `sloppy_search_patterns`: Search 74 curated gold patterns and real-product studies.
-- `sloppy_get_pattern`: Fetch complete, runnable TSX code, scoped CSS, and motion choreography scripts.
-- `sloppy_get_kit_primitives`: Retrieve ready-to-paste clean React/CSS primitives (`Stage`, `Window`, `Phone`, `Bento`, `Cursor`, `Act`, `Ease`, `Bar`, `Pill`, `Badge`).
-- `sloppy_get_look`: Get design tokens, color scales, surface steps, typography, provenance, and CSS variables for curated looks (`minimal`, `linear`, `radix`, `raycast`, `blueprint`, `glass`, `dark-hero`) and Refero-sourced production looks (`nuxt`, `linearity`, `grafana`, `modern-treasury`, `milanote`, `bunny`, `heptabase`, `glyphs`).
-- `sloppy_get_rules`: Query detailed reference manuals (`craft`, `framing`, `motion`, `bento`, `word_budget`).
-- `sloppy_refactor_slop`: Guided refactoring proposals.
+- `sloppy_check`: Audit-and-gate entry point. Accepts `code` or `path`, `componentType`, `strict`, `codeOnly` (`COD-01`..`06`), and `compact: true` for token-dense output. Returns `{ ok, score, grade, violations, nextActions }`.
+- `sloppy_plan`: Generates a structured repair plan with confidence levels, risk ratings, exact patch snippets, and a unified diff.
+- `sloppy_fix`: Transforms sloppy UI code into clean craft with syntax validation, wiring protection (`--kept`), unified diff, and post-fix audit (`write: false` dry-run by default).
+- `sloppy_catalog`: Unified search across all 7 integrated UI libraries, 74 curated patterns, 10 master archetypes, and looks (`type: "all" | "components" | "patterns" | "looks" | "archetypes"`).
+- `sloppy_rules`: Query authoritative guidelines (`craft`, `framing`, `motion`, `bento`, `word_budget`, `stack`, `all`) including project stack detection.
 
 ---
 
 ## CLI Reference (`sloppy`)
 
 ```bash
-# Evaluate code against 10-point Craft Rubric
-sloppy rubric src/components/Hero.tsx --strict
+# Check files, gate CI, or run browser accessibility & multi-width verification
+sloppy check src/components/Hero.tsx --strict --compact --json
+sloppy check http://127.0.0.1:1355 --render --a11y
 
-# Generate a structured repair plan with confidence & risk analysis
+# Audit TypeScript engineering slop only or run approval-gated after-mode report
+sloppy audit src/ --code --strict
+sloppy audit src/components/Hero.tsx --mode after
+
+# Inspect canonical rules and evidence metadata
+sloppy rules --json
+
+# Evaluate code against 10-point Craft Rubric & generate repair plans
+sloppy rubric src/components/Hero.tsx --strict
 sloppy plan src/components/Hero.tsx
 
-# Surgically auto-fix code in-place
-sloppy fix src/components/Hero.tsx --write
+# Surgically auto-fix code in-place (preserving wiring via --kept)
+sloppy fix src/components/Hero.tsx --only 1,3 --write
 
-# Run browser geometric framing & motion continuity checks
-sloppy verify http://127.0.0.1:1355
+# Run browser geometric framing, reflow, focus order, and motion checks
+sloppy verify http://127.0.0.1:1355 --a11y --multi-width
 
-# Inspect or scaffold from 10 synthesized master archetypes
+# Inspect or scaffold from 10 synthesized master archetypes & 7 libraries
 sloppy archetypes
 sloppy create ai-agent-cockpit --dir ./src/components
-
-# List all 7 integrated libraries and search components
 sloppy libs
-sloppy list magicui
-sloppy list kokonutui
-
-# Add a component directly into your project
 sloppy add motion-primitives/morphing-dialog
 
-# Launch the visual playground & Craft Studio on port 1355
+# Display craft scoreboard & launch Craft Studio on port 1355
+sloppy gain
 sloppy dev
 ```
 
@@ -213,8 +212,8 @@ sloppy dev
 ## 7-Step Anti-Slop Workflow
 
 1. **Medium and Place**: Decide medium (still illustration or animated demo with cursor) and size (720x340 for hero beside copy, 960x480 for full-width hero, 440x320 for feature card). Design at 1:1 scale.
-2. **Choose a Look**: Query `sloppy_get_look` for tokens. Hand-authored looks are `linear`, `minimal`, `raycast`, `radix`, `blueprint`, `glass`, `dark-hero`. Refero-sourced production looks are `nuxt`, `linearity`, `grafana`, `modern-treasury`, `milanote`, `bunny`, `heptabase`, `glyphs`.
-3. **Select Foundations or Archetype**: Query `sloppy_search_components` or scaffold one of the 10 master archetypes via `sloppy create <archetype>`.
+2. **Choose a Look**: Query `sloppy_catalog` (`type: "looks"`) or run `sloppy looks --next` for tokens. Hand-authored looks are `linear`, `minimal`, `raycast`, `radix`, `blueprint`, `glass`, `dark-hero`. Refero-sourced production looks are `nuxt`, `linearity`, `grafana`, `modern-treasury`, `milanote`, `bunny`, `heptabase`, `glyphs`.
+3. **Select Foundations or Archetype**: Query `sloppy_catalog` (`type: "components"` / `"archetypes"`) or scaffold one of the 10 master archetypes via `sloppy create <archetype>`.
 4. **Apply Word Budget**: Count the real strings (keep between 3 and 7). Use `<Bar />` for filler.
 5. **Ground the Framing**: Windows and phones must cover >= 66% of the stage and bleed off at least one edge.
 6. **Choreograph Caused Motion**: Use the `Act` API (`<Act on={clock} script={...}>`). Every motion must have a visible cause.

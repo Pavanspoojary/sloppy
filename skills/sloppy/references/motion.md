@@ -118,6 +118,17 @@ Pick the shape from what the product is valued for; a demo forced into the wrong
 ## The cursor
 
 - **No cursor means no stand-in.** Never walk a focus ring, halo or spotlight between controls; states and timing carry a system story (`examples/cursors`).
+
+## Open-Source Motion, Scroll, 3D & Lottie Discipline (`MOT-02`..`MOT-05`)
+
+Sloppy enforces runtime craft discipline across 21 permissive (`MIT` / `Apache-2.0`) animation, scroll, SVG, 3D/WebGL, and Lottie ecosystems (excluding copyleft/Commons-Clause editor or bundle tools such as `@theatre/studio`):
+
+- **Core Animation** (`motion`, `animejs`, `@react-spring/web`, `@formkit/auto-animate`, `@tweenjs/tween.js`, `@theatre/core`, `@motion-canvas/core`): Honor `useReducedMotion()` / `<MotionConfig reducedMotion="user">` (`MOT-03`), replace `repeat: Infinity` / `loop: true` on non-loader UI with caused transitions (`MOT-02`), and animate compositor-only properties (`x`, `y`, `scale`, `opacity`) instead of `width`, `height`, `top`, `left`, `margin`, or `padding` (`MOT-04`).
+- **Scroll & Parallax** (`lenis`, `aos`, `rellax`, `lax.js`, `atropos`): Guard wheel smoothers with `prefers-reduced-motion` (`MOT-03`), initialize `AOS` with `once: true`, destroy scroll instances on unmount (`MOT-05`), and keep parallax subtle.
+- **Text & SVG** (`splitting`, `vivus`): Preserve semantic heading labels, split only short headlines, and keep SVG draws finite (`MOT-02`).
+- **3D & WebGL** (`three`, `@react-three/fiber`, `pixi.js`): Dispose geometries/materials/renderers on unmount, cap R3F `<Canvas dpr={[1, 2]} frameloop="demand">`, and pause loops when hidden or under reduced motion (`MOT-05`).
+- **Lottie & Interactive** (`lottie-web`, `@lottiefiles/dotlottie-web`, `@rive-app/*`): Bind playback to user/state machines instead of blind loops (`MOT-02`) and always call `.destroy()` / cleanup (`MOT-05`).
+- **Animated UI** (`magicui`): Restrict ambient beams/grids/particles to single focal regions under neutral palettes.
 - **The elements decide the cursor's kind** via `data-cursor` (`ibeam`, `hand`, `open`, `crosshair`, `resize-ns` or `resize-ew` on an edge that drags, `resize-nwse` or `resize-nesw` on a corner, with `drag(..., { cursor: 'preserve' })` so it doesn't close to a fist), switching mid-path as it crosses the edge, never after arriving (`examples/cursors`, `examples/cursor-resize`).
 - **`drag()` closes and reopens the hand itself;** a drag over text stays an I-beam; `{ cursor: 'preserve' }` keeps the arrow for arrow-based creation (`examples/google-calendar`).
 - **Native app buttons keep the arrow,** and a button inside a marked area is the arrow again unmarked; `cursor()` is only for kinds nothing implies (`wait`).

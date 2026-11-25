@@ -45,7 +45,11 @@ const descriptionFor = (slug) => {
     FAKE_CONTROL_SLOP: 'Clickable div or span without role or keyboard access.',
     NON_NULL_ASSERTION_SLOP: 'Chained non-null assertions bypassing null checks.',
     AI_NARRATION_COMMENT_SLOP: 'Line-by-line narration comments and divider banners.',
-    DESIGN_TOKEN_DRIFT: 'A hard-coded color outside the palette locked in DESIGN.md.'
+    DESIGN_TOKEN_DRIFT: 'A hard-coded color outside the palette locked in DESIGN.md.',
+    UNBOUNDED_INFINITE_MOTION: 'Infinite programmatic repeat/loop animations without a progress or spinner context.',
+    REDUCED_MOTION_BLINDNESS: 'Active runtime motion, scroll, 3D, or Lottie code missing a prefers-reduced-motion guard.',
+    LAYOUT_THRASH_ANIMATION: 'Programmatic animation of layout geometry (width, height, top, left, margin, padding).',
+    UNMANAGED_WEBGL_OR_MEDIA_LOOP: 'Uncleaned WebGL, Lottie, or scroll instances and unbounded R3F Canvas render loops.'
   }[slug];
   return text || CANONICAL_RULES[slug].title;
 };

@@ -74,3 +74,15 @@ AI agents routinely render `<div onClick={handleClick}>` without accessibility a
   - `z-10`: Sticky headers and navbars
   - `z-20`: Dropdowns, popovers, tooltips
   - `z-50`: Modals, dialog overlays, command bars
+
+---
+
+## 5. Low-Evidence TypeScript Code Rules (`COD-02`..`COD-06`)
+
+AI agents often fabricate type safety that compiles without runtime guarantees:
+- **`COD-02` (`CHAINED_TYPE_ASSERTION`, Reflex)**: Avoid `as unknown as T` or `as any as T`; validate shapes with type guards or Zod schemas.
+- **`COD-03` (`UNVALIDATED_DYNAMIC_RETURN`, Reflex)**: Specify concrete return interfaces instead of `(): any` or `(): Promise<unknown>`.
+- **`COD-04` (`BROAD_RECORD_SLOP`, Reflex)**: Replace broad `Record<string, any>` / `Record<string, unknown>` maps with explicit property keys or union dictionaries.
+- **`COD-05` (`EMPTY_OBJECT_SPREAD`, Finish)**: Avoid `...(cond ? { key } : {})`; declare optional properties explicitly.
+- **`COD-06` (`NON_NULL_ASSERTION_SLOP`, Floor)**: Never chain `foo!.bar!.baz`; use optional chaining (`?.`) or defensive guards.
+- **Strict Invariant Ignores (`--strict`)**: Suppressing any rule with `// sloppy-ignore-next-line <RULE>` in strict mode requires a written invariant reason (`-- <reason>` of at least 5 characters), e.g. `// sloppy-ignore-next-line COD-02 -- Checked invariant: validated via Zod upstream`.
