@@ -41,7 +41,7 @@ jobs:
 
       - name: Upload Sloppy SARIF to GitHub Code Scanning
         if: always() && hashFiles('sloppy-results.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sloppy-results.sarif
           category: sloppy-static-analysis
