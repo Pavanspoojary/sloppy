@@ -1,5 +1,5 @@
 {
-  "name": "@sloppy/skill-human",
+  "name": "@sloppy-ai/skill-human",
   "version": "1.4.0",
   "description": "Specialist anti-slop skill for engineering authenticity, human touch, and concrete domain nouns.",
   "main": "SKILL.md",

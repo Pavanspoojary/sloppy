@@ -1,5 +1,5 @@
 {
-  "name": "@sloppy/skill-ui",
+  "name": "@sloppy-ai/skill-ui",
   "version": "1.4.0",
   "description": "Specialist anti-slop skill for visual design, surface hierarchy, and icon authenticity.",
   "main": "SKILL.md",

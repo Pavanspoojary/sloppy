@@ -1,5 +1,5 @@
 {
-  "name": "@sloppy/skill-layoutmobile",
+  "name": "@sloppy-ai/skill-layoutmobile",
   "version": "1.4.0",
   "description": "Specialist anti-slop skill for responsive viewport framing, breaking boxed card syndrome, and mobile density.",
   "main": "SKILL.md",

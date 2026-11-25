@@ -1,5 +1,5 @@
 {
-  "name": "@sloppy/skill-code",
+  "name": "@sloppy-ai/skill-code",
   "version": "1.4.0",
   "description": "Specialist anti-slop skill for React/TypeScript component architecture, accessibility semantics, and comment hygiene.",
   "main": "SKILL.md",
