@@ -15,6 +15,7 @@ import {
   RULE_METADATA,
   LOOKS,
   searchAllComponents,
+  searchMotionEcosystems,
   searchPatterns,
   searchSynthesizedArchetypes,
   transformSlopToCraft
@@ -94,7 +95,7 @@ export const PRIMARY_TOOLS: Tool[] = [
       type: 'object',
       properties: {
         query: { type: 'string', description: 'Search query or keyword' },
-        type: { type: 'string', enum: ['all', 'components', 'patterns', 'looks', 'archetypes'], description: 'Filter category (default: "all")', default: 'all' },
+        type: { type: 'string', enum: ['all', 'components', 'patterns', 'looks', 'archetypes', 'motion'], description: 'Filter category (default: "all")', default: 'all' },
         limit: { type: 'integer', description: 'Maximum results to return (default: 20)', default: 20 }
       }
     }
@@ -285,6 +286,7 @@ export function createSloppyServer() {
         const patterns = (kind === 'all' || kind === 'patterns') ? searchPatterns(q, { limit }) : [];
         const archetypes = (kind === 'all' || kind === 'archetypes') ? searchSynthesizedArchetypes(q) : [];
         const looks = (kind === 'all' || kind === 'looks') ? Object.keys(LOOKS).filter((l) => !q || l.includes(q.toLowerCase())) : [];
+        const motionEcosystems = (kind === 'all' || kind === 'motion') ? searchMotionEcosystems(q).slice(0, limit) : [];
 
         return {
           content: [
@@ -297,12 +299,14 @@ export function createSloppyServer() {
                   components: components.length,
                   patterns: patterns.length,
                   archetypes: archetypes.length,
-                  looks: looks.length
+                  looks: looks.length,
+                  motionEcosystems: motionEcosystems.length
                 },
                 components: components.slice(0, limit),
                 patterns: patterns.slice(0, limit),
                 archetypes,
-                looks
+                looks,
+                motionEcosystems
               }, null, 2)
             }
           ]
