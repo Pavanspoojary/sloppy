@@ -15,8 +15,8 @@ test('False-Positive Sweep: Real-world patterns pass without false positives', (
     'patterns/finder/index.tsx',
     'patterns/notion/index.tsx',
     'patterns/google-calendar/index.tsx',
-    'packages/components/animate-ui/dialog.luma.tsx',
-    'packages/components/animate-ui/dropdown-menu.luma.tsx'
+    'packages/components/shadcn/dialog.tsx',
+    'packages/components/shadcn/dropdown-menu.tsx'
   ];
 
   for (const relPath of realPatterns) {

@@ -240,3 +240,27 @@ test('verify --a11y refuses to claim a pass for a source file with no rendered D
   assert.equal(payload.isStaticFallback, true);
   assert.match(payload.unavailable, /served|DOM/i);
 });
+
+test('check --json --compact emits token-dense payload and SARIF exports full canonical rule table', () => {
+  const compactRun = runCli(['check', fixture('slop-component.tsx'), '--json', '--compact']);
+  assert.equal(compactRun.status, 1, compactRun.stderr);
+  const compactPayload = parseJsonStdout(compactRun);
+  assert.equal(compactPayload.ok, false);
+  assert.ok(Array.isArray(compactPayload.files[0].issues), 'compact output must list compact issue strings');
+  assert.equal(typeof compactPayload.files[0].issues[0], 'string');
+
+  const sarifRun = runCli(['check', fixture('slop-component.tsx'), '--format', 'sarif']);
+  assert.equal(sarifRun.status, 1);
+  const sarif = parseJsonStdout(sarifRun);
+  const ruleIds = new Set(sarif.runs[0].tool.driver.rules.map((r) => r.id));
+  assert.ok(ruleIds.has('CHAINED_TYPE_ASSERTION'), 'SARIF driver rules must include COD-02');
+  assert.ok(ruleIds.has('DESIGN_TOKEN_DRIFT'), 'SARIF driver rules must include TOK-02');
+});
+
+test('audit accepts multiple targets and flags in any order', () => {
+  const multiRun = runCli(['audit', '--strict', fixture('clean-component.tsx'), fixture('slop-component.tsx'), '--json', '--compact']);
+  assert.equal(multiRun.status, 1, multiRun.stderr);
+  const payload = parseJsonStdout(multiRun);
+  assert.equal(payload.totals.files, 2, 'audit must inspect all target paths passed');
+  assert.equal(payload.files.length, 1, 'compact audit JSON only emits files with violations');
+});

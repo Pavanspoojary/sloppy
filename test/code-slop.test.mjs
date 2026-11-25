@@ -148,3 +148,46 @@ test('detectProjectStack accurately detects monorepo engineering stack', () => {
   assert.ok(stack.suggestedConfig.rules['COD-02'], 'suggested config should include COD-02');
   assert.equal(stack.suggestedConfig.strict, true, 'suggested config should recommend strict mode');
 });
+
+test('reports exact line numbers across multi-line block comments and regex quotes', () => {
+  const code = `
+/*
+ * Multi-line JSDoc header
+ * Line 3
+ * Line 4
+ */
+const pattern = /^['"\`]|['"\`]$/g;
+export function inspect(input: Record<string, unknown>) {
+  return input;
+}
+`;
+
+  const audit = auditCode(code);
+  const v = audit.violations.find(item => item.type === 'BROAD_RECORD_SLOP');
+  assert.ok(v, 'must still detect Record<string, unknown> after regex with quotes');
+  assert.equal(v.line, 8, `expected exact line 8, got ${v.line}`);
+  assert.match(v.snippet || '', /Record<string, unknown>/);
+});
+
+test('maps visible copy and emoji offsets to JSX rather than earlier comments, and ignores typographic glyphs', () => {
+  const code = `
+// Comment mentioning 👀 emoji and Supercharge your workflow
+import React from 'react';
+
+export function Panel() {
+  return (
+    <div className="p-4 bg-neutral-900">
+      <span>❯</span>
+      <span>✓</span>
+      <span>✕</span>
+      <span>🚀</span>
+    </div>
+  );
+}
+`;
+
+  const audit = auditCode(code);
+  const emojiViolations = audit.violations.filter(v => v.type === 'EMOJI_ICON_SLOP');
+  assert.equal(emojiViolations.length, 1, 'should only flag real emoji 🚀, not ❯/✓/✕ or comment 👀');
+  assert.equal(emojiViolations[0].line, 11, `expected JSX line 11, not comment line 2 (got ${emojiViolations[0].line})`);
+});
