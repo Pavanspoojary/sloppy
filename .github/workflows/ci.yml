@@ -10,6 +10,8 @@ jobs:
   quality-gate:
     name: Build, Typecheck & Craft Rubric Certification
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Repository
@@ -45,6 +47,8 @@ jobs:
     name: Conventional Commits & Professional Wording Validation
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Repository
@@ -58,8 +62,10 @@ jobs:
           node-version: 20
 
       - name: Validate PR Commit Messages
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          COMMITS=$(git log --no-merges origin/${{ github.base_ref }}..HEAD --pretty=format:"%H")
+          COMMITS=$(git log --no-merges "origin/$BASE_REF..HEAD" --pretty=format:"%H")
           for COMMIT in $COMMITS; do
             MSG=$(git log -1 --pretty=format:"%B" $COMMIT)
             echo "Validating commit $COMMIT: $MSG"

@@ -42,22 +42,28 @@ runs:
     - name: Run Sloppy Quality Gate & Generate SARIF
       shell: bash
       id: run-sloppy
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_MAX_SCORE: ${{ inputs.max-score }}
+        INPUT_STRICT: ${{ inputs.strict }}
+        INPUT_SARIF_FILE: ${{ inputs.sarif-file }}
       run: |
-        STRICT_FLAG=""
-        if [ "${{ inputs.strict }}" = "true" ]; then
-          STRICT_FLAG="--strict"
+        STRICT_ARGS=()
+        if [ "$INPUT_STRICT" = "true" ]; then
+          STRICT_ARGS+=(--strict)
         fi
 
         # Generate SARIF report for GitHub Code Scanning
-        npx --yes sloppy@latest check "${{ inputs.path }}" \
+        npx --yes sloppy@latest check "$INPUT_PATH" \
           --format sarif \
-          > "${{ inputs.sarif-file }}" || true
+          > "$INPUT_SARIF_FILE" || true
 
         # Run quality gate to verify exit codes
-        npx --yes sloppy@latest check "${{ inputs.path }}" \
-          --fail-on "${{ inputs.fail-on }}" \
-          --max-score "${{ inputs.max-score }}" \
-          $STRICT_FLAG
+        npx --yes sloppy@latest check "$INPUT_PATH" \
+          --fail-on "$INPUT_FAIL_ON" \
+          --max-score "$INPUT_MAX_SCORE" \
+          "${STRICT_ARGS[@]}"
 
     - name: Upload SARIF to GitHub Code Scanning
       if: ${{ inputs.upload-sarif == 'true' && (success() || failure()) }}
