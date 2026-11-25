@@ -1,5 +1,7 @@
 import { auditCode } from './index.js';
-import { SlopViolation } from './types.js';
+import { scanSource } from './source-scan.js';
+import type { DesignContract } from './design-contract.js';
+import type { AuditResult, SloppyConfig, SlopViolation } from './types.js';
 
 export interface CraftDimension {
   id: string;
@@ -26,8 +28,24 @@ export interface CraftCertification {
   svgBadge: string;
 }
 
-export function evaluateCraftRubric(code: string, options: { strict?: boolean; filepath?: string; componentType?: 'illustration' | 'feature-card' | 'hero' | 'application' | 'bento' } = {}): CraftCertification {
-  const audit = auditCode(code, { strict: options.strict, filepath: options.filepath, componentType: options.componentType });
+export function evaluateCraftRubric(
+  code: string,
+  options: {
+    strict?: boolean;
+    filepath?: string;
+    componentType?: 'illustration' | 'feature-card' | 'hero' | 'application' | 'bento';
+    config?: SloppyConfig;
+    designContract?: DesignContract;
+    audit?: AuditResult;
+  } = {}
+): CraftCertification {
+  const audit = options.audit ?? auditCode(code, {
+    strict: options.strict,
+    filepath: options.filepath,
+    componentType: options.componentType,
+    config: options.config,
+    designContract: options.designContract
+  });
   const violations = audit.violations;
 
   // Dimension 1: Surface Elevation & Grounding (0-10)
@@ -91,7 +109,11 @@ export function evaluateCraftRubric(code: string, options: { strict?: boolean; f
   let a11yScore = 10;
   if (violations.some(v => v.type === 'LOW_CONTRAST_GRAY')) a11yScore -= 5;
   if (violations.some(v => v.type === 'FAKE_CONTROL_SLOP')) a11yScore -= 4;
-  if (/<button[^>]*role=["']button["']|<a[^>]*role=["']link["']|<div[^>]*role=["']button["'][^>]*onClick(?!.*tabIndex)/i.test(code)) {
+  if (scanSource(code).tags.some(t => !t.closing && (
+    (t.name === 'button' && t.attributes.get('role')?.value === 'button') ||
+    (t.name === 'a' && t.attributes.get('role')?.value === 'link') ||
+    (t.name === 'div' && t.attributes.get('role')?.value === 'button' && t.attributes.has('onClick') && !t.attributes.has('tabIndex'))
+  ))) {
     a11yScore -= 3;
   }
   a11yScore = Math.max(0, a11yScore);

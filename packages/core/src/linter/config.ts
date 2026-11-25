@@ -1,5 +1,5 @@
 import { SloppyConfig } from './types.js';
-import { getNodeEnv } from '../node-env.js';
+import { findUpFile } from '../node-env.js';
 
 const CONFIG_FILENAMES = [
   'sloppy.config.json',
@@ -12,49 +12,27 @@ const CONFIG_FILENAMES = [
  * Safely no-ops in browser / client environments where Node filesystem is unavailable.
  */
 export function loadSloppyConfig(startPath?: string): SloppyConfig | null {
-  try {
-    const { fs, path } = getNodeEnv();
-    if (!fs || !path) return null;
-
-    let dir = startPath ? path.resolve(startPath) : process.cwd();
-    if (fs.existsSync(dir) && fs.statSync(dir).isFile()) {
-      dir = path.dirname(dir);
-    }
-
-    const root = path.parse(dir).root;
-
-    while (dir && dir !== root) {
-      for (const filename of CONFIG_FILENAMES) {
-        const candidate = path.join(dir, filename);
-        if (fs.existsSync(candidate)) {
-          try {
-            const content = fs.readFileSync(candidate, 'utf8');
-            return JSON.parse(content) as SloppyConfig;
-          } catch {
-            return null;
-          }
-        }
+  let resolved: SloppyConfig | null = null;
+  findUpFile(startPath, (dir, fs, path) => {
+    for (const filename of CONFIG_FILENAMES) {
+      try {
+        const content = fs.readFileSync(path.join(dir, filename), 'utf8');
+        resolved = JSON.parse(content) as SloppyConfig;
+        return true;
+      } catch {
+        // File missing or invalid JSON; continue checking candidates
       }
-
-      const pkgPath = path.join(dir, 'package.json');
-      if (fs.existsSync(pkgPath)) {
-        try {
-          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-          if (pkg.sloppy && typeof pkg.sloppy === 'object') {
-            return pkg.sloppy as SloppyConfig;
-          }
-        } catch {
-          // ignore parse error
-        }
-      }
-
-      const parent = path.dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
     }
-  } catch {
-    return null;
-  }
-
-  return null;
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+      if (pkg.sloppy && typeof pkg.sloppy === 'object') {
+        resolved = pkg.sloppy as SloppyConfig;
+        return true;
+      }
+    } catch {
+      // Ignore missing or unreadable package.json
+    }
+    return false;
+  });
+  return resolved;
 }

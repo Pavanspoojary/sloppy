@@ -1,5 +1,5 @@
 import type { SloppyConfig } from './types.js';
-import { getNodeEnv } from '../node-env.js';
+import { findUpFile } from '../node-env.js';
 
 export interface DesignContract {
   found: boolean;
@@ -51,11 +51,19 @@ export function parseDesignContract(content: string): Omit<DesignContract, 'foun
     if (match) assign(match[1], match[2]);
   }
 
-  // Also accept the JSON fenced block used by `sloppy init --design`.
-  const fenced = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-  if (fenced) {
+  // Also accept the JSON fenced block used by `sloppy init --design` via linear index scanning.
+  let fencePos = 0;
+  while ((fencePos = content.indexOf('```', fencePos)) >= 0) {
+    const nl = content.indexOf('\n', fencePos + 3);
+    if (nl < 0) break;
+    const fenceEnd = content.indexOf('```', nl + 1);
+    if (fenceEnd < 0) break;
+    const header = content.slice(fencePos + 3, nl).trim().toLowerCase();
+    const body = content.slice(nl + 1, fenceEnd).trim();
+    fencePos = fenceEnd + 3;
+    if ((header && header !== 'json') || !body.startsWith('{') || !body.endsWith('}')) continue;
     try {
-      const parsed: unknown = JSON.parse(fenced[1]);
+      const parsed: unknown = JSON.parse(body);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         for (const [key, value] of Object.entries(parsed)) {
           if (typeof value === 'string') assign(key, value);
@@ -67,6 +75,7 @@ export function parseDesignContract(content: string): Omit<DesignContract, 'foun
           }
         }
       }
+      break;
     } catch {
       // A malformed JSON block must never break the scanner.
     }
@@ -76,29 +85,18 @@ export function parseDesignContract(content: string): Omit<DesignContract, 'foun
 }
 
 export function loadDesignContract(startPath?: string): DesignContract {
-  const empty: DesignContract = { found: false, lockedTokens: [] };
-  try {
-    const { fs, path } = getNodeEnv();
-    if (!fs || !path) return empty;
-
-    let dir = startPath ? path.resolve(startPath) : process.cwd();
-    if (fs.existsSync(dir) && fs.statSync(dir).isFile()) dir = path.dirname(dir);
-    const root = path.parse(dir).root;
-
-    while (dir && dir !== root) {
-      const candidate = path.join(dir, 'DESIGN.md');
-      if (fs.existsSync(candidate)) {
-        const parsed = parseDesignContract(fs.readFileSync(candidate, 'utf8'));
-        return { found: true, path: candidate, ...parsed };
-      }
-      const parent = path.dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
+  let result: DesignContract = { found: false, lockedTokens: [] };
+  findUpFile(startPath, (dir, fs, path) => {
+    const candidate = path.join(dir, 'DESIGN.md');
+    try {
+      const content = fs.readFileSync(candidate, 'utf8');
+      result = { found: true, path: candidate, ...parseDesignContract(content) };
+      return true;
+    } catch {
+      return false;
     }
-  } catch {
-    return empty;
-  }
-  return empty;
+  });
+  return result;
 }
 
 export function resolveDesignContract(filepath: string | undefined, config: SloppyConfig | null): DesignContract {

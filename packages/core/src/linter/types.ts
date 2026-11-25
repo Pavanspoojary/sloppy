@@ -1,5 +1,7 @@
 import type { EvidenceKind, FindingConfidence } from './rule-metadata.js';
 
+import type { DesignContract } from './design-contract.js';
+
 export type SlopSeverity = 'critical' | 'high' | 'medium' | 'low';
 
 export type RuleTier = 'floor' | 'reflex' | 'finish';
@@ -221,6 +223,7 @@ export interface AuditOptions {
   filepath?: string;
   componentType?: 'illustration' | 'feature-card' | 'hero' | 'application' | 'bento';
   config?: SloppyConfig;
+  designContract?: DesignContract;
   floorOnly?: boolean;
   tier?: RuleTier;
   mode?: 'during' | 'after';
