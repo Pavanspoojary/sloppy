@@ -1,0 +1,51 @@
+name: Sloppy SARIF Code Scanning
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sloppy-sarif:
+    name: Sloppy Static Analysis (SARIF)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build workspace packages
+        run: npm run build --workspace=@sloppy/core && npm run build --workspace=sloppy
+
+      - name: Run Sloppy SARIF scan
+        id: scan
+        run: |
+          STATUS=0
+          node packages/cli/bin/sloppy.js check \
+            packages/core/src packages/cli/src packages/mcp/src packages/kit \
+            --strict --format sarif > sloppy-results.sarif || STATUS=$?
+          echo "exit_code=$STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Sloppy SARIF to GitHub Code Scanning
+        if: always() && hashFiles('sloppy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sloppy-results.sarif
+          category: sloppy-static-analysis
+
+      - name: Enforce clean Sloppy gate
+        if: steps.scan.outputs.exit_code != '0'
+        run: exit "${{ steps.scan.outputs.exit_code }}"
