@@ -1,6 +1,6 @@
 import { AuditOptions, AuditResult, SlopViolation, SlopViolationType, SlopSeverity, FindingEvidence, CANONICAL_RULES, RULE_ALIASES } from './types.js';
 import { RULE_METADATA } from './rule-metadata.js';
-import { classTokens, getClasses, scanSource, sourceLocation, SourceTag } from './source-scan.js';
+import { scanSource, classTokens, getClasses, sourceLocation, lineAt, SourceTag } from './source-scan.js';
 import { loadSloppyConfig } from './config.js';
 import { DEFAULT_BLUR_CAP, declaredAccentAllows, resolveDesignContract } from './design-contract.js';
 import { getNodeEnv } from '../node-env.js';
@@ -56,6 +56,24 @@ const advice: Record<SlopViolationType, string> = {
   UNMANAGED_WEBGL_OR_MEDIA_LOOP: 'Clean up WebGL/Lottie/scroll instances with .dispose()/.destroy() on unmount, and throttle R3F <Canvas> with frameloop="demand" and bounded dpr.'
 };
 
+const BANNER_CHARS = new Set(['-', '=', '_', '*', '#', '~']);
+
+function isDividerBanner(trimmed: string): boolean {
+  let body = trimmed.startsWith('/*') ? trimmed.slice(2) : trimmed.startsWith('//') ? trimmed.slice(2) : '';
+  if (trimmed.startsWith('/*') && body.endsWith('*/')) body = body.slice(0, -2);
+  body = body.trim();
+  if (body.length < 5) return false;
+  let lead = 0;
+  while (lead < body.length && BANNER_CHARS.has(body[lead])) lead++;
+  if (lead < 5) return false;
+  if (lead === body.length) return true;
+  let trail = 0;
+  while (trail < body.length - lead && BANNER_CHARS.has(body[body.length - 1 - trail])) trail++;
+  if (trail < 5) return false;
+  const mid = body.slice(lead, body.length - trail);
+  return !/[^\w \t-]/.test(mid);
+}
+
 export function isAiNarrationComment(text: string): { isSlop: boolean; reason?: string } {
   const trimmed = text.trim();
   if (/sloppy-ignore|sloppy-allow|sloppy-override|@sloppy|eslint|@ts-|istanbul|prettier/i.test(trimmed)) {
@@ -64,12 +82,11 @@ export function isAiNarrationComment(text: string): { isSlop: boolean; reason?: 
   if (/^(?:\/\/|\/\*)\s*(?:invariant|workaround|safari|firefox|chrome|ios|android|todo|fixme|note|hack|perf|see:?|ref:?)\b/i.test(trimmed)) {
     return { isSlop: false };
   }
-  if (/^(?:\/\/|\/\*)\s*[-=_*#~]{5,}\s*(?:[A-Za-z0-9_\s-]*\s*[-=_*#~]{5,})?\s*\*?\/?$/.test(trimmed)) {
+  if (isDividerBanner(trimmed)) {
     return { isSlop: true, reason: 'Decorative divider banner comment' };
   }
-  const singleLineMatch = trimmed.match(/^\/\/\s*([^\n]+)$/);
-  if (singleLineMatch) {
-    const content = singleLineMatch[1].trim();
+  if (trimmed.startsWith('//')) {
+    const content = trimmed.slice(2).trim();
     const narrationPatterns = [
       /^(?:render|rendering)\s+(?:the\s+)?(?:header|footer|sidebar|card|modal|button|table|view|content|page|component|jsx|ui|elements?|container|wrapper|section|icons?)\b/i,
       /^(?:returns?|return\s+the)\s+(?:jsx|component|ui|elements?|view)\b/i,
@@ -188,6 +205,12 @@ function extractVisibleText(code: string, tags: SourceTag[]): { text: string; of
 export function auditCode(code: string, options: AuditOptions = {}): AuditResult {
   const config = options.config || (options.filepath ? loadSloppyConfig(options.filepath) : null);
   const scan = scanSource(code), tags = scan.tags.filter(t => !t.closing), candidates: Array<{ type: SlopViolationType; severity: SlopSeverity; at: number; message: string; evidence?: Partial<FindingEvidence>; context?: string }> = [];
+  const tagClassMap = new Map<SourceTag, string[]>();
+  const classesFor = (tag: SourceTag): string[] => {
+    let cached = tagClassMap.get(tag);
+    if (!cached) { cached = getClasses(tag); tagClassMap.set(tag, cached); }
+    return cached;
+  };
   const parent = new Map<SourceTag, SourceTag | undefined>(), openStack: SourceTag[] = [];
   for (const tag of scan.tags) {
     if (tag.closing) { for (let i = openStack.length - 1; i >= 0; i--) if (openStack[i].name === tag.name) { openStack.length = i; break; } }
@@ -199,12 +222,13 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     candidates.push({ type, severity: level ?? defaultLevel, at, message, evidence, context });
   };
   const selectorAt = (at: number): string | undefined => {
-    const tag = tags.filter(t => t.start <= at).at(-1);
-    if (!tag) return undefined;
-    const safeTokens = getClasses(tag).filter(token => /^[A-Za-z0-9_-]+$/.test(token)).slice(0, 2);
-    return `${tag.name}${safeTokens.map(token => `.${token}`).join('')}`;
+    let found: SourceTag | undefined;
+    for (const t of tags) { if (t.start <= at) found = t; else break; }
+    if (!found) return undefined;
+    const safeTokens = classesFor(found).filter(token => /^[A-Za-z0-9_-]+$/.test(token)).slice(0, 2);
+    return `${found.name}${safeTokens.map(token => `.${token}`).join('')}`;
   };
-  const tagClasses = tags.map(tag => ({ tag, tokens: getClasses(tag) }));
+  const tagClasses = tags.map(tag => ({ tag, tokens: classesFor(tag) }));
   const allowGradients = config?.brand?.allowGradients ?? false;
   // Gradient classes are grouped by element so gradient direction and stops can occur in any order.
   for (const { tag, tokens } of tagClasses) {
@@ -231,8 +255,31 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
       if (!signal && ancestors.length === 0) push('UNEARNED_ANIMATION', tag.start, `Unearned looping animation "${animation}" detected.`);
     }
   }
-  const importAliases = new Map<string,string>();
-  for (const m of code.matchAll(/import\s*\{([^}]+)\}\s*from\s*["'][^"']+["']/g)) for (const part of m[1].split(',')) { const [original, alias] = part.trim().split(/\s+as\s+/); if (original && alias) importAliases.set(alias, original); }
+  const importAliases = new Map<string, string>();
+  let impPos = 0;
+  while ((impPos = code.indexOf('import', impPos)) >= 0) {
+    const prev = impPos > 0 ? code[impPos - 1] : '\n';
+    const next = code[impPos + 6] || '';
+    impPos += 6;
+    if (/[A-Za-z0-9_$]/.test(prev) || (next && !/\s|\{/.test(next))) continue;
+    const openBrace = code.indexOf('{', impPos);
+    const semi = code.indexOf(';', impPos);
+    if (openBrace < 0 || (semi >= 0 && semi < openBrace)) continue;
+    const closeBrace = code.indexOf('}', openBrace + 1);
+    if (closeBrace < 0) break;
+    const afterBrace = code.slice(closeBrace + 1, closeBrace + 80);
+    if (/^\s*from\s*["'][^"'\n]+["']/.test(afterBrace)) {
+      for (const part of code.slice(openBrace + 1, closeBrace).split(',')) {
+        const asIdx = part.search(/\sas\s/);
+        if (asIdx > 0) {
+          const original = part.slice(0, asIdx).trim();
+          const alias = part.slice(asIdx + 4).trim();
+          if (original && alias) importAliases.set(alias, original);
+        }
+      }
+    }
+    impPos = closeBrace + 1;
+  }
   const iconNames = /^(?:Sparkles|LucideSparkles|Wand|MagicWand|Sparkle|IconSparkles|AiSparkle|SparkleIcon|MagicWand02)$/;
   for (const tag of tags) if (!tag.closing) { const base = tag.name.split('.').pop() || ''; if (iconNames.test(base) || iconNames.test(importAliases.get(base) || '')) push('SPARKLE_ICON_OVERLOAD', tag.start, `Decorative sparkle or magic-wand component <${tag.name}> detected.`); }
   const { text: visibleText, offsetAt } = extractVisibleText(code, scan.tags);
@@ -311,7 +358,7 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
 
   // Gen-2 defaults: the "anti-slop" palette swap. Detect-only, because the fix is
   // a brand decision declared in DESIGN.md, not a mechanical rewrite.
-  const designContract = resolveDesignContract(options.filepath, config);
+  const designContract = options.designContract ?? resolveDesignContract(options.filepath, config);
   const hasDarkGround = tagClasses.some(({ tokens }) => tokens.some(t =>
     /^bg-(?:black|neutral-(?:900|950)|slate-(?:900|950)|zinc-(?:900|950)|stone-(?:900|950)|gray-(?:900|950))$/.test(t) || /^bg-\[#0[0-9a-f]{5}\]$/i.test(t)
   ));
@@ -391,12 +438,21 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   }
   // CSS and inline declaration text; comments are excluded using the scanner mask, while tag values retain authored strings.
   if (!allowGradients) {
-    const gradients = /(?:linear|radial|conic)-gradient\([^)]*\)/ig;
-    for (const match of scan.masked.matchAll(gradients)) {
-      const at = match.index ?? 0;
-      if (containsPurpleColor(match[0]) && !candidates.some(v => v.type === 'PURPLE_GRADIENT_SLOP' && Math.abs(v.at - at) < 120)) {
+    const gradientRe = /(?:linear|radial|conic)-gradient\(/gi;
+    let gm: RegExpExecArray | null;
+    while ((gm = gradientRe.exec(scan.masked))) {
+      const at = gm.index;
+      let depth = 1, p = at + gm[0].length;
+      while (p < scan.masked.length && depth > 0) {
+        if (scan.masked[p] === '(') depth++;
+        else if (scan.masked[p] === ')') depth--;
+        p++;
+      }
+      const expr = scan.masked.slice(at, p);
+      if (containsPurpleColor(expr) && !candidates.some(v => v.type === 'PURPLE_GRADIENT_SLOP' && Math.abs(v.at - at) < 120)) {
         push('PURPLE_GRADIENT_SLOP', at, 'CSS gradient contains a purple-family color.');
       }
+      gradientRe.lastIndex = p;
     }
   }
   const text = visibleText;
@@ -405,7 +461,7 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   const configuredBudget = config?.wordBudget?.[options.componentType || 'default'];
   const threshold = configuredBudget ?? (options.componentType ? limits[options.componentType] : (config?.wordBudget?.default ?? 60));
   if (wordCount > threshold && !tags.some(tag => /^(?:Bar|Skeleton|Placeholder)$/.test(tag.name.split('.').pop() || ''))) push('WORD_BUDGET_EXCEEDED', tags[0]?.start ?? 0, `Visible word budget exceeded: ${wordCount} words, limit ${threshold}.`);
-  const allComments = [...code.matchAll(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g)].map(m => ({ text:m[0], at:m.index ?? 0 }));
+  const allComments = scan.comments.map(c => ({ ...c, line: sourceLocation(scan, c.at).line }));
 
   // COD-01: AI narration comments and decorative section divider banners
   for (const comment of allComments) {
@@ -439,10 +495,19 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   }
 
   // COD-03: Unvalidated contract return type (any / unknown)
-  const dynamicReturnRegex = /(?:(?:async\s+)?function(?:\s+[A-Za-z0-9_$]+)?\s*\([^)]*\)|(?:async\s+)?[A-Za-z0-9_$]+\s*\([^)]*\)|[A-Za-z0-9_$]+\s*=\s*(?:async\s*)?\([^)]*\))\s*:\s*(?:Promise<\s*(?:any|unknown)\s*>|(?:any|unknown)\b)(?:\s*=>|\s*\{)/g;
+  const dynamicReturnRegex = /\)\s*:\s*(?:Promise<\s*(?:any|unknown)\s*>|(?:any|unknown)\b)\s*(?:=>|\{)/g;
   for (const match of scan.masked.matchAll(dynamicReturnRegex)) {
-    const at = match.index ?? 0;
-    push('UNVALIDATED_DYNAMIC_RETURN', at, `Unvalidated contract return type (${match[0].includes('any') ? 'any' : 'unknown'}) detected; specify a concrete shape or schema validator.`);
+    const closeParen = match.index ?? 0;
+    let depth = 1, openParen = closeParen - 1;
+    while (openParen >= 0 && depth > 0) {
+      if (scan.masked[openParen] === ')') depth++;
+      else if (scan.masked[openParen] === '(') depth--;
+      openParen--;
+    }
+    if (depth !== 0) continue;
+    const prefix = scan.masked.slice(Math.max(0, openParen - 64), openParen + 1).trimEnd();
+    if (!/(?:function(?:\s+[A-Za-z0-9_$]+)?|[A-Za-z0-9_$]+|=|\basync)$/i.test(prefix)) continue;
+    push('UNVALIDATED_DYNAMIC_RETURN', closeParen, `Unvalidated contract return type (${match[0].includes('any') ? 'any' : 'unknown'}) detected; specify a concrete shape or schema validator.`);
   }
 
   // COD-04: Broad Record<string, any/unknown>
@@ -453,10 +518,29 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
   }
 
   // COD-05: Conditional empty object spread: ...(cond ? { ... } : {})
-  const emptyObjectSpreadRegex = /\.\.\.\s*\([^\n?]+\?[\s\S]*?:\s*\{\s*\}\s*\)/g;
-  for (const match of scan.masked.matchAll(emptyObjectSpreadRegex)) {
-    const at = match.index ?? 0;
-    push('EMPTY_OBJECT_SPREAD', at, `Conditional empty object spread ("${match[0].trim().slice(0, 50)}") detected.`);
+  let spreadPos = 0;
+  while ((spreadPos = scan.masked.indexOf('...', spreadPos)) >= 0) {
+    let p = spreadPos + 3;
+    while (p < scan.masked.length && (scan.masked[p] === ' ' || scan.masked[p] === '\t')) p++;
+    if (scan.masked[p] === '(') {
+      let depth = 1, q = p + 1;
+      const limit = Math.min(scan.masked.length, q + 400);
+      while (q < limit && depth > 0) {
+        if (scan.masked[q] === '(') depth++;
+        else if (scan.masked[q] === ')') depth--;
+        q++;
+      }
+      if (depth === 0) {
+        const inner = scan.masked.slice(p + 1, q - 1);
+        const qMark = inner.indexOf('?');
+        if (qMark > 0 && !inner.slice(0, qMark).includes('\n') && /:\s*\{\s*\}\s*$/.test(inner.slice(qMark + 1))) {
+          push('EMPTY_OBJECT_SPREAD', spreadPos, `Conditional empty object spread ("${scan.masked.slice(spreadPos, q).trim().slice(0, 50)}") detected.`);
+        }
+        spreadPos = q;
+        continue;
+      }
+    }
+    spreadPos += 3;
   }
 
   // COD-06: Chained non-null assertion (!.)
@@ -566,20 +650,45 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     const isCodeRule = ruleCode?.startsWith('COD-') || c.type.startsWith('COD_') || c.type === 'AI_NARRATION_COMMENT_SLOP' || c.type === 'CHAINED_TYPE_ASSERTION' || c.type === 'UNVALIDATED_DYNAMIC_RETURN' || c.type === 'BROAD_RECORD_SLOP' || c.type === 'EMPTY_OBJECT_SPREAD' || c.type === 'NON_NULL_ASSERTION_SLOP';
     if (options.codeOnly && !isCodeRule) continue;
 
-    const loc = sourceLocation(scan, c.at), lineText = code.split('\n')[loc.line - 1] || '';
-    
+    const loc = sourceLocation(scan, c.at), lineText = lineAt(scan, code, loc.line);
+
+    const cleanCommentBody = (rawComment: string): string => {
+      let s = rawComment.trim();
+      if (s.startsWith('//')) s = s.slice(2);
+      else if (s.startsWith('/*')) {
+        s = s.slice(2);
+        if (s.endsWith('*/')) s = s.slice(0, -2);
+      }
+      return s.trim();
+    };
+    const splitDirectiveReason = (rest: string): { target: string; reason: string } => {
+      const dashIdx = rest.indexOf('--');
+      const colonIdx = rest.indexOf(':');
+      let sepIdx = -1;
+      let sepLen = 1;
+      if (dashIdx >= 0 && (colonIdx < 0 || dashIdx < colonIdx)) { sepIdx = dashIdx; sepLen = 2; }
+      else if (colonIdx >= 0) { sepIdx = colonIdx; sepLen = 1; }
+      if (sepIdx < 0) return { target: rest.trim(), reason: '' };
+      return { target: rest.slice(0, sepIdx).trim(), reason: rest.slice(sepIdx + sepLen).trim() };
+    };
+
     // Check for inline override rationale: // sloppy-override: RULE <rationale>
     let inlineRationale: string | undefined;
     for (const comment of allComments) {
-      const cl = sourceLocation(scan, comment.at).line;
+      const cl = comment.line;
       if (cl === loc.line || cl + 1 === loc.line) {
-        const match = comment.text.match(/(?:sloppy-override|@sloppy-override)\s*[:,]?\s*([A-Za-z0-9_,-]+)\s+([^\n*/]+)/);
-        if (match) {
-          const ruleCandidate = match[1].trim().toUpperCase().replace(/-/g, '_');
-          const resolved = RULE_ALIASES[ruleCandidate] || ruleCandidate;
-          if (resolved === c.type || (ruleCode && resolved === ruleCode)) {
-            inlineRationale = match[2].trim();
-            break;
+        const body = cleanCommentBody(comment.text);
+        const markerMatch = /(?:sloppy-override|@sloppy-override)/i.exec(body);
+        if (markerMatch) {
+          let rest = body.slice(markerMatch.index + markerMatch[0].length).replace(/^[:,]/, '').trim();
+          const wsIdx = rest.search(/\s/);
+          if (wsIdx > 0) {
+            const ruleCandidate = rest.slice(0, wsIdx).trim().toUpperCase().replace(/-/g, '_');
+            const resolved = RULE_ALIASES[ruleCandidate] || ruleCandidate;
+            if (resolved === c.type || (ruleCode && resolved === ruleCode)) {
+              inlineRationale = rest.slice(wsIdx + 1).trim();
+              break;
+            }
           }
         }
       }
@@ -592,42 +701,37 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
 
     const isStrict = Boolean(options.strict || config?.strict);
     const ignored = ignoreFile || allowedRules.has(c.type) || (ruleCode && allowedRules.has(ruleCode)) || allComments.some(comment => {
-      const cl = sourceLocation(scan, comment.at).line;
+      const cl = comment.line;
+      const body = cleanCommentBody(comment.text);
       if (cl + 1 === loc.line) {
-        if (/sloppy-ignore-next-line/.test(comment.text)) {
-          const specific = comment.text.match(/sloppy-ignore-next-line\s*[:,]?\s*([A-Za-z0-9_,\s-]+?)(?:\s*(?:--|:)\s*(.+))?$/);
-          const rawRules = specific ? specific[1].trim() : '';
-          const ignoreRationale = specific?.[2]?.trim();
-
-          if (isStrict) {
-            // In strict mode, an explicit written invariant explanation (>= 5 chars) is mandatory
-            if (!ignoreRationale || ignoreRationale.length < 5) {
-              return false;
-            }
-          }
-
-          if (!rawRules) return true;
-          const rules: string[] = rawRules.split(/[,\s]+/).map(r => {
+        const nextLineIdx = body.indexOf('sloppy-ignore-next-line');
+        if (nextLineIdx >= 0) {
+          const rest = body.slice(nextLineIdx + 'sloppy-ignore-next-line'.length).replace(/^[:,]/, '').trim();
+          const { target, reason } = splitDirectiveReason(rest);
+          if (isStrict && reason.length < 5) return false;
+          if (!target) return true;
+          const rules: string[] = target.split(/[,\s]+/).map(r => {
             const norm = r.trim().toUpperCase().replace(/-/g, '_');
             const dashNorm = r.trim().toUpperCase();
             return RULE_ALIASES[norm] || RULE_ALIASES[dashNorm] || norm;
           });
           return rules.includes(c.type) || (ruleCode ? rules.includes(ruleCode) : false);
         }
-        if (/sloppy-ignore-next/.test(comment.text)) {
-          if (isStrict) {
-            const match = comment.text.match(/sloppy-ignore-next\s*(?:--|:)\s*(.+)$/);
-            if (!match || match[1].trim().length < 5) return false;
-          }
-          return true;
+        const nextIdx = body.indexOf('sloppy-ignore-next');
+        if (nextIdx >= 0) {
+          const rest = body.slice(nextIdx + 'sloppy-ignore-next'.length).trim();
+          const { reason } = splitDirectiveReason(rest);
+          return !isStrict || reason.length >= 5;
         }
       }
-      if (/sloppy-ignore\s*(?:\*\/)?\s*$/.test(comment.text) && cl === loc.line) {
-        if (isStrict) {
-          const match = comment.text.match(/sloppy-ignore\s*(?:--|:)\s*(.+?)(?:\*\/)?$/);
-          if (!match || match[1].trim().length < 5) return false;
+      if (cl === loc.line) {
+        const inlineIdx = body.indexOf('sloppy-ignore');
+        if (inlineIdx >= 0 && !body.includes('sloppy-ignore-next') && !body.includes('sloppy-ignore-file')) {
+          const rest = body.slice(inlineIdx + 'sloppy-ignore'.length).trim();
+          if (!rest) return !isStrict;
+          const { reason } = splitDirectiveReason(rest);
+          return !isStrict || reason.length >= 5;
         }
-        return true;
       }
       return false;
     });
@@ -649,10 +753,10 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
       line: loc.line,
       column: loc.column,
       selector: selectorAt(c.at),
-      ...(kind === 'standard' && criteria[c.type] ? { criterion: criteria[c.type] } : {}),
       ...(c.evidence ?? {})
     };
-    violations.push({
+    if (kind === 'standard' && criteria[c.type]) evidence.criterion = criteria[c.type];
+    const violation: SlopViolation = {
       id: `${(ruleCode || c.type).toLowerCase()}-${c.at}`,
       ruleId: ruleCode || c.type,
       type: c.type,
@@ -666,10 +770,11 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
       confidence: metadata?.confidence ?? 'medium',
       objective: metadata?.objective ?? false,
       evidence,
-      ...(c.context ? { context: c.context } : {}),
       overruled: isOverruled,
       overruleRationale: rationale
-    });
+    };
+    if (c.context) violation.context = c.context;
+    violations.push(violation);
   }
 
   // Assign sequential 1-based index to all findings for approval-gated surgical fixes

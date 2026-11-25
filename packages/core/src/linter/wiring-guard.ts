@@ -36,6 +36,17 @@ export interface WiringCheckResult {
   details: string;
 }
 
+function stripHtmlTags(raw: string): string {
+  let out = '', inTag = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (ch === '<') { inTag = true; continue; }
+    if (ch === '>' && inTag) { inTag = false; continue; }
+    if (!inTag) out += ch;
+  }
+  return out.trim();
+}
+
 export function extractWiring(source: string): WiringSnapshot {
   const handlers: WiringItem[] = [];
   const formControls: WiringItem[] = [];
@@ -104,7 +115,7 @@ export function extractWiring(source: string): WiringSnapshot {
   const headingRegex = /<(h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/gi;
   for (const match of source.matchAll(headingRegex)) {
     const tag = match[1].toLowerCase();
-    const cleanText = match[2].replace(/<[^>]+>/g, '').trim();
+    const cleanText = stripHtmlTags(match[2]);
     if (cleanText) {
       headings.push({
         kind: 'heading',

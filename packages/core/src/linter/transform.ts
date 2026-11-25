@@ -1,4 +1,5 @@
 import { auditCode, isAiNarrationComment } from './index.js';
+import { scanSource } from './source-scan.js';
 import { addNamedImport, resolveImport, rewriteIconImports } from './imports.js';
 import { unifiedDiff } from './diff.js';
 import { validateSyntax, SyntaxErrorItem } from './syntax.js';
@@ -221,16 +222,17 @@ function applyOnce(code: string, options: TransformOptions, allowedRules: Set<st
 
   // COD-01: Strip low-signal AI narration comments and decorative banners
   if (isRuleAllowed('AI_NARRATION_COMMENT_SLOP', 'COD-01')) {
-    const comments = [...out.matchAll(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g)];
-    for (const m of comments.reverse()) {
-      const text = m[0];
+    const comments = scanSource(out).comments;
+    for (const c of [...comments].reverse()) {
+      const text = c.text;
       const check = isAiNarrationComment(text);
-      if (check.isSlop && m.index !== undefined) {
-        let start = m.index;
-        let end = m.index + text.length;
-        const beforeOnLine = out.slice(0, start).split('\n').pop() || '';
+      if (check.isSlop) {
+        let start = c.at;
+        let end = c.at + text.length;
+        const lineStart = out.lastIndexOf('\n', start - 1) + 1;
+        const beforeOnLine = out.slice(lineStart, start);
         if (/^\s*$/.test(beforeOnLine) && out[end] === '\n') {
-          start -= beforeOnLine.length;
+          start = lineStart;
           end += 1;
         }
         out = out.slice(0, start) + out.slice(end);

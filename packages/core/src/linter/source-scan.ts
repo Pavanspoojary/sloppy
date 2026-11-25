@@ -1,6 +1,7 @@
 export interface SourceAttribute { name: string; value: string; start: number; end: number; valueStart: number; valueEnd: number }
 export interface SourceTag { name: string; attributes: Map<string, SourceAttribute>; start: number; end: number; closing: boolean; selfClosing: boolean }
-export interface SourceScan { masked: string; tags: SourceTag[]; lineStarts: number[] }
+export interface SourceComment { text: string; at: number }
+export interface SourceScan { masked: string; tags: SourceTag[]; lineStarts: number[]; comments: SourceComment[] }
 
 const isSpace = (value: string) => value === ' ' || value === '\n' || value === '\r' || value === '\t' || value === '\f';
 
@@ -56,6 +57,7 @@ function findRegexEnd(source: string, slashIndex: number): number {
 export function scanSource(source: string): SourceScan {
   const chars = source.split('');
   const lineStarts = [0];
+  const comments: SourceComment[] = [];
   for (let i = 0; i < source.length; i++) if (source[i] === '\n') lineStarts.push(i + 1);
   let quote = '', templateDepth = 0, inTemplateExpression = false, jsxDepth = 0;
   for (let i = 0; i < source.length; i++) {
@@ -72,8 +74,30 @@ export function scanSource(source: string): SourceScan {
       else if (c === '}' && --templateDepth === 0) { inTemplateExpression = false; quote = '`'; }
       continue;
     }
-    if (c === '/' && n === '/') { for (let j = i; j < source.length && source[j] !== '\n'; j++) chars[j] = ' '; i = source.indexOf('\n', i); if (i < 0) break; i--; continue; }
-    if (c === '/' && n === '*') { chars[i] = chars[i + 1] = ' '; i += 2; while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) { if (source[i] !== '\n' && source[i] !== '\r') chars[i] = ' '; i++; } if (i < source.length) { chars[i] = chars[i + 1] = ' '; i++; } continue; }
+    if (c === '/' && n === '/') {
+      const nl = source.indexOf('\n', i);
+      const end = nl < 0 ? source.length : nl;
+      comments.push({ text: source.slice(i, end), at: i });
+      for (let j = i; j < end; j++) chars[j] = ' ';
+      if (nl < 0) break;
+      i = nl - 1;
+      continue;
+    }
+    if (c === '/' && n === '*') {
+      const cStart = i;
+      chars[i] = chars[i + 1] = ' ';
+      i += 2;
+      while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) {
+        if (source[i] !== '\n' && source[i] !== '\r') chars[i] = ' ';
+        i++;
+      }
+      if (i < source.length) {
+        chars[i] = chars[i + 1] = ' ';
+        i++;
+      }
+      comments.push({ text: source.slice(cStart, i + 1), at: cStart });
+      continue;
+    }
     if (c === '/' && isRegexPrefix(source, i)) {
       const regexEnd = findRegexEnd(source, i);
       if (regexEnd > i + 1) {
@@ -120,7 +144,16 @@ export function scanSource(source: string): SourceScan {
     else if (!tag.selfClosing) jsxDepth++;
     tags.push(tag); i = end;
   }
-  return { masked, tags, lineStarts };
+  return { masked, tags, lineStarts, comments };
+}
+
+export function lineAt(scan: SourceScan, source: string, lineNumber: number): string {
+  if (lineNumber < 1 || lineNumber > scan.lineStarts.length) return '';
+  const start = scan.lineStarts[lineNumber - 1];
+  const nextStart = scan.lineStarts[lineNumber];
+  let end = nextStart !== undefined ? (source[nextStart - 1] === '\n' ? nextStart - 1 : nextStart) : source.length;
+  if (end > start && source[end - 1] === '\r') end--;
+  return source.slice(start, end);
 }
 
 export function classTokens(value: string): string[] {

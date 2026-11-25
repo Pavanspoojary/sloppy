@@ -14,21 +14,56 @@ export interface CodeLine {
 
 const KEYWORDS = /^(const|let|var|function|return|if|else|await|async|import|from|export|default|new|true|false|null|undefined|for|of|in|while|try|catch|throw|class|extends|type|interface|def|self|None|True|False)$/
 
-/** A light tokenizer: comments, strings, numbers, keywords, function calls. */
+/** Linear single-pass tokenizer: comments, strings, numbers, keywords, function calls. */
 function tokens(line: string): ReactNode[] {
   const out: ReactNode[] = []
-  const re = /(\/\/.*$|#.*$)|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)|(\b\d[\d._]*\b)|([A-Za-z_$][\w$]*)(?=\s*\()|([A-Za-z_$][\w$]*)/g
-  let last = 0
-  let m: RegExpExecArray | null
-  let k = 0
-  while ((m = re.exec(line))) {
-    if (m.index > last) out.push(line.slice(last, m.index))
-    const [text, com, str, num, call, word] = m
-    const kind = com ? 'com' : str ? 'str' : num ? 'num' : call ? (KEYWORDS.test(call) ? 'key' : 'fn') : word && KEYWORDS.test(word) ? 'key' : null
-    out.push(kind ? <span key={k++} className={`ss-code__${kind}`}>{text}</span> : text)
-    last = m.index + text.length
+  let i = 0, plainStart = 0, k = 0
+  const flushPlain = (end: number) => {
+    if (end > plainStart) out.push(line.slice(plainStart, end))
+    plainStart = end
   }
-  if (last < line.length) out.push(line.slice(last))
+  while (i < line.length) {
+    const ch = line[i]
+    if ((ch === '/' && line[i + 1] === '/') || ch === '#') {
+      flushPlain(i)
+      out.push(<span key={k++} className="ss-code__com">{line.slice(i)}</span>)
+      return out
+    }
+    if (ch === "'" || ch === '"' || ch === '`') {
+      flushPlain(i)
+      let j = i + 1
+      while (j < line.length) {
+        if (line[j] === '\\') { j += 2; continue }
+        if (line[j] === ch) { j++; break }
+        j++
+      }
+      out.push(<span key={k++} className="ss-code__str">{line.slice(i, j)}</span>)
+      i = plainStart = j
+      continue
+    }
+    if (/\d/.test(ch) && (i === 0 || !/[A-Za-z0-9_$]/.test(line[i - 1]))) {
+      flushPlain(i)
+      let j = i + 1
+      while (j < line.length && /[\d._]/.test(line[j])) j++
+      out.push(<span key={k++} className="ss-code__num">{line.slice(i, j)}</span>)
+      i = plainStart = j
+      continue
+    }
+    if (/[A-Za-z_$]/.test(ch)) {
+      flushPlain(i)
+      let j = i + 1
+      while (j < line.length && /[A-Za-z0-9_$]/.test(line[j])) j++
+      const word = line.slice(i, j)
+      let p = j
+      while (p < line.length && (line[p] === ' ' || line[p] === '\t')) p++
+      const kind = KEYWORDS.test(word) ? 'key' : line[p] === '(' ? 'fn' : null
+      out.push(kind ? <span key={k++} className={`ss-code__${kind}`}>{word}</span> : word)
+      i = plainStart = j
+      continue
+    }
+    i++
+  }
+  flushPlain(line.length)
   return out
 }
 
