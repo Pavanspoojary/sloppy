@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Sloppy: The ultimate AI slop UI fixer combining Stageshow's craft principles, React kit, 74 pattern directories, MCP server, and universal agent skill.",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "skills/*"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=@sloppy-ai/playground",

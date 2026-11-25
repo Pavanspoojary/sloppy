@@ -3,6 +3,12 @@
   "version": "1.4.0",
   "description": "Specialist anti-slop skill for copywriting, word budgeting, and eliminating marketing clichés.",
   "main": "SKILL.md",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "SKILL.md"
+  ],
   "keywords": ["skill", "copywriting", "anti-slop", "word-budget"],
   "author": "Pavanspoojary",
   "license": "MIT"

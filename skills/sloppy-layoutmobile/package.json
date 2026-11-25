@@ -3,6 +3,12 @@
   "version": "1.4.0",
   "description": "Specialist anti-slop skill for responsive viewport framing, breaking boxed card syndrome, and mobile density.",
   "main": "SKILL.md",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "SKILL.md"
+  ],
   "keywords": ["skill", "layout", "mobile", "anti-slop", "responsive", "framing"],
   "author": "Pavanspoojary",
   "license": "MIT"

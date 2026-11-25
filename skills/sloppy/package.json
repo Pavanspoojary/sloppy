@@ -3,6 +3,14 @@
   "version": "1.4.0",
   "description": "The ultimate AI slop UI fixer combining Stageshow craft, 7 UI ecosystems, surgical auto-fixer, 3-tier severity gates (Floor/Reflex/Finish), and wiring guard.",
   "main": "SKILL.md",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "SKILL.md",
+    "skill.json",
+    "references"
+  ],
   "keywords": [
     "skill",
     "ai-slop",
