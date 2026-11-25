@@ -28,7 +28,7 @@ jobs:
         run: npm ci
 
       - name: Build workspace packages
-        run: npm run build --workspace=@sloppy/core && npm run build --workspace=sloppy
+        run: npm run build --workspace=@sloppy/core && npm run build --workspace=@sloppy/mcp && npm run build --workspace=sloppy
 
       - name: Run Sloppy SARIF scan
         id: scan
