@@ -2,6 +2,7 @@ export interface SloppyLibraryInfo {
   id: string;
   name: string;
   author: string;
+  license: 'MIT';
   githubUrl: string;
   description: string;
   strengths: string[];
@@ -14,6 +15,7 @@ export const SLOPPY_LIBRARIES: Record<string, SloppyLibraryInfo> = {
     id: 'stageshow',
     name: 'Stageshow',
     author: 'Benji Taylor',
+    license: 'MIT',
     githubUrl: 'https://github.com/benjitaylor/skills/tree/main/stageshow',
     description: 'The foundation for anti-slop visual framing, cursor stories, and realistic product illustrations.',
     strengths: [
@@ -29,6 +31,7 @@ export const SLOPPY_LIBRARIES: Record<string, SloppyLibraryInfo> = {
     id: 'shadcn',
     name: 'shadcn/ui',
     author: 'shadcn',
+    license: 'MIT',
     githubUrl: 'https://github.com/shadcn-ui/ui',
     description: 'The gold standard accessible foundational primitives built with Radix UI and Tailwind CSS.',
     strengths: [
@@ -43,6 +46,7 @@ export const SLOPPY_LIBRARIES: Record<string, SloppyLibraryInfo> = {
     id: 'motion-primitives',
     name: 'Motion Primitives',
     author: 'Emil Kowalski / ibelick',
+    license: 'MIT',
     githubUrl: 'https://github.com/ibelick/motion-primitives',
     description: 'Ultra-high-craft micro-interactions and animated UI components built with Motion and Tailwind.',
     strengths: [
@@ -58,6 +62,7 @@ export const SLOPPY_LIBRARIES: Record<string, SloppyLibraryInfo> = {
     id: 'magicui',
     name: 'Magic UI',
     author: 'Dillion Verma / Magic UI Design',
+    license: 'MIT',
     githubUrl: 'https://github.com/magicuidesign/magicui',
     description: 'High-impact animated components for landing pages, marketing heroes, and bento grids.',
     strengths: [
@@ -68,26 +73,13 @@ export const SLOPPY_LIBRARIES: Record<string, SloppyLibraryInfo> = {
     antiSlopRole: 'Marketing Hero Energy: provides bold visual focal points, strictly tamed by Sloppy restraint rules to prevent over-stimulation.',
     defaultLook: 'linear'
   },
-  'react-bits': {
-    id: 'react-bits',
-    name: 'React Bits',
-    author: 'David Haz',
-    githubUrl: 'https://github.com/DavidHDev/react-bits',
-    description: 'Canvas backgrounds, atmospheric particle fields, and kinetic typography animations.',
-    strengths: [
-      'Atmospheric backgrounds: spotlight, hyperspeed, aurora, particles, waves',
-      'Kinetic typography: split text, blur text, decrypter, variable proximity',
-      'Interactive 3D tilted cards and magnetic galleries'
-    ],
-    antiSlopRole: 'Ambient Atmosphere: subtle backdrop and typography flair, kept under strict opacity limits to avoid visual noise.',
-    defaultLook: 'blueprint'
-  },
   kokonutui: {
     id: 'kokonutui',
     name: 'Kokonut UI',
     author: 'Kokonut Labs',
+    license: 'MIT',
     githubUrl: 'https://github.com/kokonut-labs/kokonutui',
-    description: 'Cutting-edge modern Next.js/React components with dedicated AI prompt and agent workflow interfaces.',
+    description: 'Modern Next.js/React components with dedicated AI prompt and agent workflow interfaces.',
     strengths: [
       'AI prompt input bars, agent lane reviews, and tool approval cards',
       'Modern glass cards, sleek pricing tables, and matrix rains',
@@ -95,19 +87,5 @@ export const SLOPPY_LIBRARIES: Record<string, SloppyLibraryInfo> = {
     ],
     antiSlopRole: 'Modern AI & Application Patterns: provides clean, purposeful AI agent interfaces that replace cliché robot sparkle boxes.',
     defaultLook: 'dark-hero'
-  },
-  'animate-ui': {
-    id: 'animate-ui',
-    name: 'Animate UI',
-    author: 'imskyleen',
-    githubUrl: 'http://github.com/imskyleen/animate-ui',
-    description: 'Smooth, fluid physics-based animated variants of standard Radix controls.',
-    strengths: [
-      'Animated menubars, dropdowns, switches, and sliders',
-      'Fluid gesture physics and spring transitions',
-      'Polished sheet and popover arrivals'
-    ],
-    antiSlopRole: 'Fluid Control Feedback: replaces abrupt DOM mounting with tactile, weighted transitions.',
-    defaultLook: 'minimal'
   }
 };

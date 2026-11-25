@@ -3,7 +3,7 @@ export interface SynthesizedArchetype {
   name: string;
   category: 'ai' | 'developer-tool' | 'fintech' | 'bento-hero';
   description: string;
-  librariesUsed: ('stageshow' | 'shadcn' | 'motion-primitives' | 'magicui' | 'react-bits' | 'kokonutui' | 'animate-ui')[];
+  librariesUsed: ('stageshow' | 'shadcn' | 'motion-primitives' | 'magicui' | 'kokonutui')[];
   antiSlopMeasures: string[];
   focalPoint: string;
   tsxCode: string;
@@ -14,14 +14,14 @@ export const SYNTHESIZED_ARCHETYPES: SynthesizedArchetype[] = [
     id: 'ai-agent-cockpit',
     name: 'AI Autonomous Agent Cockpit',
     category: 'ai',
-    description: 'Master multi-agent control room combining Stageshow grounded framing, Kokonut UI task lanes, Motion Primitives morphing dialog, shadcn accessible tables, React Bits quiet ambient lighting, and Magic UI single-beam accent.',
-    librariesUsed: ['stageshow', 'kokonutui', 'motion-primitives', 'shadcn', 'magicui', 'react-bits', 'animate-ui'],
+    description: 'Master multi-agent control room combining Stageshow grounded framing, Kokonut UI task lanes, Motion Primitives morphing dialog, shadcn accessible tables, and Magic UI single-beam accent.',
+    librariesUsed: ['stageshow', 'kokonutui', 'motion-primitives', 'shadcn', 'magicui'],
     antiSlopMeasures: [
       'Grounded framing: window fills 90% of horizontal stage and bleeds off bottom',
       'Zero purple gradients: replaced by 3-step dark surface elevation (#09090b -> #18181b -> #27272a)',
       'Zero magical sparkles: replaced with semantic StatusDot and tool execution indicators',
       'Restrained Magic UI border beam: exactly 1 beam on the active tool verification lane',
-      'React Bits ambient canvas: restricted to opacity 0.06 with high blur radius so text is 100% sharp',
+      'Subtle ambient backdrop: restricted to opacity 0.06 so text remains sharp',
       'Disciplined word budget: 6 real strings on screen, quiet placeholder bars for background lanes'
     ],
     focalPoint: 'The active tool approval lane morphing into an authorized diff review.',
@@ -173,11 +173,11 @@ export function AIAgentCockpit() {
     id: 'developer-platform-hero',
     name: 'Developer Platform High-Craft Hero',
     category: 'developer-tool',
-    description: 'High-impact landing hero combining Magic UI Bento Grid, Motion Primitives rolling metrics, React Bits spotlight card hover, Stageshow grounded terminal, and shadcn tabs.',
-    librariesUsed: ['magicui', 'motion-primitives', 'react-bits', 'stageshow', 'shadcn'],
+    description: 'High-impact landing hero combining Magic UI Bento Grid, Motion Primitives rolling metrics, subtle card hover spotlight, Stageshow grounded terminal, and shadcn tabs.',
+    librariesUsed: ['magicui', 'motion-primitives', 'stageshow', 'shadcn'],
     antiSlopMeasures: [
       'Strict 2x2 dominant focal cell: hero bento grid avoids 4 identical bordered cards',
-      'React Bits spotlight: radial hover light restricted to 0.05 opacity so cards feel physical, not neon',
+      'Radial hover light: restricted to 0.05 opacity so cards feel physical, not neon',
       'Motion Primitives sliding numbers: roll smoothly into place without jarring jumping',
       'Zero fake paragraphs: disciplined word budget with realistic product strings'
     ],
@@ -241,8 +241,8 @@ export function DeveloperPlatformHero() {
     id: 'fintech-billing-suite',
     name: 'Fintech Automated Payout Suite',
     category: 'fintech',
-    description: 'Purposeful financial ledger combining Stageshow Payout Flow, Motion Primitives rolling counter, shadcn sortable table, and Animate UI fluid tab switches.',
-    librariesUsed: ['stageshow', 'motion-primitives', 'shadcn', 'animate-ui'],
+    description: 'Purposeful financial ledger combining Stageshow Payout Flow, Motion Primitives rolling counter, and shadcn sortable table.',
+    librariesUsed: ['stageshow', 'motion-primitives', 'shadcn'],
     antiSlopMeasures: [
       'Rolling number ticker: updates with smooth decimal roll, never sudden jump-cuts',
       'Table row hierarchy: subtle zebra stripes with 1 intentional currency badge, no colorful circus rows',
@@ -423,7 +423,7 @@ export function DatabaseStudio() {
     name: 'Distributed Trace Waterfall',
     category: 'developer-tool',
     description: 'High-precision microservice latency waterfall visualizer with span timing bars, status pills, and error isolation.',
-    librariesUsed: ['stageshow', 'shadcn', 'animate-ui'],
+    librariesUsed: ['stageshow', 'shadcn'],
     antiSlopMeasures: [
       'Proportional waterfall spans: widths map strictly to millisecond durations',
       'Status badges: monochromatic gray or quiet red for error, no fluorescent neon backgrounds',
@@ -487,7 +487,7 @@ export function ObservabilityTelemetry() {
     name: 'Restrained SaaS Pricing Matrix',
     category: 'fintech',
     description: 'Disciplined tier comparison with monthly/annual switch, clean typography, single focal pro tier, and zero exaggerated gradients.',
-    librariesUsed: ['shadcn', 'animate-ui', 'stageshow'],
+    librariesUsed: ['shadcn', 'stageshow'],
     antiSlopMeasures: [
       'Single focal card: pro tier receives subtle border-neutral-700; other tiers sit in background surface',
       'Zero fake sparkle badges: uses clean "Popular" text pill with monochromatic styling',

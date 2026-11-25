@@ -3,8 +3,6 @@ export type LibraryId =
   | 'shadcn'
   | 'motion-primitives'
   | 'magicui'
-  | 'react-bits'
-  | 'animate-ui'
   | 'kokonutui';
 
 export type ComponentCategory =
@@ -341,81 +339,29 @@ export const SLOPPY_COMPONENTS: ComponentEntry[] = [
     tags: ['table', 'data', 'grid', 'primitive', 'spreadsheet'],
     sourcePath: 'shadcn/table.tsx'
   },
-
-  // --- ANIMATE UI (Fluid Radix Controls) ---
   {
-    id: 'animate-ui/menubar',
-    name: 'Animated Menubar',
-    library: 'animate-ui',
+    id: 'shadcn/menubar',
+    name: 'Accessible Menubar',
+    library: 'shadcn',
     category: 'navigation',
-    description: 'Desktop application menubar with spring animated sub-menu cascades.',
+    description: 'Desktop application menubar with keyboard shortcuts and sub-menu cascades.',
     antiSlopRating: 'pure-craft',
     antiSlopGuidance: 'Provide real keyboard shortcuts in right gutter (e.g. Cmd+K, Esc).',
-    dependencies: ['@radix-ui/react-menubar', 'framer-motion'],
+    dependencies: ['@radix-ui/react-menubar'],
     tags: ['menubar', 'menu', 'desktop', 'navigation', 'radix'],
-    sourcePath: 'animate-ui/menubar.rhea.tsx'
+    sourcePath: 'shadcn/menubar.tsx'
   },
   {
-    id: 'animate-ui/dropdown',
-    name: 'Fluid Dropdown Menu',
-    library: 'animate-ui',
+    id: 'shadcn/dropdown',
+    name: 'Accessible Dropdown Menu',
+    library: 'shadcn',
     category: 'navigation',
-    description: 'Spring-damped dropdown menu with animated indicator and selection highlighting.',
+    description: 'Accessible dropdown menu with keyboard focus management and clear selection indicators.',
     antiSlopRating: 'pure-craft',
     antiSlopGuidance: 'Ensure dropdown stays inside visible viewport bounds. Do not clip over bottom edge.',
-    dependencies: ['@radix-ui/react-dropdown-menu', 'framer-motion'],
-    tags: ['dropdown', 'menu', 'spring', 'radix'],
-    sourcePath: 'animate-ui/dropdown-menu.maia.tsx'
-  },
-
-  // --- REACT BITS (Atmospheric Backgrounds & Kinetic Typography) ---
-  {
-    id: 'react-bits/spotlight',
-    name: 'Spotlight Card',
-    library: 'react-bits',
-    category: 'interaction',
-    description: 'Dynamic radial gradient following the cursor across card boundaries.',
-    antiSlopRating: 'pure-craft',
-    antiSlopGuidance: 'Keep spotlight opacity low (rgba(255,255,255,0.06) on dark). The spotlight should feel like physical ambient lighting, not a flashlight.',
-    dependencies: [],
-    tags: ['spotlight', 'radial', 'hover', 'card', 'lighting'],
-    sourcePath: 'react-bits/spotlight.tsx'
-  },
-  {
-    id: 'react-bits/aurora',
-    name: 'Aurora Atmospheric Canvas',
-    library: 'react-bits',
-    category: 'background',
-    description: 'Slow, organic mesh gradient creating rich northern-lights ambient lighting.',
-    antiSlopRating: 'restrained',
-    antiSlopGuidance: 'Keep underlay opacity low (<0.15). Blur radius must be high (>60px). Use as a background plate behind sharp typography.',
-    dependencies: [],
-    tags: ['aurora', 'background', 'mesh', 'ambient', 'canvas'],
-    sourcePath: 'react-bits/aurora.tsx'
-  },
-  {
-    id: 'react-bits/split-text',
-    name: 'Split Text Reveal',
-    library: 'react-bits',
-    category: 'text-animation',
-    description: 'Characters or words staggered smoothly into view with spring easing.',
-    antiSlopRating: 'restrained',
-    antiSlopGuidance: 'Use only on the primary hero headline. Never animate body copy or paragraphs with character splitting.',
-    dependencies: ['framer-motion'],
-    tags: ['text', 'split', 'reveal', 'typography', 'kinetic'],
-    sourcePath: 'react-bits/split-text.tsx'
-  },
-  {
-    id: 'react-bits/hyperspeed',
-    name: 'Hyperspeed Starfield Canvas',
-    library: 'react-bits',
-    category: 'background',
-    description: 'High-speed 3D perspective warp lines rendered on WebGL canvas.',
-    antiSlopRating: 'needs-taming',
-    antiSlopGuidance: 'Limit strictly to high-energy developer landing page heroes. Keep speed measured and contrast low so foreground copy remains 100% legible.',
-    dependencies: ['three'],
-    tags: ['hyperspeed', 'stars', '3d', 'webgl', 'hero'],
-    sourcePath: 'react-bits/hyperspeed.tsx'
+    dependencies: ['@radix-ui/react-dropdown-menu'],
+    tags: ['dropdown', 'menu', 'radix'],
+    sourcePath: 'shadcn/dropdown-menu.tsx'
   }
 ];
 

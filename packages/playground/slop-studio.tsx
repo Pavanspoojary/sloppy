@@ -100,7 +100,7 @@ export function SlopStudio() {
                 transition: 'all 0.15s'
               }}
             >
-              {tab === 'transformer' ? 'Code Auto-Fixer' : tab === 'archetypes' ? 'Master Archetypes' : '7 Libraries Index'}
+              {tab === 'transformer' ? 'Code Auto-Fixer' : tab === 'archetypes' ? 'Master Archetypes' : 'MIT Libraries'}
             </button>
           ))}
         </div>
