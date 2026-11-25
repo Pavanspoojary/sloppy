@@ -647,6 +647,7 @@ export function createAct<S>(signal: AbortSignal, env: ActEnv<S>): Act<S> {
   for (const k of Object.keys(a) as (keyof Act<S>)[]) {
     const fn = a[k]
     if (typeof fn !== 'function') continue
+    // sloppy-ignore-next-line COD-02, COD-04 -- Invariant: wraps every method on Act<S> with rejection logging while preserving polymorphic signature
     ;(a as unknown as Record<string, unknown>)[k] = (...args: unknown[]) => {
       const out = (fn as (...x: unknown[]) => unknown).apply(a, args)
       if (out instanceof Promise)
@@ -661,9 +662,10 @@ export function createAct<S>(signal: AbortSignal, env: ActEnv<S>): Act<S> {
 
 // A loop that doesn't end where it began jumps on every repeat.
 export function checkSeam(end: object, initial: object, at: Point, rest: Point | null) {
-  const changed = Object.keys(initial).filter(
-    (k) => JSON.stringify((end as Record<string, unknown>)[k]) !== JSON.stringify((initial as Record<string, unknown>)[k]),
-  )
+  const endValues = new Map(Object.entries(end))
+  const changed = Object.entries(initial)
+    .filter(([k, initialValue]) => JSON.stringify(endValues.get(k)) !== JSON.stringify(initialValue))
+    .map(([k]) => k)
   if (changed.length) warn(`loop seam: state still differs from initial at the end of the script (${changed.join(', ')})`)
   if (rest && Math.hypot(at.x - rest.x, at.y - rest.y) > 1) warn('loop seam: cursor does not end where it starts')
 }

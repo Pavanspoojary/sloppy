@@ -121,7 +121,8 @@ export function Stage<S extends object>({
   layoutRef.current = layout
   // Where the cursor rests, for the layout showing
   const restAt = (): Target => {
-    const at = cursor!.at
+    if (!cursor) return { x: 0, y: 0 }
+    const at = cursor.at
     return typeof at === 'object' && 'wide' in at ? at[layoutRef.current] : at
   }
   const [grows, setGrows] = useState(false)
@@ -141,7 +142,7 @@ export function Stage<S extends object>({
   const scaleRef = useRef(1)
   scaleRef.current = scale
   // film.mjs can slow every stage down (--slow) and film any stage dark (--dark)
-  const film = typeof window === 'undefined' ? {} : ((window as unknown as { __stageshow?: { slow?: number; theme?: Theme } }).__stageshow ?? {})
+  const film = typeof window === 'undefined' ? {} : ((window as Window & { __stageshow?: { slow?: number; theme?: Theme } }).__stageshow ?? {})
   const speed = speedProp / (film.slow ?? 1)
   const theme = film.theme ?? themeProp
   const [kind, setKind] = useState<CursorKind>(cursor?.kind ?? 'pointer')
@@ -183,7 +184,7 @@ export function Stage<S extends object>({
       // fill (or a host wrapper marked data-ss-fill) lets the stage grow past its design size, within reason
       const grow = fillProp || !!fit.parentElement?.closest('[data-ss-fill]')
       setGrows(grow)
-      const dw = next === 'compact' ? compact!.width : width
+      const dw = next === 'compact' && compact ? compact.width : width
       const s = Math.min(grow ? 2 : 1, w / dw)
       setScale(s)
       // A design narrower than its box (a compact layout, or a stage that has
@@ -605,7 +606,7 @@ export function Stage<S extends object>({
           <LookContext.Provider value={look}>{children(state, rectFor, layout)}</LookContext.Provider>
         </StillContext.Provider>
         {script && <Keycaps rows={[lastKeys, keys]} at={typeof keysAt === 'string' ? keysAt : keysAt[layout]} />}
-        {showCursor && <Cursor cursorRef={cursorRef} style={cursor!.style} kind={kind} />}
+        {showCursor && cursor && <Cursor cursorRef={cursorRef} style={cursor.style} kind={kind} />}
       </div>
     </div>
   )

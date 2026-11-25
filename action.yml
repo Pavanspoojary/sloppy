@@ -3,7 +3,7 @@ description: 'Enforce zero-tolerance AI UI anti-slop quality gates and generate 
 author: 'Pavanspoojary'
 branding:
   icon: 'shield-check'
-  color: 'purple'
+  color: 'gray-dark'
 
 inputs:
   path:

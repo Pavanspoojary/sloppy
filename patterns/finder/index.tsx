@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, type HTMLAttributes, type ReactNode } from 'react'
 import {
   AppWindow,
   ChevronLeft,
@@ -240,7 +240,7 @@ export default function FinderDemo() {
 }
 
 function Sidebar() {
-  const item = (icon: ReactNode, label: ReactNode, extra?: Record<string, unknown>) => (
+  const item = (icon: ReactNode, label: ReactNode, extra?: HTMLAttributes<HTMLDivElement> & { 'data-current'?: boolean; 'data-target'?: string; 'data-drop'?: boolean }) => (
     <div className="fq-side__item" {...extra}>
       <span className="fq-side__icon">{icon}</span>
       {label}

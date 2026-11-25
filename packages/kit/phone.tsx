@@ -178,7 +178,7 @@ export function Phone({ width, frame: asked = 'pro', time = '9:41', island, stat
                 <path d={outline} fill="none" strokeWidth="2" style={{ stroke: 'var(--ss-line, rgba(0, 0, 0, 0.06))' }} />
               </>
             ) : (
-              bands!.map(([d, paint]) => (
+              (bands ?? []).map(([d, paint]) => (
                 <path
                   key={d}
                   d={outline}

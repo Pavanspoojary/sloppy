@@ -87,7 +87,7 @@ function Viewer() {
           }}
           onClick={() => setViewMode('catalog')}
         >
-          Gold Patterns (73+)
+          Gold Patterns
         </button>
         <button
           style={{
@@ -102,7 +102,7 @@ function Viewer() {
           }}
           onClick={() => setViewMode('studio')}
         >
-          Craft Studio (Auto-Fixer & 7 Libs)
+          Craft Studio
         </button>
       </div>
     </header>
@@ -133,4 +133,7 @@ function Viewer() {
     )}
   </main>
 }
-export function mount() { createRoot(document.getElementById('root')!).render(<Viewer />) }
+export function mount() {
+  const root = document.getElementById('root')
+  if (root) createRoot(root).render(<Viewer />)
+}

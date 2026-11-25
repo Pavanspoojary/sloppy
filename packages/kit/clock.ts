@@ -67,7 +67,7 @@ export const clock = {
   clearTimeout: (id: number): void => window.clearTimeout(id),
   /** The recorder's control while one drives the page, else null. */
   get recording(): ClockControl | null {
-    return typeof window === 'undefined' ? null : ((window as unknown as Host).__stageshow?.clock ?? null)
+    return typeof window === 'undefined' ? null : ((window as Window & Host).__stageshow?.clock ?? null)
   },
 }
 
@@ -118,7 +118,8 @@ export function installVirtualClock(opts: { fps?: number; epoch?: number; onLayo
   const dateNow = () => Math.floor(epoch + (vt - BASE))
   const VDate = function (this: unknown, ...a: unknown[]) {
     if (!new.target) return new RealDate(dateNow()).toString()
-    return a.length ? new (RealDate as any)(...a) : new RealDate(dateNow())
+    return a.length ? new (RealDate as DateConstructor)(...(a as [number])) : new RealDate(dateNow())
+  // sloppy-ignore-next-line COD-02 -- Invariant: self-contained Date shim injected via Playwright addInitScript
   } as unknown as DateConstructor
   Object.assign(VDate, { prototype: RealDate.prototype, now: dateNow, parse: RealDate.parse, UTC: RealDate.UTC })
   w.Date = VDate
