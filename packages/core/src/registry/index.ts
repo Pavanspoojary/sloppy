@@ -264,6 +264,7 @@ export function getPatternById(id: string): PatternEntry | undefined {
 
 export * from './libraries.js';
 export * from './components.js';
+export * from './motion-ecosystems.js';
 import { searchAllComponents } from './components.js';
 
 export function searchSloppyRegistry(query: string, options: { library?: string; category?: string; limit?: number } = {}) {

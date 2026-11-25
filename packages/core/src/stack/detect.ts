@@ -1,4 +1,6 @@
 import { SloppyConfig } from '../linter/types.js';
+import { getNodeEnv } from '../node-env.js';
+import { detectInstalledMotionEcosystems, type MotionEcosystemCategory } from '../registry/motion-ecosystems.js';
 
 export interface StackDetectionResult {
   hasTypeScript: boolean;
@@ -7,28 +9,13 @@ export interface StackDetectionResult {
   uiLibrary: 'shadcn' | 'radix' | 'mui' | 'chakra' | 'none';
   icons: 'lucide' | 'heroicons' | 'react-icons' | 'none';
   hasMotion: boolean;
+  motionEcosystems: {
+    detected: string[];
+    byCategory: Record<MotionEcosystemCategory, string[]>;
+  };
   hasZod: boolean;
   summary: string[];
   suggestedConfig: SloppyConfig;
-}
-
-function getNodeFsAndPath(): { fs?: any; path?: any } {
-  try {
-    if (typeof process !== 'undefined' && process.versions?.node) {
-      if (typeof (process as any).getBuiltinModule === 'function') {
-        return {
-          fs: (process as any).getBuiltinModule('node:fs'),
-          path: (process as any).getBuiltinModule('node:path')
-        };
-      }
-      const nodeRequire = new Function('id', 'return require(id)');
-      return {
-        fs: nodeRequire('fs'),
-        path: nodeRequire('path')
-      };
-    }
-  } catch {}
-  return {};
 }
 
 /**
@@ -38,13 +25,13 @@ function getNodeFsAndPath(): { fs?: any; path?: any } {
 export function detectProjectStack(cwd?: string): StackDetectionResult {
   const root = cwd ? cwd : (typeof process !== 'undefined' && process.cwd ? process.cwd() : '.');
   
-  let pkg: any = {};
+  let pkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> } = {};
   let hasTsConfig = false;
   let hasComponentsJson = false;
   let hasTailwindConfig = false;
 
   try {
-    const { fs, path } = getNodeFsAndPath();
+    const { fs, path } = getNodeEnv();
     if (fs && path) {
       const pkgPath = path.resolve(root, 'package.json');
       if (fs.existsSync(pkgPath)) {
@@ -102,8 +89,13 @@ export function detectProjectStack(cwd?: string): StackDetectionResult {
   else if (deps['@heroicons/react']) icons = 'heroicons';
   else if (deps['react-icons']) icons = 'react-icons';
 
-  // 6. Motion & Zod
-  const hasMotion = Boolean(deps['framer-motion'] || deps.motion);
+  // 6. Motion, Scroll, 3D/WebGL, Lottie, & Zod
+  const motionScan = detectInstalledMotionEcosystems(deps);
+  const motionEcosystems = {
+    detected: motionScan.detected.map(e => e.id),
+    byCategory: motionScan.byCategory
+  };
+  const hasMotion = motionEcosystems.detected.length > 0;
   const hasZod = Boolean(deps.zod);
 
   // Generate summary
@@ -113,7 +105,7 @@ export function detectProjectStack(cwd?: string): StackDetectionResult {
   summary.push(`Styling: ${styling}`);
   if (uiLibrary !== 'none') summary.push(`UI Components: ${uiLibrary}`);
   if (icons !== 'none') summary.push(`Icon System: ${icons}`);
-  if (hasMotion) summary.push(`Animation: Motion library present`);
+  if (hasMotion) summary.push(`Motion/3D/Lottie Ecosystems: ${motionEcosystems.detected.join(', ')}`);
   if (hasZod) summary.push(`Validation: Zod schema validation available`);
 
   // Build tailored SloppyConfig
@@ -132,6 +124,14 @@ export function detectProjectStack(cwd?: string): StackDetectionResult {
     rules['COD-06'] = 'error'; // Chained non-null assertion (!.)
   }
 
+  if (hasMotion) {
+    rules['MOT-01'] = 'error'; // Unearned looping animation
+    rules['MOT-02'] = 'error'; // Unbounded infinite programmatic motion
+    rules['MOT-03'] = 'error'; // Missing prefers-reduced-motion guard
+    rules['MOT-04'] = 'warn';  // Layout-thrashing geometry animation
+    rules['MOT-05'] = 'error'; // Unmanaged WebGL/Lottie/scroll loop
+  }
+
   const suggestedConfig: SloppyConfig = {
     strict: true,
     brand: {
@@ -147,6 +147,7 @@ export function detectProjectStack(cwd?: string): StackDetectionResult {
     uiLibrary,
     icons,
     hasMotion,
+    motionEcosystems,
     hasZod,
     summary,
     suggestedConfig
