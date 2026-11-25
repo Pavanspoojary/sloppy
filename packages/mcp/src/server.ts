@@ -40,78 +40,102 @@ function getPackageVersion(): string {
   }
 }
 
+function readTargetFile(targetPath: string): { resolved: string; code: string } | { resolved: string; error: string } {
+  const resolved = path.resolve(process.cwd(), targetPath);
+  try {
+    return { resolved, code: fs.readFileSync(resolved, 'utf8') };
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    return { resolved, error: code === 'ENOENT' ? `File not found: ${resolved}` : `Cannot read ${resolved}: ${(err as Error).message}` };
+  }
+}
+
+function gradeFromScore(score: number): string {
+  if (score === 0) return 'A+';
+  if (score <= 10) return 'A';
+  if (score <= 25) return 'B';
+  if (score <= 45) return 'C';
+  if (score <= 70) return 'D';
+  return 'F';
+}
+
 export const PRIMARY_TOOLS: Tool[] = [
   {
     name: 'sloppy_check',
-    description: 'Audit source code or a file, evaluate its craft grade, and return a quality gate result with repair actions.',
+    description: 'Audit source code and return quality gate result.',
     inputSchema: {
       type: 'object',
       properties: {
-        code: { type: 'string', description: 'Source code to check' },
-        path: { type: 'string', description: 'Optional source file path to check' },
-        maxScore: { type: 'number', description: 'Maximum permitted slop score (default: 0)', default: 0 },
-        failOn: { type: 'string', enum: ['none', 'low', 'medium', 'high', 'critical'], description: 'Minimum violation severity that fails the check (default: medium)', default: 'medium' },
-        componentType: { type: 'string', enum: ['illustration', 'feature-card', 'hero', 'application', 'bento'], description: 'Rendered surface type; sets the visible word budget' },
-        strict: { type: 'boolean', description: 'Enable strict restraint thresholds' },
-        codeOnly: { type: 'boolean', description: 'Audit low-evidence TypeScript code rules only (COD-01..06)' },
-        compact: { type: 'boolean', description: 'Return high-density token-optimized summary for coding agents' }
+        code: { type: 'string', description: 'Source code string' },
+        path: { type: 'string', description: 'File path' },
+        maxScore: { type: 'number', description: 'Max permitted slop score (default 0)', default: 0 },
+        failOn: { type: 'string', enum: ['none', 'low', 'medium', 'high', 'critical'], description: 'Failure severity threshold (default medium)', default: 'medium' },
+        componentType: { type: 'string', enum: ['illustration', 'feature-card', 'hero', 'application', 'bento'], description: 'Surface type for word budget' },
+        strict: { type: 'boolean', description: 'Strict restraint mode' },
+        codeOnly: { type: 'boolean', description: 'Audit TS/React rules only (COD-01..06)' },
+        compact: { type: 'boolean', description: 'Token-minimal summary response' }
       }
     }
   },
   {
     name: 'sloppy_plan',
-    description: 'Generate a structured, reviewable repair plan for sloppy code with dry-run diff preview and projected score improvements.',
+    description: 'Generate dry-run repair plan and unified diff.',
     inputSchema: {
       type: 'object',
       properties: {
-        code: { type: 'string', description: 'Source code content to generate repair plan for' },
-        path: { type: 'string', description: 'Optional file path to read and plan repairs' },
-        look: { type: 'string', description: 'Desired design token look (default: "linear")', default: 'linear' }
+        code: { type: 'string', description: 'Source code string' },
+        path: { type: 'string', description: 'File path' },
+        look: { type: 'string', description: 'Design look (default linear)', default: 'linear' }
       }
     }
   },
   {
     name: 'sloppy_fix',
-    description: 'Transform sloppy code into clean craft with verified unified diffs, syntax validation, and post-audit results.',
+    description: 'Apply safe craft transforms with wiring guard and syntax check.',
     inputSchema: {
       type: 'object',
       properties: {
-        code: { type: 'string', description: 'Source code content to repair' },
-        path: { type: 'string', description: 'Optional file path to read, transform, and optionally write back' },
-        look: { type: 'string', description: 'Desired design look (e.g. "linear", "minimal", "dark-hero")', default: 'linear' },
-        write: { type: 'boolean', description: 'Whether to write changes directly to disk when path is provided (default: false)', default: false },
+        code: { type: 'string', description: 'Source code string' },
+        path: { type: 'string', description: 'File path' },
+        look: { type: 'string', description: 'Design look (default linear)', default: 'linear' },
+        write: { type: 'boolean', description: 'Write changes to disk (default false)', default: false },
+        includeCode: { type: 'boolean', description: 'Include full transformedCode when write=true' },
         only: {
           type: 'array',
           items: { type: ['string', 'number'] },
-          description: 'Surgical allowlist of finding indices (e.g. [1, 3]) or rule IDs (e.g. ["VIS-02", "COD-01"]). Omit to apply every safe transformation.'
+          description: 'Allowlist of finding indices or rule IDs'
         }
       }
     }
   },
   {
     name: 'sloppy_catalog',
-    description: 'Unified lookup across components, patterns, looks, and master archetypes in the anti-slop library.',
+    description: 'Search components, patterns, looks, archetypes, and motion libraries.',
     inputSchema: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: 'Search query or keyword' },
-        type: { type: 'string', enum: ['all', 'components', 'patterns', 'looks', 'archetypes', 'motion'], description: 'Filter category (default: "all")', default: 'all' },
-        limit: { type: 'integer', description: 'Maximum results to return (default: 20)', default: 20 }
+        query: { type: 'string', description: 'Search keyword' },
+        type: { type: 'string', enum: ['all', 'components', 'patterns', 'looks', 'archetypes', 'motion'], description: 'Category (default all)', default: 'all' },
+        detail: { type: 'string', enum: ['summary', 'full'], description: 'Payload detail level (default summary)', default: 'summary' },
+        limit: { type: 'integer', description: 'Max items per category (default 10)', default: 10 }
       }
     }
   },
   {
     name: 'sloppy_rules',
-    description: 'Query authoritative anti-slop rules, guidelines, craft rubric definitions, and surface word budgets.',
+    description: 'Query craft guidelines, stack detection, or canonical rule evidence.',
     inputSchema: {
       type: 'object',
       properties: {
         topic: {
           type: 'string',
           enum: ['craft', 'framing', 'motion', 'bento', 'word_budget', 'stack', 'evidence', 'all'],
-          description: 'Design topic to query (default: "craft")',
+          description: 'Topic (default craft)',
           default: 'craft'
-        }
+        },
+        ruleId: { type: 'string', description: 'Optional single rule ID/slug filter' },
+        tier: { type: 'string', enum: ['floor', 'reflex', 'finish'], description: 'Optional severity tier filter' },
+        compact: { type: 'boolean', description: 'Return compact rule rows' }
       }
     }
   }
@@ -150,10 +174,10 @@ export function createSloppyServer() {
           compact?: boolean;
         };
         let code = input.code;
-        if (input.path) {
-          const file = path.resolve(process.cwd(), input.path);
-          if (!fs.existsSync(file)) return { content: [{ type: 'text', text: `File not found: ${file}` }], isError: true };
-          if (code === undefined) code = fs.readFileSync(file, 'utf8');
+        if (input.path && code === undefined) {
+          const target = readTargetFile(input.path);
+          if ('error' in target) return { content: [{ type: 'text', text: target.error }], isError: true };
+          code = target.code;
         }
         if (code === undefined) return { content: [{ type: 'text', text: 'Provide code or path.' }], isError: true };
 
@@ -163,7 +187,6 @@ export function createSloppyServer() {
           strict: input.strict,
           codeOnly: input.codeOnly
         });
-        const rubric = evaluateCraftRubric(code, { filepath: input.path, componentType: input.componentType, strict: input.strict });
         const rank = ['low', 'medium', 'high', 'critical'];
         const threshold = input.failOn === 'none' ? -1 : rank.indexOf(input.failOn || 'medium');
         const maxScore = input.maxScore ?? 0;
@@ -177,7 +200,7 @@ export function createSloppyServer() {
                 text: JSON.stringify({
                   ok,
                   score: audit.slopScore,
-                  grade: rubric.grade,
+                  grade: gradeFromScore(audit.slopScore),
                   issues: audit.violations.map(v => `${v.tier}:${v.ruleId || v.type}@L${v.line}`)
                 })
               }
@@ -185,13 +208,10 @@ export function createSloppyServer() {
           };
         }
 
-        const nextActions = [
-          ...new Set(
-            audit.violations.flatMap(() =>
-              input.path ? [`Run: sloppy fix ${input.path} --diff`, `Re-run: sloppy check ${input.path}`] : ['Review suggested repairs and re-run sloppy_check']
-            )
-          )
-        ].slice(0, 5);
+        const rubric = evaluateCraftRubric(code, { filepath: input.path, componentType: input.componentType, strict: input.strict, audit });
+        const nextActions = audit.violations.length > 0
+          ? (input.path ? [`Run: sloppy fix ${input.path} --diff`, `Re-run: sloppy check ${input.path}`] : ['Review suggested repairs and re-run sloppy_check'])
+          : [];
 
         return {
           content: [
@@ -213,12 +233,9 @@ export function createSloppyServer() {
         const inputArgs = (args || {}) as { code?: string; path?: string; look?: string };
         let code = inputArgs.code;
         if (!code && inputArgs.path) {
-          const resolvedPath = path.resolve(process.cwd(), inputArgs.path);
-          if (fs.existsSync(resolvedPath)) {
-            code = fs.readFileSync(resolvedPath, 'utf8');
-          } else {
-            return { content: [{ type: 'text', text: `File not found: ${resolvedPath}` }], isError: true };
-          }
+          const target = readTargetFile(inputArgs.path);
+          if ('error' in target) return { content: [{ type: 'text', text: target.error }], isError: true };
+          code = target.code;
         }
         if (!code) {
           return { content: [{ type: 'text', text: 'Provide code or path to plan repairs.' }], isError: true };
@@ -229,23 +246,27 @@ export function createSloppyServer() {
           filepath: inputArgs.path
         });
 
-        return { content: [{ type: 'text', text: JSON.stringify(plan, null, 2) }] };
+        return { content: [{ type: 'text', text: JSON.stringify(plan) }] };
       }
 
       if (name === 'sloppy_fix') {
-        const input = (args || {}) as { code?: string; path?: string; look?: string; write?: boolean; only?: (string | number)[] };
+        const input = (args || {}) as { code?: string; path?: string; look?: string; write?: boolean; includeCode?: boolean; only?: (string | number)[] };
         let code = input.code;
         let resolvedPath: string | undefined;
         if (input.path) {
           resolvedPath = path.resolve(process.cwd(), input.path);
-          if (!fs.existsSync(resolvedPath)) return { content: [{ type: 'text', text: `File not found: ${resolvedPath}` }], isError: true };
-          if (code === undefined) code = fs.readFileSync(resolvedPath, 'utf8');
+          if (code === undefined) {
+            const target = readTargetFile(input.path);
+            if ('error' in target) return { content: [{ type: 'text', text: target.error }], isError: true };
+            code = target.code;
+          }
         }
         if (code === undefined) return { content: [{ type: 'text', text: 'Provide code or path.' }], isError: true };
 
         const only = Array.isArray(input.only) ? input.only : undefined;
         const transformed = transformSlopToCraft(code, { look: (input.look as any) || 'linear', filepath: input.path, only });
         const wiringGuard = transformed.wiringGuard;
+        let written = false;
         if (input.write === true && resolvedPath) {
           if (!transformed.isValidSyntax) {
             return { content: [{ type: 'text', text: `Refusing to write invalid syntax: ${transformed.syntaxErrors.map((e) => e.message).join('; ')}` }], isError: true };
@@ -254,38 +275,56 @@ export function createSloppyServer() {
             return { content: [{ type: 'text', text: `Refusing to write: the wiring guard detected dropped handlers or links. ${wiringGuard.details}` }], isError: true };
           }
           fs.writeFileSync(resolvedPath, transformed.transformedCode, 'utf8');
+          written = true;
         }
 
+        const includeCode = input.includeCode ?? !written;
+        const fixPayload: {
+          changed: boolean;
+          written: boolean;
+          changesApplied: number;
+          isValidSyntax: boolean;
+          transformedCode?: string;
+          unifiedDiff: string;
+          postAudit: unknown;
+          only: (string | number)[] | null;
+          wiringGuard: unknown;
+          manualReviewItems: string[];
+        } = {
+          changed: transformed.transformedCode !== code,
+          written,
+          changesApplied: transformed.changesApplied,
+          isValidSyntax: transformed.isValidSyntax,
+          unifiedDiff: transformed.unifiedDiff,
+          postAudit: written
+            ? { slopScore: transformed.postAudit.slopScore, violations: transformed.postAudit.stats.totalViolations }
+            : transformed.postAudit,
+          only: only ?? null,
+          wiringGuard,
+          manualReviewItems: transformed.manualReviewItems
+        };
+        if (includeCode) fixPayload.transformedCode = transformed.transformedCode;
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
-                changed: transformed.transformedCode !== code,
-                changesApplied: transformed.changesApplied,
-                isValidSyntax: transformed.isValidSyntax,
-                transformedCode: transformed.transformedCode,
-                unifiedDiff: transformed.unifiedDiff,
-                postAudit: transformed.postAudit,
-                only: only ?? null,
-                wiringGuard,
-                manualReviewItems: transformed.manualReviewItems
-              })
+              text: JSON.stringify(fixPayload)
             }
           ]
         };
       }
 
       if (name === 'sloppy_catalog') {
-        const inputArgs = (args || {}) as { query?: string; type?: string; limit?: number };
+        const inputArgs = (args || {}) as { query?: string; type?: string; detail?: string; limit?: number };
         const q = inputArgs.query || '';
-        const limit = inputArgs.limit || 20;
+        const limit = inputArgs.limit || 10;
         const kind = inputArgs.type || 'all';
+        const full = inputArgs.detail === 'full';
 
-        const components = (kind === 'all' || kind === 'components') ? searchAllComponents(q, { limit }) : [];
-        const patterns = (kind === 'all' || kind === 'patterns') ? searchPatterns(q, { limit }) : [];
-        const archetypes = (kind === 'all' || kind === 'archetypes') ? searchSynthesizedArchetypes(q) : [];
-        const looks = (kind === 'all' || kind === 'looks') ? Object.keys(LOOKS).filter((l) => !q || l.includes(q.toLowerCase())) : [];
+        const components = (kind === 'all' || kind === 'components') ? searchAllComponents(q, { limit }).slice(0, limit) : [];
+        const patterns = (kind === 'all' || kind === 'patterns') ? searchPatterns(q, { limit }).slice(0, limit) : [];
+        const archetypes = (kind === 'all' || kind === 'archetypes') ? searchSynthesizedArchetypes(q).slice(0, limit) : [];
+        const looks = (kind === 'all' || kind === 'looks') ? Object.keys(LOOKS).filter((l) => !q || l.includes(q.toLowerCase())).slice(0, limit) : [];
         const motionEcosystems = (kind === 'all' || kind === 'motion') ? searchMotionEcosystems(q).slice(0, limit) : [];
 
         return {
@@ -295,6 +334,7 @@ export function createSloppyServer() {
               text: JSON.stringify({
                 query: q,
                 category: kind,
+                detail: full ? 'full' : 'summary',
                 counts: {
                   components: components.length,
                   patterns: patterns.length,
@@ -302,33 +342,39 @@ export function createSloppyServer() {
                   looks: looks.length,
                   motionEcosystems: motionEcosystems.length
                 },
-                components: components.slice(0, limit),
-                patterns: patterns.slice(0, limit),
-                archetypes,
+                components: full ? components : components.map(c => ({ id: c.id, name: c.name, library: c.library, category: c.category })),
+                patterns: full ? patterns : patterns.map(p => ({ id: p.id, name: p.name, category: p.category, focalPoint: p.focalPoint })),
+                archetypes: full ? archetypes : archetypes.map(a => ({ id: a.id, name: a.name, category: a.category })),
                 looks,
-                motionEcosystems
-              }, null, 2)
+                motionEcosystems: full ? motionEcosystems : motionEcosystems.map(m => ({ id: m.id, name: m.name, packages: m.packages, category: m.category, license: m.license }))
+              })
             }
           ]
         };
       }
 
       if (name === 'sloppy_rules' || name === 'sloppy_get_rules') {
-        const inputArgs = (args || {}) as { topic?: string };
+        const inputArgs = (args || {}) as { topic?: string; ruleId?: string; tier?: string; compact?: boolean };
         if (inputArgs.topic === 'stack') {
-          const stackResult = detectProjectStack();
-          return { content: [{ type: 'text', text: JSON.stringify(stackResult, null, 2) }] };
+          return { content: [{ type: 'text', text: JSON.stringify(detectProjectStack()) }] };
         }
         if (inputArgs.topic === 'all' || inputArgs.topic === 'evidence') {
-          const canonical = Object.entries(CANONICAL_RULES).map(([slug, rule]) => ({
-            slug,
-            ...rule,
-            ...(RULE_METADATA[slug as keyof typeof RULE_METADATA] || {})
-          }));
-          return { content: [{ type: 'text', text: JSON.stringify({ version: packageVersion, rules: canonical }, null, 2) }] };
+          const filterId = inputArgs.ruleId?.trim().toUpperCase();
+          const filterTier = inputArgs.tier?.trim().toLowerCase();
+          const canonical = Object.entries(CANONICAL_RULES)
+            .filter(([slug, rule]) =>
+              (!filterId || rule.ruleId.toUpperCase() === filterId || slug.toUpperCase() === filterId) &&
+              (!filterTier || rule.tier === filterTier)
+            )
+            .map(([slug, rule]) =>
+              inputArgs.compact
+                ? { ruleId: rule.ruleId, slug, tier: rule.tier, mode: rule.mode, severity: rule.defaultSeverity, title: rule.title }
+                : { slug, ...rule, ...(RULE_METADATA[slug as keyof typeof RULE_METADATA] || {}) }
+            );
+          return { content: [{ type: 'text', text: JSON.stringify({ version: packageVersion, rules: canonical }) }] };
         }
         const rules = getRulesByTopic(inputArgs.topic || 'craft');
-        return { content: [{ type: 'text', text: JSON.stringify(rules, null, 2) }] };
+        return { content: [{ type: 'text', text: JSON.stringify(rules) }] };
       }
 
       return {
