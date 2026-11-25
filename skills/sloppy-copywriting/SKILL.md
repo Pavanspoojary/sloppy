@@ -74,3 +74,12 @@ If actual metrics are not yet available, use an explicit `TODO` or structural sk
 
 - **`CPY-06` (Chatbot Conversational Artifacts)**: Eliminate conversational prefixes ("Certainly! Here is your component", "Sure, let's explore", "Hope this helps!").
 - **`CPY-07` (Lorem Ipsum & John Doe)**: Never insert raw Latin filler ("Lorem ipsum dolor sit amet", "John Doe"). Use authentic domain nouns (e.g., `production-cluster-04`, `invoice_8492_paid.pdf`).
+
+---
+
+## 7. Ponytail Radical Copy Restraint (Minimal Words, Maximum Signal)
+
+- **Honest Simplicity**: Write the minimum number of words necessary to guide the user through the interface.
+- **Zero Cheerleading**: Eliminate buzzwords like "effortless", "seamless", "next-gen", "supercharge", "blazing-fast", or "revolutionary".
+- **Quiet Secondary Telemetry**: Replace fake metrics ("+24.5% vs last week") and repetitive filler text with neutral skeleton placeholder bars (`<Bar />` / `<div className="h-2 w-16 bg-muted rounded" />`).
+- **One Clear Call to Action**: Provide 1 primary button per task. Avoid secondary, tertiary, and quaternary actions unless explicitly called for.

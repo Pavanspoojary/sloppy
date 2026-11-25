@@ -4,6 +4,16 @@
 
 ---
 
+## 0. The Ponytail Lazy UI Rule (Anti-Overengineering)
+
+- **UI YAGNI**: Never build speculative screens, secondary cards, filter bars, search fields, or extra modal wizards unless explicitly requested. Minimal effective UI wins.
+- **Native Platform First**: Reach for `<button>`, `<select>`, `<dialog>`, and native input types before hand-rolling 300 lines of custom div soup.
+- **Single Surface Elevation**: 1 clean elevated surface beats 4 nested bordered boxes. Use dividers (`divide-y`) or whitespace instead of nested cards inside cards.
+- **Restrained Motion**: Use plain CSS transitions over heavy physics loops. Zero decorative bobbing or infinite shimmers. Always respect `prefers-reduced-motion`.
+- **Radical Copy Budget**: Maximum 3–7 words per header. Zero cheerleading ("Effortlessly manage...") or fake stats ("+99.8%"). Use quiet neutral placeholder bars for filler.
+
+---
+
 ## 1. Floor Gates (Never Ship Broken Code)
 
 - **`VIS-08` WCAG Contrast**: Text vs. background `>= 4.5:1` (`>= 3:1` large text). Avoid faint `text-neutral-500/600` on dark `#09090b`.

@@ -11,6 +11,33 @@ Eliminate AI UI and TypeScript slop with deterministic source scanning, 3-tier s
 
 ---
 
+## The Ponytail Lazy UI Design Ladder (Anti-Overengineering)
+
+"The best UI is the UI you never had to render." When designing or implementing UI, AI agents must climb the Ponytail UI Ladder and stop at the lowest rung that solves the user's immediate need:
+
+1. **Rung 1: UI YAGNI (You Aren't Gonna Need It)**
+   - Question every single visual widget, filter pill, search bar, secondary tab, export menu, and settings modal.
+   - If the user or spec did not explicitly ask for it, **do not build it**. Never generate speculative dashboard clutter or decorative chrome to "fill space".
+2. **Rung 2: Native Platform Primitives First**
+   - Reach for native HTML and CSS before reaching for bespoke component wrappers or hand-rolled div soup:
+     - Use `<button type="button">` (not clickable `<div>` with state).
+     - Use `<dialog>` or native modal mechanisms.
+     - Use `<input type="date">`, `<select>`, `<input type="checkbox">` before assembling a 250-line custom dropdown.
+     - Use standard CSS grid/flexbox, `:has()`, and `accent-color` before adding layout calculation libraries.
+3. **Rung 3: Single Surface Elevation (No Nested Card Bloat)**
+   - Stop nesting cards inside cards inside cards (`border border-neutral-800 rounded-xl p-4`).
+   - Use 1 clean, restrained surface step (`0 -> 1 -> 2`). Separate sub-items with clean vertical whitespace, subtle dividers (`divide-y divide-neutral-800/60`), or quiet indentation—never another bordered card container.
+4. **Rung 4: Restrained Motion & Functional Transitions**
+   - Motion is strictly functional: orient spatial hierarchy on state changes.
+   - Prefer standard CSS transitions (`transition-opacity duration-150`) over heavy physics engines.
+   - Zero decorative infinite loops (`animate-bounce`, continuous rotation, unearned shimmers). Always guard with `useReducedMotion()` / `prefers-reduced-motion` (`MOT-03`).
+5. **Rung 5: Radical Information & Copy Restraint**
+   - Strict word budget: 3–7 words per hero/card headline.
+   - Never invent marketing cheerleading or fake analytics stats.
+   - Use quiet neutral placeholder rows (`<Bar />` / `<div className="h-2 w-16 bg-muted rounded" />`) for peripheral secondary data.
+
+---
+
 ## Progressive Specialist Skills (Load On-Demand Only)
 
 Load only the specialist needed for your active domain to minimize context tokens:

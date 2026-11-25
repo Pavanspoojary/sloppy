@@ -47,3 +47,12 @@ AI landing pages frequently shrink an entire SaaS dashboard into a floating 400p
   - Test layouts at 375px, 390px, and 430px viewports using `sloppy verify <target> --multi-width`.
   - Prevent fixed pixel widths (`w-[600px]`) that trigger horizontal scrollbars on mobile. Always use `max-w-full`, `w-full`, or flex wrapping.
 - **Center-Alignment Discipline (`LAY-01`)**: Center-align only the primary hero headline. Supporting cards, feature lists, and code blocks must remain left-aligned for high readability.
+
+---
+
+## 4. Ponytail Minimal Layout Architecture (Zero Div Soup)
+
+- **Eliminate Wrapper Div Syndrome**: Flatten layout hierarchies. Do not wrap single children in redundant flex/grid containers. If a section can be laid out with 1 parent container, never generate 3 nested `div` wrappers.
+- **Whitespace Over Borders**: Use structured gap tokens (`gap-6`, `gap-8`) and natural padding instead of enclosing every section in a bordered box.
+- **Single Focal Center**: Every screen needs one clear focal hierarchy. Avoid splitting user attention across 6 competing mini-cards.
+- **Native Layout Primitives**: Use CSS Grid and Flexbox with native `gap`, `clamp()`, and `:has()` rather than importing runtime layout calculators.

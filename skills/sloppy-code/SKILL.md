@@ -86,3 +86,16 @@ AI agents often fabricate type safety that compiles without runtime guarantees:
 - **`COD-05` (`EMPTY_OBJECT_SPREAD`, Finish)**: Avoid `...(cond ? { key } : {})`; declare optional properties explicitly.
 - **`COD-06` (`NON_NULL_ASSERTION_SLOP`, Floor)**: Never chain `foo!.bar!.baz`; use optional chaining (`?.`) or defensive guards.
 - **Strict Invariant Ignores (`--strict`)**: Suppressing any rule with `// sloppy-ignore-next-line <RULE>` in strict mode requires a written invariant reason (`-- <reason>` of at least 5 characters), e.g. `// sloppy-ignore-next-line COD-02 -- Checked invariant: validated via Zod upstream`.
+
+---
+
+## 6. Ponytail Native Platform Primitives (Zero Over-Engineering)
+
+- **Native HTML Elements Over Hand-Rolled Divs**:
+  - Always reach for `<button type="button">` over `<div onClick=... role="button">`.
+  - Always reach for native `<dialog>` or native form controls (`<input type="date">`, `<select>`, `<input type="checkbox">`) before hand-rolling 300 lines of custom dropdown or modal state.
+- **CSS Transitions Over Heavy Runtime Engines**:
+  - Use simple CSS transitions (`transition-all duration-150 ease-out`) for hover, focus, and state reveals.
+  - Never import external physics libraries when 2 lines of CSS transitions accomplish the same user orientation.
+- **Minimal State Complexity**:
+  - Compute values in-render where possible; avoid redundant `useState` + `useEffect` chains that lead to synchronization bugs and layout thrashing.

@@ -65,3 +65,13 @@ AI agents blindly insert sparkles or magic wands on generic buttons (`MED-02`).
 
 - **`VIS-08` (Low Contrast Gray Text - Floor Blocker)**: All body text and labels must maintain a minimum 4.5:1 contrast ratio against their immediate background (3:1 for text >= 18px or bold 14px).
 - Pair high-contrast primary text (`text-neutral-100`) with secondary muted labels (`text-neutral-400`). Never wash out text with `text-neutral-600` on dark backgrounds.
+
+---
+
+## 5. The Ponytail UI Restraint Standard (Anti-Overengineering)
+
+"The best UI is the UI you never had to render." When styling or designing UI, stop at the lowest rung of the Ponytail UI Ladder:
+- **UI YAGNI**: Never invent speculative cards, filter pills, search bars, extra tabs, or settings dialogs that weren't requested.
+- **Card Proliferation**: Avoid wrapping every text line or list item in its own bordered card (`rounded-xl border p-4 bg-card`). Use clean typographic hierarchy and 1px dividers (`divide-y divide-neutral-800/60`).
+- **Surface Elevation Restraint**: Maximum 2 surface steps on a single screen (e.g., Step 0 Canvas -> Step 1 Stage -> Step 2 Item). Never create Step 3 nested panels within Step 2 panels unless it is an active modal dialog.
+- **Restrained Visual Signals**: Use a single accent color across the entire view. Never combine emerald badges, purple cards, blue CTAs, and amber highlights simultaneously.
