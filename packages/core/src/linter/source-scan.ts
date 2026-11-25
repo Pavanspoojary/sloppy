@@ -119,8 +119,22 @@ export function scanSource(source: string): SourceScan {
     while (i < source.length && /[\w.$:-]/.test(source[i])) i++;
     const name = source.slice(start + (closing ? 2 : 1), i);
     const attrs = new Map<string, SourceAttribute>();
-    let end = i, quoteChar = '';
-    for (; end < source.length; end++) { const c = source[end]; if (quoteChar) { if (c === '\\') { end++; continue; } if (c === quoteChar) quoteChar = ''; } else if (c === '"' || c === "'" || c === '`') quoteChar = c; else if (c === '>') break; }
+    let end = i, quoteChar = '', braceDepth = 0;
+    for (; end < source.length; end++) {
+      const c = source[end];
+      if (quoteChar) {
+        if (c === '\\') { end++; continue; }
+        if (c === quoteChar) quoteChar = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quoteChar = c;
+      } else if (c === '{') {
+        braceDepth++;
+      } else if (c === '}') {
+        braceDepth = Math.max(0, braceDepth - 1);
+      } else if (c === '>' && braceDepth === 0) {
+        break;
+      }
+    }
     if (end >= source.length) { i = start; continue; }
     let p = i;
     while (p < end) {
@@ -158,7 +172,7 @@ export function lineAt(scan: SourceScan, source: string, lineNumber: number): st
 
 export function classTokens(value: string): string[] {
   const result: string[] = [];
-  const re = /(?:["'`]([^"'`]*)["'`]|([\w!:-]+(?:\[[^\]]*\])?))/g;
+  const re = /(?:["'`]([^"'`]*)["'`]|([\w!:/-]+(?:\[[^\]]*\])?))/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(value))) for (const token of (match[1] ?? match[2]).split(/\s+/)) if (token) result.push(token);
   return result;

@@ -189,7 +189,9 @@ export function verifyKeptWiring(originalSource: string, transformedSource: stri
 
   // Verify Navigation Links (ignore dead '#' links because Sloppy intentionally refactors those)
   for (const nav of before.navigation) {
-    if (nav.value && nav.value !== '#' && !/^(?:javascript|vbscript|data):/i.test(nav.value.trim())) {
+    const valTrimmed = nav.value ? nav.value.trim().toLowerCase() : '';
+    const isDangerousScheme = valTrimmed.startsWith('javascript:') || valTrimmed.startsWith('data:') || valTrimmed.startsWith('vbscript:');
+    if (nav.value && nav.value !== '#' && !isDangerousScheme) {
       const retained = after.navigation.some(a => norm(a.value) === norm(nav.value));
       if (!retained) {
         dropped.push({
