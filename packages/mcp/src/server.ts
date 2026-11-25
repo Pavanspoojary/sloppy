@@ -150,7 +150,14 @@ export function createSloppyServer() {
     },
     {
       capabilities: { tools: {} },
-      instructions: 'Use the closed loop: call sloppy_check before and after edits. Never claim a file is slop-free without a fresh check. Prefer sloppy_plan or sloppy_fix with write:false and review its diff before applying changes.'
+      instructions:
+        'Anti-Slop closed loop: call sloppy_check before and after edits. Never claim a file is slop-free without a fresh check. ' +
+        'Ponytail Lazy UI Ladder: (1) UI YAGNI—never build speculative cards, search bars, filter pills, or modal wizards not requested; ' +
+        '(2) Native platform first—reach for semantic <button>, <select>, <dialog>, <input> before hand-rolling div soup; ' +
+        '(3) Single surface elevation—1 clean elevated surface beats nested cards inside cards; ' +
+        '(4) Restrained motion—plain CSS transitions over unearned loops, always guard reduced motion; ' +
+        '(5) Radical copy budget—max 3-7 words per header, zero cheerleading or fake stats. ' +
+        'Prefer sloppy_plan or sloppy_fix with write:false and review diff before writing.'
     }
   );
 

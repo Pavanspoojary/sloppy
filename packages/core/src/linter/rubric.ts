@@ -127,8 +127,8 @@ export function evaluateCraftRubric(
       weight: 1.0,
       status: surfaceScore >= 9 ? 'flawless' : surfaceScore >= 7 ? 'good' : surfaceScore >= 4 ? 'needs-attention' : 'critical-slop',
       feedback: surfaceScore >= 9 
-        ? 'Grounded, purposeful surface elevation with authentic depth.' 
-        : 'Avoid floating shrunken cards with uniform air. Fill horizontal stage and bleed off edges.'
+        ? 'Grounded, purposeful surface elevation with authentic depth and single surface restraint.' 
+        : 'Avoid floating shrunken cards with uniform air. Obey Ponytail UI restraint: use single surface elevation, flat spacing, or dividers instead of nested card bloat.'
     },
     {
       id: 'word_budget',
