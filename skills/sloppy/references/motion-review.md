@@ -45,6 +45,7 @@ them.
 | Duration scale | Three durations, chosen by size: `fast` = 150–200ms (hover, press, tooltip), `base` = 200–300ms (dropdown, popover, small panel), `slow` = 300–500ms (sheet, drawer, full-screen surface). Storytelling may exceed this; product feedback may not. |
 | Curves | One entrance curve (`ease-out`, e.g. `cubic-bezier(0.16, 1, 0.3, 1)`), one exit/travel curve. `ease-in` is wrong for entrances. `linear` is wrong for anything a person watches. |
 | Spring | Springs are for gestures and direct manipulation, never for a hover or a tooltip. An overshoot is allowed on one small expressive icon, never on readable text or a whole surface. |
+| Feedback ceiling | One maximum for hovers, presses, and focus. Default 600ms; a project may declare a tighter value (`motion-max-feedback`) and `MOT-07` enforces it. |
 | Signature | One signature move per page. Everything else stays quiet. Two competing signature moves read as a template. |
 | Triggers | Familiar triggers: hover, press, open, navigate, drop. Never a background loop, never a scroll-jack, never a cursor follower as the main event. |
 | Origin | A popover grows from the trigger (`transform-origin: var(--transform-origin)`), a sheet from its edge. Never from the centre of the screen unless the trigger is there. |
@@ -88,7 +89,8 @@ Animate only what the compositor can carry:
 | `color`, `background-color`, `border-color` (short, small areas) | `border-radius` on a large surface | `display` / `visibility` without `@starting-style` or `allow-discrete` |
 
 - `will-change` is a hint for a known upcoming animation, added just before it and
-  removed after. Leaving it on many elements creates layers and memory pressure.
+  removed after. Leaving it on many elements creates layers and memory pressure
+  (`MOT-17` flags a page that declares it three or more times).
 - A single 60fps frame budget is ~16.7ms for everything on the page. Two backdrop
   filters, a particle canvas, and a scroll smoother in one viewport do not fit.
 - Animate the child, not the layer that holds readable text. Scaling a text container
@@ -105,7 +107,10 @@ These are the tells. Each maps to a canonical rule where the scanner can prove i
 | Tell | Why it reads as generated | Rule | Fix |
 | :--- | :--- | :--- | :--- |
 | **Everything fades up on scroll** — every section enters with the same `opacity 0 → 1`, `translateY(20px)` | The default of every page builder; content is invisible until JS runs | `MOT-08` | Render content visible. Keep one restrained reveal, or none. |
-| **One curve and one duration everywhere** | Reads as a single template transition applied globally | `MOT-07` (slow), motion contract | Three durations, entrance vs exit curves. |
+| **The same entrance on every block** — four or more elements share one identical `initial`/`animate` pair, one `fadeInUp` keyframe on many selectors, or any mount motion on `h1`-`h6`, `p`, or `nav` | Polish applied uniformly with no hierarchy; reading is delayed to show off the fade | `MOT-15` | One entrance motif on the focal element; text and navigation render visible. |
+| **Blur-in on every card and heading** — `filter: blur(4px)` in every entering element | The polished-entrance recipe copied everywhere; blurs text on first paint | `MOT-15` | Blur only one focal surface, never readable text; prefer opacity and 8-12px travel. |
+| **Bouncy dialog and spring on routine surfaces** — `cubic-bezier(…, 1.56, …)`, `animate-bounce`, overshoot springs on modals and cards | Copying a playful gesture recipe where no gesture exists | `MOT-16` | Routine surfaces enter on `ease-out`; overshoot stays on one small expressive icon. |
+| **One curve and one duration everywhere** | Reads as a single template transition applied globally | `MOT-07` (slow), `MOT-18` (off-contract), motion contract | Three durations, entrance vs exit curves, and values from the declared scale. |
 | **`transition-all`** | Animates properties nobody chose, including layout | `MOT-06` | Name the properties. |
 | **Hover lift on static cards** (`hover:-translate-y-1`, `hover:scale-105` on a non-interactive `div`) | Promises a click that does not exist | `MOT-14` | Remove it, or make the whole card a real control. |
 | **Infinite marquee / logo strip / auto-carousel** | Autoplay decoration with no pause, often over 5s | `MOT-09` | Add a keyboard pause, or make it finite. |
@@ -151,9 +156,13 @@ than a quiet page. Frequency beats aesthetics.
 1. **Static pass.** Run `sloppy check <path> --strict --compact`. Read every MOT
    finding; do not silence one without a written rationale in `sloppy.config.json` or
    `sloppy-override`.
-2. **Rendered pass.** Run `sloppy verify <url> --a11y --multi-width`. This catches
-   infinite autoplay without a pause control, slow interaction transitions, loops that
-   ignore reduced motion, overflow at 320px, and target-size failures.
+2. **Rendered pass.** Run `sloppy verify <url> --a11y --multi-width`, and for declared
+   flows `sloppy verify <url> --motion <spec.json>`. The interaction audit re-runs every
+   declared interaction under `prefers-reduced-motion: reduce` and reports leftover
+   travel (`motion.reducedMotionTravel`), a state change that disappears
+   (`motion.reducedMotionHidesContent`), and loops that keep running
+   (`motion.reducedMotionKeepsLoop`). The a11y pass adds infinite autoplay without a
+   pause control, slow interaction transitions, 320px overflow, and target-size failures.
 3. **Slow-motion pass.** In devtools, slow animations to 10–25% and watch one change
    end to end: onset, travel, overlap, landing, hold. Check the first and last frames
    as stills; text blurred mid-flight or a half-pixel landing counts as a defect.
@@ -180,3 +189,7 @@ evidence that motion feels right.
 - [WCAG 2.3.1 Three Flashes or Below Threshold](https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html)
 - [WCAG 2.3.3 Animation from Interactions](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html)
 - [Apple Human Interface Guidelines: Motion](https://developer.apple.com/design/human-interface-guidelines/motion) — reduced motion, purposeful motion, custom easing.
+- [Impeccable: Slop — Motion rules](https://impeccable.style/slop) — pulsing status dots, fake carets, auto-marquees, bouncy dialogs.
+- [design-motion-principles anti-checklist](https://github.com/kylezantos/design-motion-principles/blob/main/skills/design-motion-principles/references/anti-checklist.md) — uniform fade-ups (flag at four or more components), blur-everywhere entrances, motion on static content.
+- [Adamarant: Functional UI animation in 2026 checklist](https://adamarant.com/en/blog/functional-ui-animation-in-2026-the-checklist-before-it-ships) — duration bands, easing as a verb, `ease-in` never on UI.
+- [Paralect: signs of AI slop in design](https://www.paralect.com/blog/signs-of-ai-slop-in-design) — heavy appear animations on every block, motion with nothing to say.

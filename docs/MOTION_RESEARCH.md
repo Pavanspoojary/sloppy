@@ -2,7 +2,7 @@
 
 What good UI motion requires, what generated pages get wrong, what Sloppy enforces
 today, and the evidence gaps that remain. This is the research behind the
-`MOT-01`..`MOT-14` rule set and `skills/sloppy/references/motion-review.md`.
+`MOT-01`..`MOT-18` rule set and `skills/sloppy/references/motion-review.md`.
 
 ## 1. Method
 
@@ -59,6 +59,9 @@ allowed to exist at all.
 | 8 | Looping CSS with no reduced-motion fallback | Accessibility treated as optional | `MOT-12` |
 | 9 | Flash/strobe status effects | Novelty | `MOT-10` |
 | 10 | Unearned loops and shimmers | Content thinness masked by motion | `MOT-01`, `MOT-02` |
+| 11 | The same fade-up on four or more blocks, and mount motion on headings and navigation | Polish applied uniformly with no hierarchy | `MOT-15` |
+| 12 | Bouncy/elastic easing on dialogs and cards | Playful gesture recipe copied onto routine surfaces | `MOT-16` |
+| 13 | `will-change` left on every animated element | Layer hint treated as a permanent style | `MOT-17` |
 
 ## 4. What Sloppy enforces now
 
@@ -78,6 +81,10 @@ allowed to exist at all.
 | `MOT-12` Unguarded CSS loop | Source + `prefers-reduced-motion` presence | Reflex |
 | `MOT-13` Parallax / fixed background / 3D tilt | Source + WCAG 2.3.3 | Reflex |
 | `MOT-14` Hover motion on non-interactive surface | Source + DOM ancestry | Reflex |
+| `MOT-15` Uniform entrance motion (4+ identical, or on reading text) | Source (`initial`/`animate` pairs, element names) | Reflex |
+| `MOT-16` Overshoot/elastic easing on routine surfaces | Source (`cubic-bezier` y outside 0-1) | Reflex |
+| `MOT-17` Permanent `will-change` layer hint | Source (3+ declarations or tokens) | Finish |
+| `MOT-18` Duration outside the declared motion scale | Source + `DESIGN.md` motion lock | Finish |
 
 Rendered (`sloppy verify --a11y`) now also measures:
 
@@ -92,7 +99,13 @@ Rendered interaction evidence (`sloppy verify --motion <spec>`):
 - samples boxes and `requestAnimationFrame` deltas across the interaction,
 - reports `motion.handoffShift` (movement after settle), `motion.anchorDrift`
   (surrounding geometry moves), `motion.stuckTransition` (finite animation still
-  running), and `motion.interruptNotRecovered` (reversed open left half-open),
+  running), `motion.interruptNotRecovered` (reversed open left half-open),
+  `motion.layoutShift` (observed layout movement during the interaction, craft
+  evidence), and `motion.focusLoss` (focus not returned to the trigger),
+- re-runs every declared interaction under `prefers-reduced-motion: reduce` and reports
+  `motion.reducedMotionTravel` (the target still moves), `motion.reducedMotionHidesContent`
+  (the state change was deleted instead of simplified), and
+  `motion.reducedMotionKeepsLoop` (an infinite animation keeps running),
 - keeps frame-budget evidence low-confidence craft rather than a CI threshold.
 
 ## 5. Remaining gaps, in priority order
@@ -100,19 +113,22 @@ Rendered interaction evidence (`sloppy verify --motion <spec>`):
 1. **State-transition coverage.** Declared interactions now cover menus, tabs, forms,
    and filters. Loading, empty, and error states, plus declared keyboard paths, are
    still uncovered.
-2. **Animation-driven layout shift.** Collect CLS/clip evidence around a declared
-   interaction, not only static reflow and post-settle boxes.
+2. **Calibrated layout-shift evidence.** Observed shift entries are summed and reported
+   as craft (`motion.layoutShift`); a CI threshold still needs calibration across runs.
 3. **Calibrated frame budget.** `requestAnimationFrame` deltas are sampled and reported
    as low-confidence craft; a stable threshold needs per-machine baselines and
    repeated runs before it can gate CI.
-4. **Motion contract tokens in `DESIGN.md`.** Declare duration scale, curves, and the one
-   signature move so scanners can compare used values against the contract instead of a
-   universal threshold.
+4. Done: **motion contract tokens in `DESIGN.md`.** `motion-fast`, `motion-base`,
+   `motion-slow`, `motion-max-feedback`, `motion-ease-enter`, `motion-ease-exit`, and
+   `motion-signature` are parsed from the token lock. `MOT-07` uses the declared feedback
+   ceiling and `MOT-18` reports durations beyond the declared slow token; with no contract
+   the default ceiling stays 600ms and no off-contract judgment is made.
 5. **Screenshot motion review.** Capture the first/last frame of a declared transition
    and compare geometry, text pixels, and masks. Keep findings in Reflex/Finish until
    calibrated.
 6. **No-JavaScript and throttled-load evidence.** Prove first-screen content exists
    without JS and before scroll observers run (`MOT-08` currently static-only).
+   Reduced-motion interaction evidence is now rendered; the no-JS first paint is not.
 7. **Flash frequency measurement.** `MOT-10` detects named flashes; a rendered check
    could count luminance inversions per second.
 8. **Keyboard-initiated animation detection.** Requires interaction fixtures plus a
@@ -135,3 +151,7 @@ with one well-built signature move and everything else quiet must stay clean.
 - https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html
 - https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html
 - https://developer.apple.com/design/human-interface-guidelines/motion
+- https://impeccable.style/slop
+- https://github.com/kylezantos/design-motion-principles/blob/main/skills/design-motion-principles/references/anti-checklist.md
+- https://adamarant.com/en/blog/functional-ui-animation-in-2026-the-checklist-before-it-ships
+- https://www.paralect.com/blog/signs-of-ai-slop-in-design

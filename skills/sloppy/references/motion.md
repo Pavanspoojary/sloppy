@@ -64,7 +64,8 @@ Product timing and the curves the scanner checks are in `motion-review.md` (timi
 - **Related updates can each take a different time;** the result still follows its cause.
 - **Stagger groups in reading order 40 to 80ms apart** within a scene (`act.stagger` default 60); 80 to 120ms between tiles of a grid. One object enters whole; holds are beats too (`examples/calendar`).
 - **Introducing a composition:** a small front-loaded movement can settle longer than its busy part; don't scale readable text much.
-- **A small expressive icon may overshoot** while its card and text settle without bounce; keep the accent local; give the final state time to read.
+- **A small expressive icon may overshoot** while its card and text settle without bounce; keep the accent local; give the final state time to read. Overshoot belongs to that icon, never to a dialog or a card (`MOT-16`).
+- **One entrance motif per page:** the same fade-up on four or more blocks, or any mount motion on headings, paragraphs and navigation, reads as a template (`MOT-15`); animate the focal element and let the rest arrive visible.
 - **Color changes between distant hues take about 200ms** (they pass through mud however done); let the label carry the slower motion.
 - **Holding a result means stop:** a useful still needs no new pulse or repeated count.
 
