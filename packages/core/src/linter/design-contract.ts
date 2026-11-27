@@ -1,6 +1,16 @@
 import type { SloppyConfig } from './types.js';
 import { findUpFile } from '../node-env.js';
 
+export interface MotionContract {
+  fast?: number;
+  base?: number;
+  slow?: number;
+  maxFeedback?: number;
+  easeEnter?: string;
+  easeExit?: string;
+  signature?: string;
+}
+
 export interface DesignContract {
   found: boolean;
   path?: string;
@@ -9,6 +19,7 @@ export interface DesignContract {
   radius?: string;
   fonts?: { heading?: string; body?: string };
   signature?: string;
+  motion?: MotionContract;
   lockedTokens: string[];
 }
 
@@ -26,11 +37,21 @@ export function parseDesignContract(content: string): Omit<DesignContract, 'foun
   let blurCap: number | undefined;
   let radius: string | undefined;
   let signature: string | undefined;
+  const motion: MotionContract = {};
+
+  const parseMs = (value: string): number | undefined => {
+    const match = value.match(/(\d+(?:\.\d+)?)\s*(ms|s)?/i);
+    if (!match) return undefined;
+    const number = Number(match[1]);
+    if (!Number.isFinite(number)) return undefined;
+    return (match[2] || '').toLowerCase() === 's' ? Math.round(number * 1000) : Math.round(number);
+  };
 
   const assign = (key: string, value: string) => {
     const normalized = key.trim().toLowerCase().replace(/[_\s]+/g, '-');
     const clean = value.trim().replace(/^['"`]|['"`]$/g, '');
     if (!clean) return;
+    const motionKey = (name: string) => ['motion-fast', 'motion-base', 'motion-slow', 'motion-max-feedback', 'motion-ease-enter', 'motion-ease-exit', 'motion-signature', 'ease-enter', 'ease-exit'].includes(name);
     if (['brand-primary', 'brand-accent', 'accent', 'primary'].includes(normalized)) brandAccent = clean;
     else if (['blur-cap', 'backdrop-blur-cap', 'blur'].includes(normalized)) {
       const parsed = Number(clean.replace(/[^\d.]/g, ''));
@@ -39,9 +60,17 @@ export function parseDesignContract(content: string): Omit<DesignContract, 'foun
     else if (['heading-font', 'display-font', 'font-heading'].includes(normalized)) fonts.heading = clean;
     else if (['body-font', 'font-body', 'text-font'].includes(normalized)) fonts.body = clean;
     else if (['signature', 'signature-element', 'focal-point'].includes(normalized)) signature = clean;
+    else if (['motion-fast', 'motion-duration-fast'].includes(normalized)) motion.fast = parseMs(clean) ?? motion.fast;
+    else if (['motion-base', 'motion-duration-base'].includes(normalized)) motion.base = parseMs(clean) ?? motion.base;
+    else if (['motion-slow', 'motion-duration-slow'].includes(normalized)) motion.slow = parseMs(clean) ?? motion.slow;
+    else if (['motion-max-feedback', 'motion-feedback-max'].includes(normalized)) motion.maxFeedback = parseMs(clean) ?? motion.maxFeedback;
+    else if (['motion-ease-enter', 'ease-enter', 'motion-enter-ease'].includes(normalized)) motion.easeEnter = clean;
+    else if (['motion-ease-exit', 'ease-exit', 'motion-exit-ease'].includes(normalized)) motion.easeExit = clean;
+    else if (['motion-signature', 'signature-motion', 'motion-move'].includes(normalized)) motion.signature = clean;
     else if (/(?:^|-)(?:color|palette|surface|background|foreground|ink|border)(?:-|$)/.test(normalized)) {
       // Palette tokens are recorded in lockedTokens and enforced by TOK-02.
     }
+    else if (motionKey(normalized)) { /* handled above */ }
     else return;
     lockedTokens.push(`${normalized}: ${clean}`);
   };
@@ -76,7 +105,9 @@ export function parseDesignContract(content: string): Omit<DesignContract, 'foun
           else if (typeof value === 'number' && key.toLowerCase().includes('blur')) assign(key, String(value));
           else if (value && typeof value === 'object' && !Array.isArray(value)) {
             for (const [nestedKey, nestedValue] of Object.entries(value)) {
-              if (typeof nestedValue === 'string') assign(nestedKey, nestedValue);
+              if (typeof nestedValue === 'string' || typeof nestedValue === 'number') {
+                assign(key.toLowerCase() === 'motion' ? `motion-${nestedKey}` : nestedKey, String(nestedValue));
+              }
             }
           }
         }
@@ -87,7 +118,7 @@ export function parseDesignContract(content: string): Omit<DesignContract, 'foun
     }
   }
 
-  return { brandAccent, blurCap, radius, fonts, signature, lockedTokens };
+  return { brandAccent, blurCap, radius, fonts, signature, motion: Object.keys(motion).length ? motion : undefined, lockedTokens };
 }
 
 export function loadDesignContract(startPath?: string): DesignContract {
@@ -149,6 +180,19 @@ explicitly declared here.
 ## Signature element
 
 - signature: <the one focal element each page may spend visual emphasis on>
+
+## Motion lock
+
+Declare one motion contract so scanners compare against the project's values, not a
+universal threshold. All values are optional; the default feedback ceiling is 600ms.
+
+- motion-fast: 150ms
+- motion-base: 250ms
+- motion-slow: 400ms
+- motion-max-feedback: 300ms
+- motion-ease-enter: cubic-bezier(0.16, 1, 0.3, 1)
+- motion-ease-exit: cubic-bezier(0.4, 0, 1, 1)
+- motion-signature: <the one motion move this product owns>
 
 ## Notes
 

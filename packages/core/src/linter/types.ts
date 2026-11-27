@@ -53,7 +53,11 @@ export type SlopViolationType =
   | 'SCALE_FROM_ZERO'
   | 'CSS_LOOP_NO_REDUCED_GUARD'
   | 'VESTIBULAR_RISK_MOTION'
-  | 'UNEARNED_HOVER_LIFT';
+  | 'UNEARNED_HOVER_LIFT'
+  | 'UNIFORM_ENTRANCE_MOTION'
+  | 'ELASTIC_UI_EASING'
+  | 'WILL_CHANGE_LEAK'
+  | 'OFF_CONTRACT_MOTION';
 
 export type RuleMode = 'auto-fix' | 'detect-only';
 
@@ -106,6 +110,10 @@ export const CANONICAL_RULES: Record<SlopViolationType, CanonicalRule> = {
   CSS_LOOP_NO_REDUCED_GUARD: { ruleId: 'MOT-12', title: 'CSS Loop Without Reduced-Motion Guard', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
   VESTIBULAR_RISK_MOTION: { ruleId: 'MOT-13', title: 'Vestibular-Risk Parallax or 3D Tilt', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
   UNEARNED_HOVER_LIFT: { ruleId: 'MOT-14', title: 'Hover Motion on a Non-Interactive Surface', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
+  UNIFORM_ENTRANCE_MOTION: { ruleId: 'MOT-15', title: 'Uniform Entrance Motion', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
+  ELASTIC_UI_EASING: { ruleId: 'MOT-16', title: 'Overshoot/Elastic Easing on UI Motion', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
+  WILL_CHANGE_LEAK: { ruleId: 'MOT-17', title: 'Permanent will-change Layer Hint', defaultSeverity: 'low', tier: 'finish', mode: 'detect-only' },
+  OFF_CONTRACT_MOTION: { ruleId: 'MOT-18', title: 'Off-Contract Motion Duration', defaultSeverity: 'low', tier: 'finish', mode: 'detect-only' },
   CENTER_ALIGNED_EVERYTHING: { ruleId: 'LAY-01', title: 'Center-Aligned Monotony', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
   FABRICATED_SOCIAL_PROOF: { ruleId: 'CPY-01', title: 'Fabricated Social Proof Metrics', defaultSeverity: 'high', tier: 'floor', mode: 'detect-only' },
   STATUS_DOT_SLOP: { ruleId: 'CPY-02', title: 'Unwired Pulsing Status Dots', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
@@ -202,6 +210,15 @@ export interface AuditResult {
     brandAccent?: string;
     blurCap?: number;
     lockedTokens: string[];
+    motion?: {
+      fast?: number;
+      base?: number;
+      slow?: number;
+      maxFeedback?: number;
+      easeEnter?: string;
+      easeExit?: string;
+      signature?: string;
+    };
   };
 }
 

@@ -243,6 +243,42 @@ export const RULE_METADATA: Record<SlopViolationType, RuleMetadata> = {
     ['Remove hover lift from static surfaces; if the card is interactive, make the whole card the semantic control and keep the lift subtle.'],
     ['source'], ['https://emilkowal.ski/ui/great-animations']
   ),
+  UNIFORM_ENTRANCE_MOTION: meta(
+    'motion', 'medium', false,
+    ['A single intentional entrance on the one focal element of the view.', 'A genuinely staggered sequence whose order follows reading order and whose items differ in job.'],
+    ['The page is a storytelling demo where the same object arrives once per scene.'],
+    ['Count distinct elements sharing the same initial+animate pair; four or more is the uniformity tell. Render first-screen text without motion and keep one restrained reveal.'],
+    ['source'],
+    [
+      'https://github.com/kylezantos/design-motion-principles/blob/main/skills/design-motion-principles/references/anti-checklist.md',
+      'https://www.paralect.com/blog/signs-of-ai-slop-in-design'
+    ]
+  ),
+  ELASTIC_UI_EASING: meta(
+    'motion', 'medium', false,
+    ['An overshoot reserved for one small expressive icon or a direct-manipulation gesture.', 'A spring the user actively drags, not an idle hover or a routine dialog entrance.'],
+    ['The element is a playful brand moment whose overshoot is declared in the design contract.'],
+    ['Watch the entrance at 10-25% speed; a dialog or card that bounces should settle on ease-out instead.'],
+    ['source'],
+    [
+      'https://impeccable.style/slop',
+      'https://emilkowal.ski/ui/7-practical-animation-tips'
+    ]
+  ),
+  WILL_CHANGE_LEAK: meta(
+    'motion', 'medium', false,
+    ['A single `will-change` set by an animation hook just before a known transition and cleared after.'],
+    ['The file declares one layer hint on a canvas or video surface that animates continuously.'],
+    ['Remove the hint at rest; measure layers and memory in devtools if the page keeps it on many elements.'],
+    ['source']
+  ),
+  OFF_CONTRACT_MOTION: meta(
+    'motion', 'medium', false,
+    ['A deliberate one-off duration outside the declared scale for a storytelling surface that the contract names.'],
+    ['No motion scale is declared in DESIGN.md; the rule stays silent rather than inventing a universal ceiling.'],
+    ['Compare the duration against the declared fast/base/slow scale, then either use a declared token or update DESIGN.md first.'],
+    ['source'], ['https://developer.chrome.com/docs/modern-web-guidance/guides/ui-behaviors/motion']
+  ),
   CENTER_ALIGNED_EVERYTHING: meta(
     'layout', 'medium', false,
     ['A centered hero or campaign page with deliberately limited content.', 'Centered empty states and dialogs.'],

@@ -62,7 +62,11 @@ const advice: Record<SlopViolationType, string> = {
   SCALE_FROM_ZERO: 'Enter from 0.9-0.96 scale with opacity instead of scale(0), so the element reads as a real object rather than a pop-in.',
   CSS_LOOP_NO_REDUCED_GUARD: 'Add an `@media (prefers-reduced-motion: reduce)` (or `motion-safe:`) fallback for CSS loops so the animation stops or simplifies.',
   VESTIBULAR_RISK_MOTION: 'Guard parallax, 3D tilt, and large zoom with reduced motion and keep the moving area small; large-area motion can trigger vestibular symptoms.',
-  UNEARNED_HOVER_LIFT: 'Reserve hover lift and scale for real interactive controls; static cards should respond to content, not pretend to be clickable.'
+  UNEARNED_HOVER_LIFT: 'Reserve hover lift and scale for real interactive controls; static cards should respond to content, not pretend to be clickable.',
+  UNIFORM_ENTRANCE_MOTION: 'Keep one restrained entrance motif per page; render static text and navigation visible instead of fading in four or more identical blocks.',
+  ELASTIC_UI_EASING: 'Use a plain ease-out for routine surfaces; keep overshoot easing for one small expressive icon, never a dialog or a whole card.',
+  WILL_CHANGE_LEAK: 'Set will-change just before a known animation and remove it after; leaving it on many elements creates layers and memory pressure.',
+  OFF_CONTRACT_MOTION: 'Use a duration from the motion scale declared in DESIGN.md, or update the contract first so the scale stays the source of truth.'
 };
 
 const BANNER_CHARS = new Set(['-', '=', '_', '*', '#', '~']);
@@ -662,7 +666,9 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     if (styleAttr && /\btransition(?:-property)?\s*:\s*all\b/i.test(styleAttr.value)) push('TRANSITION_ALL_SLOP', styleAttr.valueStart, transitionAllMessage);
   }
 
-  // MOT-07: Slow interaction feedback (> ~600ms on hover/press/focus or an interactive control)
+  // MOT-07: Slow interaction feedback (above the declared ceiling, 600ms by default).
+  const motionContract = designContract.motion;
+  const feedbackCeilingMs = motionContract?.maxFeedback ?? 600;
   const INTERACTIVE_TAGS = new Set(['a', 'button', 'input', 'select', 'textarea', 'summary', 'label', 'option']);
   const hasInteractionVariant = (tokens: string[]) => tokens.some(t => /^(?:hover|active|focus|focus-visible|focus-within|group-hover|peer-hover|group-active):/.test(t));
   const durationMs = (token: string): number | null => {
@@ -677,10 +683,10 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     return value >= 1 && value <= 30 ? value * 1000 : value;
   };
   for (const { tag, tokens } of tagClasses) {
-    const slow = tokens.find(t => { const ms = durationMs(t); return ms !== null && ms >= 600; });
+    const slow = tokens.find(t => { const ms = durationMs(t); return ms !== null && ms >= feedbackCeilingMs; });
     if (!slow) continue;
     if (INTERACTIVE_TAGS.has(tag.name) || hasInteractionVariant(tokens) || tag.attributes.has('onClick')) {
-      push('SLOW_INTERACTION_MOTION', tag.start, `Slow interaction feedback ("${slow}") keeps a direct response from feeling immediate; keep hovers and presses inside ~300ms.`);
+      push('SLOW_INTERACTION_MOTION', tag.start, `Slow interaction feedback ("${slow}") keeps a direct response from feeling immediate; the declared ceiling is ${feedbackCeilingMs}ms.`);
     }
   }
 
@@ -776,6 +782,68 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     const insideInteractive = ancestorsOf(tag).some(a => INTERACTIVE_TAGS.has(a.name) || a.attributes.has('onClick') || a.attributes.has('href'));
     if (!insideInteractive) {
       push('UNEARNED_HOVER_LIFT', tag.start, `Hover motion ("${lift}") on a non-interactive <${tag.name}> promises a click that never happens.`);
+    }
+  }
+
+  // MOT-15: Uniform entrance motion. One identical faded rise on four or more elements,
+  // or any mount animation on static reading content, is the page-builder default.
+  const READING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'nav']);
+  const startsHidden = (value: string) => /\bopacity\s*:\s*0(?:\.0+)?\b/.test(value);
+  const entrances = new Map<string, { at: number; count: number }>();
+  let readingEntrance: number | null = null;
+  for (const tag of tags) {
+    const initial = tag.attributes.get('initial');
+    if (initial && startsHidden(initial.value) && READING_TAGS.has(tag.name.split('.').pop() || '')) readingEntrance ??= initial.valueStart;
+    if (!initial || !startsHidden(initial.value) || tag.attributes.has('whileInView')) continue; // MOT-08 owns scroll reveals
+    const animate = tag.attributes.get('animate')?.value;
+    if (!animate) continue;
+    const signature = `${initial.value}|${animate}`.replace(/\s+/g, ' ').trim();
+    const entry = entrances.get(signature);
+    if (entry) entry.count++;
+    else entrances.set(signature, { at: tag.start, count: 1 });
+  }
+  if (readingEntrance !== null) {
+    push('UNIFORM_ENTRANCE_MOTION', readingEntrance, 'Entrance animation on static reading content delays the first paint; render headings, paragraphs, and navigation visible and animate one thing that matters.');
+  }
+  const uniformEntrance = [...entrances.values()].find(entry => entry.count >= 4);
+  if (uniformEntrance) {
+    push('UNIFORM_ENTRANCE_MOTION', uniformEntrance.at, `${uniformEntrance.count} elements share one identical entrance; keep one restrained reveal instead of a template fade-up applied to every block.`);
+  }
+
+  // MOT-16: Overshoot/elastic easing on routine UI motion (cubic-bezier y outside 0-1).
+  // Masked source covers CSS and inline styles; class tokens cover Tailwind arbitrary values.
+  const bezierRe = /cubic-bezier\(\s*(-?\d*\.?\d+)\s*,\s*(-?\d*\.?\d+)\s*,\s*(-?\d*\.?\d+)\s*,\s*(-?\d*\.?\d+)\s*\)/g;
+  const overshoot = (match: RegExpMatchArray) => [match[2], match[4]].some(y => Number(y) > 1.05 || Number(y) < -0.05);
+  const elasticAt = [...scan.masked.matchAll(bezierRe)].find(overshoot);
+  const elasticClass = tagClasses.find(({ tokens }) => tokens.some(token => [...token.matchAll(bezierRe)].some(overshoot)));
+  if (elasticAt || elasticClass) {
+    const tokenMatch = elasticClass ? [...elasticClass.tokens.join(' ').matchAll(bezierRe)][0] : undefined;
+    const bezier = elasticAt?.[0] ?? tokenMatch?.[0] ?? '';
+    if (bezier) {
+      push('ELASTIC_UI_EASING', elasticAt?.index ?? elasticClass?.tag.start ?? 0, `Overshoot easing "${bezier}" makes a routine surface bounce; routine UI enters on ease-out and overshoot stays on one small expressive icon.`);
+    }
+  }
+
+  // MOT-17: will-change left on permanently instead of hinted around one animation.
+  const willChangeDeclarations = [...scan.masked.matchAll(/will-?change\s*:\s*(?!\s*['"]?auto\b)/gi)];
+  const willChangeTokens = tagClasses.reduce((count, { tokens }) => count + tokens.filter(token => /^will-change-(?!auto$)/.test(token)).length, 0);
+  const willChangeCount = willChangeDeclarations.length + willChangeTokens;
+  if (willChangeCount >= 3) {
+    const willChangeAt = willChangeDeclarations[0]?.index ?? tags.find(tag => classesFor(tag).some(token => /^will-change-(?!auto$)/.test(token)))?.start ?? 0;
+    push('WILL_CHANGE_LEAK', willChangeAt, `will-change is declared ${willChangeCount} times and left on permanently; hint the layer just before a known animation and remove it after.`);
+  }
+
+  // MOT-18: A duration outside the motion scale declared in DESIGN.md.
+  if (motionContract?.slow) {
+    const slowLimit = motionContract.slow;
+    for (const { tag, tokens } of tagClasses) {
+      const offContract = tokens.find(token => {
+        const ms = durationMs(token);
+        return ms !== null && ms > slowLimit + 50;
+      });
+      if (offContract) {
+        push('OFF_CONTRACT_MOTION', tag.start, `Duration "${offContract}" is outside the declared motion scale (slow ${slowLimit}ms).`);
+      }
     }
   }
 

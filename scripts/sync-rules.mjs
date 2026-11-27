@@ -59,7 +59,11 @@ const descriptionFor = (slug) => {
     SCALE_FROM_ZERO: 'An entrance that starts at scale(0) and reads as a pop-in.',
     CSS_LOOP_NO_REDUCED_GUARD: 'Looping CSS animation with no prefers-reduced-motion fallback.',
     VESTIBULAR_RISK_MOTION: 'Full-area parallax, fixed backgrounds, and 3D hover tilt.',
-    UNEARNED_HOVER_LIFT: 'Hover lift or scale on a surface that is not clickable.'
+    UNEARNED_HOVER_LIFT: 'Hover lift or scale on a surface that is not clickable.',
+    OFF_CONTRACT_MOTION: 'A duration beyond the motion scale declared in DESIGN.md.',
+    UNIFORM_ENTRANCE_MOTION: 'One identical fade-up on four or more blocks, or mount motion on headings, paragraphs, and navigation.',
+    ELASTIC_UI_EASING: 'Overshoot or elastic cubic-bezier easing on routine surfaces instead of ease-out.',
+    WILL_CHANGE_LEAK: 'will-change declared across several elements and left on permanently.'
   }[slug];
   return text || CANONICAL_RULES[slug].title;
 };

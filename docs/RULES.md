@@ -43,6 +43,10 @@ from the same table, so an ID has exactly one meaning everywhere.
 | `MOT-12` | `CSS_LOOP_NO_REDUCED_GUARD` | CSS Loop Without Reduced-Motion Guard | reflex | medium | detect-only | medium | craft | Looping CSS animation with no prefers-reduced-motion fallback. |
 | `MOT-13` | `VESTIBULAR_RISK_MOTION` | Vestibular-Risk Parallax or 3D Tilt | reflex | medium | detect-only | medium | craft | Full-area parallax, fixed backgrounds, and 3D hover tilt. |
 | `MOT-14` | `UNEARNED_HOVER_LIFT` | Hover Motion on a Non-Interactive Surface | reflex | medium | detect-only | high | craft | Hover lift or scale on a surface that is not clickable. |
+| `MOT-15` | `UNIFORM_ENTRANCE_MOTION` | Uniform Entrance Motion | reflex | medium | detect-only | medium | craft | One identical fade-up on four or more blocks, or mount motion on headings, paragraphs, and navigation. |
+| `MOT-16` | `ELASTIC_UI_EASING` | Overshoot/Elastic Easing on UI Motion | reflex | medium | detect-only | medium | craft | Overshoot or elastic cubic-bezier easing on routine surfaces instead of ease-out. |
+| `MOT-17` | `WILL_CHANGE_LEAK` | Permanent will-change Layer Hint | finish | low | detect-only | medium | craft | will-change declared across several elements and left on permanently. |
+| `MOT-18` | `OFF_CONTRACT_MOTION` | Off-Contract Motion Duration | finish | low | detect-only | medium | craft | A duration beyond the motion scale declared in DESIGN.md. |
 | `STR-01` | `BOXED_CARD_SYNDROME` | Boxed Card Monotony | reflex | medium | detect-only | medium | craft | Boxed Card Monotony |
 | `STR-02` | `UNANCHORED_FLOATING_WINDOW` | Unanchored Floating Window | reflex | high | detect-only | medium | craft | Unanchored Floating Window |
 | `STR-03` | `FLAT_SURFACE_MONOTONY` | Flat Surface Monotony | reflex | medium | detect-only | medium | craft | Flat Surface Monotony |
@@ -348,6 +352,41 @@ quiet. `sloppy rules --json` exposes the same fields to agents.
 - **Not applicable when**: The lift communicates a draggable object during an active drag, not on idle hover.
 - **Validation**: Remove hover lift from static surfaces; if the card is interactive, make the whole card the semantic control and keep the lift subtle.
 - **Sources**: https://emilkowal.ski/ui/great-animations
+
+### `MOT-15` Uniform Entrance Motion
+- **Family**: motion
+- **Confidence**: medium (craft judgment)
+- **Evidence collected**: source
+- **False positives**: A single intentional entrance on the one focal element of the view. A genuinely staggered sequence whose order follows reading order and whose items differ in job.
+- **Not applicable when**: The page is a storytelling demo where the same object arrives once per scene.
+- **Validation**: Count distinct elements sharing the same initial+animate pair; four or more is the uniformity tell. Render first-screen text without motion and keep one restrained reveal.
+- **Sources**: https://github.com/kylezantos/design-motion-principles/blob/main/skills/design-motion-principles/references/anti-checklist.md, https://www.paralect.com/blog/signs-of-ai-slop-in-design
+
+### `MOT-16` Overshoot/Elastic Easing on UI Motion
+- **Family**: motion
+- **Confidence**: medium (craft judgment)
+- **Evidence collected**: source
+- **False positives**: An overshoot reserved for one small expressive icon or a direct-manipulation gesture. A spring the user actively drags, not an idle hover or a routine dialog entrance.
+- **Not applicable when**: The element is a playful brand moment whose overshoot is declared in the design contract.
+- **Validation**: Watch the entrance at 10-25% speed; a dialog or card that bounces should settle on ease-out instead.
+- **Sources**: https://impeccable.style/slop, https://emilkowal.ski/ui/7-practical-animation-tips
+
+### `MOT-17` Permanent will-change Layer Hint
+- **Family**: motion
+- **Confidence**: medium (craft judgment)
+- **Evidence collected**: source
+- **False positives**: A single `will-change` set by an animation hook just before a known transition and cleared after.
+- **Not applicable when**: The file declares one layer hint on a canvas or video surface that animates continuously.
+- **Validation**: Remove the hint at rest; measure layers and memory in devtools if the page keeps it on many elements.
+
+### `MOT-18` Off-Contract Motion Duration
+- **Family**: motion
+- **Confidence**: medium (craft judgment)
+- **Evidence collected**: source
+- **False positives**: A deliberate one-off duration outside the declared scale for a storytelling surface that the contract names.
+- **Not applicable when**: No motion scale is declared in DESIGN.md; the rule stays silent rather than inventing a universal ceiling.
+- **Validation**: Compare the duration against the declared fast/base/slow scale, then either use a declared token or update DESIGN.md first.
+- **Sources**: https://developer.chrome.com/docs/modern-web-guidance/guides/ui-behaviors/motion
 
 ### `STR-01` Boxed Card Monotony
 - **Family**: structure
