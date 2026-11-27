@@ -95,7 +95,7 @@ one browser, proves first paint without JavaScript, follows keyboard open/close 
 and can repeat runs into a stable baseline. The research and remaining motion roadmap
 live in `docs/MOTION_RESEARCH.md`.
 
-1. Done: deterministic motion interaction evidence. A declared spec (`trigger`, `target`, `anchor`, optional `closeTrigger`) runs menu, tab, form, and filter changes and reports post-settle handoff shift, anchor drift, stuck transitions, and half-recovered interruptions. Remaining scope: loading/empty/error state transitions and declared keyboard paths. Layout shift is collected as craft evidence; a calibrated threshold is still pending.
+1. Done: deterministic motion interaction evidence. A declared spec (`trigger`, `target`, `anchor`, optional `closeTrigger`) runs menu, tab, form, and filter changes and reports post-settle handoff shift, anchor drift, stuck transitions, and half-recovered interruptions. `sloppy init` now scaffolds a starter spec and `DESIGN.md` motion lock, and an absent selector is reported as `motion.missingSelector` instead of a pass. Remaining scope: loading/empty/error state transitions and declared keyboard paths. Layout shift is collected as craft evidence; a calibrated threshold is still pending.
 2. Add screenshot capture with DOM anchors and viewport metadata; keep visual
    findings in Reflex/Finish until calibrated.
 3. Build the stratified benchmark manifest and record precision/false-positive

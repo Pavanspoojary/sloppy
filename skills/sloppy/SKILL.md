@@ -83,7 +83,7 @@ sloppy audit src/ --code --strict --compact --json
 sloppy audit src/Hero.tsx --mode after && sloppy fix src/Hero.tsx --only 1,3 --write
 sloppy verify http://127.0.0.1:1355 --a11y --multi-width
 sloppy verify http://127.0.0.1:1355 --motion sloppy.motion.json
-sloppy init [--from <url>] && sloppy hook install
+sloppy init [--from <url>] && sloppy hook install   # also writes DESIGN.md and sloppy.motion.json
 sloppy libs && sloppy list motion && sloppy looks --next
 ```
 

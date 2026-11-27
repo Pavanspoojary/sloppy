@@ -106,7 +106,8 @@ Rendered interaction evidence (`sloppy verify --motion <spec>`):
   (surrounding geometry moves), `motion.stuckTransition` (finite animation still
   running), `motion.interruptNotRecovered` (reversed open left half-open),
   `motion.layoutShift` (observed layout movement during the interaction, craft
-  evidence), and `motion.focusLoss` (focus not returned to the trigger),
+  evidence), `motion.focusLoss` (focus not returned to the trigger), and
+  `motion.missingSelector` (a declared selector is absent, so nothing ran),
 - opens a surface from the keyboard (`openKey`) and closes it with a key (`closeKey`),
   reporting `motion.keyboardOpenIgnored` and `motion.keyboardCloseIgnored`,
 - runs `precondition` steps before measuring, so tabs, filters, and staged states are

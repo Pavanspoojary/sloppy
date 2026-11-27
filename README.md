@@ -332,7 +332,7 @@ echo '<div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl 
 | `looks` | `sloppy looks` | Display design tokens and surface steps for curated and Refero looks. |
 | `libs` | `sloppy libs` | List the 7 integrated UI libraries and their design roles. |
 | `list` | `sloppy list [library]` | Search and list curated components across the ecosystem. |
-| `init` | `sloppy init [--from <url>]` | Scaffold React kit, or extract design DNA from live URL/dev-server into `sloppy.config.json` and `DESIGN.md`. |
+| `init` | `sloppy init [--from <url>]` | Scaffold React kit, `DESIGN.md` (with motion lock), and `sloppy.motion.json`, or extract design DNA from a live URL/dev-server. |
 | `looks` | `sloppy looks [--next]` | Display tokens or deal fresh material from anti-repetition memory. |
 | `verify` | `sloppy verify [target] [--multi-width] [--a11y] [--motion <spec.json>] [--static]` | Multi-width responsive verification (8 widths), rendered accessibility, or declared motion interaction evidence, all failing closed when unavailable. |
 | `hook` | `sloppy hook install [--cursor\|--claude\|--git]` | Install lightweight sub-30ms Floor checks for edit-time validation. |
@@ -365,6 +365,8 @@ Tests real rendered contrast, mobile horizontal overflow, and above-the-fold her
 
 ### 4. Decoupled Materials & Anti-Repetition Engine
 Themes are treated as pure lightweight materials (≤8 KB of surface, border, typography, and accent tokens) completely separated from page layout. `sloppy looks --next` tracks recently dealt looks so generated outputs never repeat the same theme twice.
+
+**Motion starter.** `sloppy init` writes `sloppy.motion.json` with placeholder selectors so `sloppy verify --motion` is one edit away; running it unedited reports `motion.missingSelector` instead of a false pass.
 
 **Motion contract (`DESIGN.md`).** Declare `motion-fast`, `motion-base`, `motion-slow`, `motion-max-feedback`, `motion-ease-enter`, `motion-ease-exit`, and `motion-signature`. `MOT-07` then enforces the project's feedback ceiling and `MOT-18` reports durations beyond the declared scale; a project without a contract keeps the universal 600ms default and no off-contract judgment.
 
