@@ -328,7 +328,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       setup: 'Usage: sloppy setup [--write|-w] [--global|-g] [--json]',
       check: 'Usage: sloppy check [paths...|url] [--changed|--staged] [--cache] [--compact] [--strict] [--json] [--max-score <n>] [--fail-on <none|low|medium|high|critical>] [--min-grade <A+|A|B|C|D|F>] [--type <illustration|feature-card|hero|application|bento>] [--render|--multi-width] [--a11y] [--static] [--quiet]',
       fix: 'Usage: sloppy fix <file> [--diff|--check|--write] [--look <look>] [--json]\n       sloppy fix --stdin [--json]',
-      verify: 'Usage: sloppy verify [target] [--json] [--multi-width] [--a11y] (verification timeout: 15000ms)',
+      verify: 'Usage: sloppy verify [target] [--json] [--multi-width] [--a11y] [--motion <spec.json>] (verification timeout: 15000ms)',
       'install-mcp': 'Usage: sloppy install-mcp --client <cursor|vscode|claude|codex> [--dir <path>] [--write] [--json]'
     };
     console.log(help[command]); return true;
@@ -1050,6 +1050,39 @@ export async function runCli(args: string[]) {
       const staticOnly = args.includes('--static');
 
       try {
+        const motionIdx = args.indexOf('--motion');
+        if (motionIdx !== -1) {
+          const specPath = args[motionIdx + 1];
+          if (!specPath || specPath.startsWith('-')) {
+            console.error('[ERROR] --motion needs a JSON spec path, for example --motion sloppy.motion.json');
+            process.exitCode = 2;
+            break;
+          }
+          let spec: import('@sloppy-ai/verify/motion-interactions').MotionInteractionSpec;
+          try {
+            spec = JSON.parse(fs.readFileSync(path.resolve(specPath), 'utf8'));
+          } catch (error) {
+            console.error(`[ERROR] Could not read motion spec ${specPath}: ${(error as Error).message}`);
+            process.exitCode = 2;
+            break;
+          }
+          const module = await import('@sloppy-ai/verify/motion-interactions').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/motion-interactions.mjs')));
+          const res = await module.runMotionInteractionAudit(target, { spec, timeoutMs: 15000 });
+          if (json) emitJson(res);
+          else {
+            console.log(`\n======================================================`);
+            console.log(`SLOPPY MOTION INTERACTION VERIFICATION`);
+            console.log(`======================================================\n`);
+            console.log(`Target:   ${res.target} (${res.mode})`);
+            console.log(`Summary:  ${res.summary}`);
+            for (const finding of res.findings) console.log(`  [${finding.severity.toUpperCase()}] ${finding.rule}: ${finding.message}`);
+            if (res.unavailable) console.error(`Motion verification unavailable: ${res.unavailable}`);
+          }
+          if (res.unavailable) process.exitCode = 2;
+          else if (!res.ok) process.exitCode = 1;
+          break;
+        }
+
         if (args.includes('--a11y')) {
           const module = await import('@sloppy-ai/verify/accessibility').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/accessibility.mjs')));
           const res = await module.runAccessibilityAudit(target, { timeoutMs: 15000 });
@@ -1511,7 +1544,7 @@ Usage:
   sloppy plan <file>          Generate structured repair plan with confidence & risk scores
   sloppy fix <file> [--diff|--check|--write]  Review or apply a proposed repair
   sloppy fix --stdin [--json]  Transform source from stdin
-  sloppy verify [target]      Run browser or static verification (--multi-width, --static)
+  sloppy verify [target]      Run browser or static verification (--multi-width, --a11y, --motion <spec>)
   sloppy rules                List canonical rule IDs with tier, severity, and auto-fix/detect-only mode
   sloppy install-mcp --client <client>  Configure an MCP client
   sloppy version [--json]     Show CLI and core versions

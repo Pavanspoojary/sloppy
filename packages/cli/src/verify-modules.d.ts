@@ -71,6 +71,45 @@ declare module '@sloppy-ai/verify/accessibility' {
   }>;
 }
 
+declare module '@sloppy-ai/verify/motion-interactions' {
+  export interface MotionInteractionFinding {
+    rule: string;
+    message: string;
+    severity: string;
+    confidence: string;
+    objective: boolean;
+    evidence: {
+      kind: string;
+      description: string;
+      selector?: string;
+      viewport?: { width: number; height: number };
+      criterion?: string;
+    };
+  }
+  export interface MotionInteractionSpec {
+    interactions: Array<{
+      name?: string;
+      trigger: string;
+      target: string;
+      anchor?: string;
+      closeTrigger?: string;
+      kind?: 'click' | 'hover';
+      waitMs?: number;
+    }>;
+  }
+  export interface MotionInteractionResult {
+    target: string;
+    ok: boolean;
+    mode: 'browser' | 'unavailable';
+    findings: MotionInteractionFinding[];
+    checked: string[];
+    summary: string;
+    unavailable?: string;
+  }
+  export function auditMotionInteractionSamples(samples: unknown[], options?: { viewport?: { width: number; height: number } }): MotionInteractionFinding[];
+  export function runMotionInteractionAudit(target: string, options?: { spec?: MotionInteractionSpec; timeoutMs?: number; width?: number; height?: number }): Promise<MotionInteractionResult>;
+}
+
 declare module '@sloppy/verify' {
   export * from '@sloppy-ai/verify';
   const verifyTargetDefault: typeof import('@sloppy-ai/verify').verifyTarget;
@@ -83,4 +122,8 @@ declare module '@sloppy/verify/multi-width' {
 
 declare module '@sloppy/verify/accessibility' {
   export * from '@sloppy-ai/verify/accessibility';
+}
+
+declare module '@sloppy/verify/motion-interactions' {
+  export * from '@sloppy-ai/verify/motion-interactions';
 }
