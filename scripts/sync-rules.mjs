@@ -50,7 +50,16 @@ const descriptionFor = (slug) => {
     UNBOUNDED_INFINITE_MOTION: 'Infinite programmatic repeat/loop animations without a progress or spinner context.',
     REDUCED_MOTION_BLINDNESS: 'Active runtime motion, scroll, 3D, or Lottie code missing a prefers-reduced-motion guard.',
     LAYOUT_THRASH_ANIMATION: 'Programmatic animation of layout geometry (width, height, top, left, margin, padding).',
-    UNMANAGED_WEBGL_OR_MEDIA_LOOP: 'Uncleaned WebGL, Lottie, or scroll instances and unbounded R3F Canvas render loops.'
+    UNMANAGED_WEBGL_OR_MEDIA_LOOP: 'Uncleaned WebGL, Lottie, or scroll instances and unbounded R3F Canvas render loops.',
+    TRANSITION_ALL_SLOP: '`transition: all` / `transition-all` animating unknown properties.',
+    SLOW_INTERACTION_MOTION: 'Hover, press, or focus feedback slower than ~600ms.',
+    SCROLL_REVEAL_SATURATION: 'Every section revealed on scroll and hidden until JavaScript runs.',
+    AUTOPLAY_MOTION_WITHOUT_CONTROL: 'Marquee, ticker, carousel, or video that runs automatically with no pause control.',
+    FLASHING_ANIMATION: 'Blink, flash, or strobe animation above the three-per-second limit.',
+    SCALE_FROM_ZERO: 'An entrance that starts at scale(0) and reads as a pop-in.',
+    CSS_LOOP_NO_REDUCED_GUARD: 'Looping CSS animation with no prefers-reduced-motion fallback.',
+    VESTIBULAR_RISK_MOTION: 'Full-area parallax, fixed backgrounds, and 3D hover tilt.',
+    UNEARNED_HOVER_LIFT: 'Hover lift or scale on a surface that is not clickable.'
   }[slug];
   return text || CANONICAL_RULES[slug].title;
 };

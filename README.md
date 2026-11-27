@@ -74,7 +74,7 @@ The installer and CLI recognize the following environment variables:
 |---|---|---|
 | **CLI & Quality Gate** | `@sloppy-ai/cli` | Deterministic linter, syntax-validated auto-fixer, repair planner, and CI quality gate. Provides both `sloppy` and `sloppy-ai` commands. |
 | **Agent Protocol** | `@sloppy-ai/mcp` | Lean 5-tool stdio server enabling autonomous agents to audit, plan, and repair code in a closed loop. |
-| **Agent Skill** | `skills/sloppy` | Universal skill with 7 reference manuals (`craft`, `framing`, `motion`, `bento`, `word_budget`, `looks`, `rehearse`). |
+| **Agent Skill** | `skills/sloppy` | Universal skill with 8 reference manuals (`craft`, `framing`, `motion`, `motion-review`, `bento`, `word_budget`, `looks`, `rehearse`). |
 | **UI Primitives** | `@sloppy-ai/kit` | Portable React and plain CSS components enforcing grounded framing, surface elevation, and caused motion. |
 | **Master Archetypes** | 10 Archetypes | Production-grade blueprints combining 7 UI libraries into cohesive, Grade A+ interfaces. |
 | **Design Looks** | 15 Token Sets | Curated looks (`minimal`, `linear`, `blueprint`, `dark-hero`, `raycast`) and Refero production looks (`nuxt`, `grafana`, `modern-treasury`). |
@@ -123,6 +123,15 @@ Sloppy does not claim screenshot, cross-file, or runtime understanding it has no
 | `MOT-03` | `REDUCED_MOTION_BLINDNESS` | Missing Reduced-Motion Guard | floor | medium | detect-only | high | objective | Active runtime motion, scroll, 3D, or Lottie code missing a prefers-reduced-motion guard. |
 | `MOT-04` | `LAYOUT_THRASH_ANIMATION` | Layout-Thrashing Property Animation | reflex | medium | detect-only | medium | objective | Programmatic animation of layout geometry (width, height, top, left, margin, padding). |
 | `MOT-05` | `UNMANAGED_WEBGL_OR_MEDIA_LOOP` | Unmanaged WebGL, Lottie, or Scroll Loop | floor | high | detect-only | high | objective | Uncleaned WebGL, Lottie, or scroll instances and unbounded R3F Canvas render loops. |
+| `MOT-06` | `TRANSITION_ALL_SLOP` | Cross-Property Transition Slop (transition: all) | reflex | medium | detect-only | high | craft | `transition: all` / `transition-all` animating unknown properties. |
+| `MOT-07` | `SLOW_INTERACTION_MOTION` | Slow Interaction Feedback | reflex | medium | detect-only | medium | craft | Hover, press, or focus feedback slower than ~600ms. |
+| `MOT-08` | `SCROLL_REVEAL_SATURATION` | Scroll-Reveal Saturation | reflex | medium | detect-only | medium | craft | Every section revealed on scroll and hidden until JavaScript runs. |
+| `MOT-09` | `AUTOPLAY_MOTION_WITHOUT_CONTROL` | Autoplay Motion Without Pause Control | floor | high | detect-only | high | objective | Marquee, ticker, carousel, or video that runs automatically with no pause control. |
+| `MOT-10` | `FLASHING_ANIMATION` | Flashing or Strobe Animation | floor | high | detect-only | high | objective | Blink, flash, or strobe animation above the three-per-second limit. |
+| `MOT-11` | `SCALE_FROM_ZERO` | Entrance From scale(0) | reflex | low | detect-only | medium | craft | An entrance that starts at scale(0) and reads as a pop-in. |
+| `MOT-12` | `CSS_LOOP_NO_REDUCED_GUARD` | CSS Loop Without Reduced-Motion Guard | reflex | medium | detect-only | medium | craft | Looping CSS animation with no prefers-reduced-motion fallback. |
+| `MOT-13` | `VESTIBULAR_RISK_MOTION` | Vestibular-Risk Parallax or 3D Tilt | reflex | medium | detect-only | medium | craft | Full-area parallax, fixed backgrounds, and 3D hover tilt. |
+| `MOT-14` | `UNEARNED_HOVER_LIFT` | Hover Motion on a Non-Interactive Surface | reflex | medium | detect-only | high | craft | Hover lift or scale on a surface that is not clickable. |
 | `STR-01` | `BOXED_CARD_SYNDROME` | Boxed Card Monotony | reflex | medium | detect-only | medium | craft | Boxed Card Monotony |
 | `STR-02` | `UNANCHORED_FLOATING_WINDOW` | Unanchored Floating Window | reflex | high | detect-only | medium | craft | Unanchored Floating Window |
 | `STR-03` | `FLAT_SURFACE_MONOTONY` | Flat Surface Monotony | reflex | medium | detect-only | medium | craft | Flat Surface Monotony |
@@ -219,7 +228,7 @@ The five commandments enforce visual discipline calibrated to specific UI contex
 3. **Surface depth over flat borders**:
    * Step cleanly from ground to surfaces 1, 2, and 3 with monotonic contrast steps rather than repetitive 1px borders.
 4. **Caused motion over random bounce**:
-   * Movement requires an explicit user trigger, critically damped physical spring easing, and held payoffs. Ban unearned looping animations.
+   * Movement requires an explicit trigger and a held payoff; ban unearned loops. Keep one motion contract per page: three durations (150-200ms feedback, 200-300ms small surfaces, 300-500ms large surfaces), an entrance `ease-out` curve, a spring only for gestures, and one signature move. Never animate keyboard-repeated actions. `MOT-06`..`MOT-14` cover `transition: all`, slow hovers, scroll-reveal saturation, autoplay without pause, flashing, `scale(0)` entrances, unguarded CSS loops, parallax/3D tilt, and hover lift on static cards. The full audit is `skills/sloppy/references/motion-review.md`.
 5. **Authentic craft over sparkle slop**:
    * Real platform chrome, disciplined typography, semantic native HTML controls, and monochromatic restraint.
 
@@ -310,7 +319,7 @@ Before any automated fix or agent redesign touches a file, Sloppy snapshots all 
 ### 3. Multi-Width Render Verification (8 Widths with Static Fallback)
 Tests real rendered contrast, mobile horizontal overflow, and above-the-fold hero framing across 8 canonical viewports (375px to 1920px). When Playwright or Chrome is not installed, Sloppy cleanly falls back to static source scanning without failing or crashing.
 
-**Rendered accessibility (`--a11y`)** checks the live DOM for accessible names, form labels, focus visibility, focus order, WCAG 2.2 target size (24x24) with the spacing exception, broken `aria-*` references, duplicate ids, 320px reflow, 200% text resize clipping, and animation that ignores `prefers-reduced-motion`. Focus order and text-resize findings are labeled lower confidence because they are heuristics, not conformance claims. It requires a served URL: a source file or an unavailable browser returns `unavailable` and exit code `2`, never a fabricated pass. Add it to the same report with `sloppy check https://localhost:3000 --a11y --json`.
+**Rendered accessibility (`--a11y`)** checks the live DOM for accessible names, form labels, focus visibility, focus order, WCAG 2.2 target size (24x24) with the spacing exception, broken `aria-*` references, duplicate ids, 320px reflow, 200% text resize clipping, animation that ignores `prefers-reduced-motion`, autoplay motion with no pause control, and interaction transitions slower than 600ms. Focus order and text-resize findings are labeled lower confidence because they are heuristics, not conformance claims. It requires a served URL: a source file or an unavailable browser returns `unavailable` and exit code `2`, never a fabricated pass. Add it to the same report with `sloppy check https://localhost:3000 --a11y --json`.
 
 ### 4. Decoupled Materials & Anti-Repetition Engine
 Themes are treated as pure lightweight materials (≤8 KB of surface, border, typography, and accent tokens) completely separated from page layout. `sloppy looks --next` tracks recently dealt looks so generated outputs never repeat the same theme twice.

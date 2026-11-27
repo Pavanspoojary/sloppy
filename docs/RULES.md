@@ -34,6 +34,15 @@ from the same table, so an ID has exactly one meaning everywhere.
 | `MOT-03` | `REDUCED_MOTION_BLINDNESS` | Missing Reduced-Motion Guard | floor | medium | detect-only | high | objective | Active runtime motion, scroll, 3D, or Lottie code missing a prefers-reduced-motion guard. |
 | `MOT-04` | `LAYOUT_THRASH_ANIMATION` | Layout-Thrashing Property Animation | reflex | medium | detect-only | medium | objective | Programmatic animation of layout geometry (width, height, top, left, margin, padding). |
 | `MOT-05` | `UNMANAGED_WEBGL_OR_MEDIA_LOOP` | Unmanaged WebGL, Lottie, or Scroll Loop | floor | high | detect-only | high | objective | Uncleaned WebGL, Lottie, or scroll instances and unbounded R3F Canvas render loops. |
+| `MOT-06` | `TRANSITION_ALL_SLOP` | Cross-Property Transition Slop (transition: all) | reflex | medium | detect-only | high | craft | `transition: all` / `transition-all` animating unknown properties. |
+| `MOT-07` | `SLOW_INTERACTION_MOTION` | Slow Interaction Feedback | reflex | medium | detect-only | medium | craft | Hover, press, or focus feedback slower than ~600ms. |
+| `MOT-08` | `SCROLL_REVEAL_SATURATION` | Scroll-Reveal Saturation | reflex | medium | detect-only | medium | craft | Every section revealed on scroll and hidden until JavaScript runs. |
+| `MOT-09` | `AUTOPLAY_MOTION_WITHOUT_CONTROL` | Autoplay Motion Without Pause Control | floor | high | detect-only | high | objective | Marquee, ticker, carousel, or video that runs automatically with no pause control. |
+| `MOT-10` | `FLASHING_ANIMATION` | Flashing or Strobe Animation | floor | high | detect-only | high | objective | Blink, flash, or strobe animation above the three-per-second limit. |
+| `MOT-11` | `SCALE_FROM_ZERO` | Entrance From scale(0) | reflex | low | detect-only | medium | craft | An entrance that starts at scale(0) and reads as a pop-in. |
+| `MOT-12` | `CSS_LOOP_NO_REDUCED_GUARD` | CSS Loop Without Reduced-Motion Guard | reflex | medium | detect-only | medium | craft | Looping CSS animation with no prefers-reduced-motion fallback. |
+| `MOT-13` | `VESTIBULAR_RISK_MOTION` | Vestibular-Risk Parallax or 3D Tilt | reflex | medium | detect-only | medium | craft | Full-area parallax, fixed backgrounds, and 3D hover tilt. |
+| `MOT-14` | `UNEARNED_HOVER_LIFT` | Hover Motion on a Non-Interactive Surface | reflex | medium | detect-only | high | craft | Hover lift or scale on a surface that is not clickable. |
 | `STR-01` | `BOXED_CARD_SYNDROME` | Boxed Card Monotony | reflex | medium | detect-only | medium | craft | Boxed Card Monotony |
 | `STR-02` | `UNANCHORED_FLOATING_WINDOW` | Unanchored Floating Window | reflex | high | detect-only | medium | craft | Unanchored Floating Window |
 | `STR-03` | `FLAT_SURFACE_MONOTONY` | Flat Surface Monotony | reflex | medium | detect-only | medium | craft | Flat Surface Monotony |
@@ -258,6 +267,87 @@ quiet. `sloppy rules --json` exposes the same fields to agents.
 - **False positives**: Cleanup or throttling is managed by a parent controller or custom hook outside this component.
 - **Not applicable when**: The file creates a one-shot static export rather than a mounted browser render loop.
 - **Validation**: Confirm `.dispose()`/`.destroy()` runs on unmount and `<Canvas>` specifies `frameloop="demand"` or capped `dpr`.
+
+### `MOT-06` Cross-Property Transition Slop (transition: all)
+- **Family**: motion
+- **Confidence**: high (craft judgment)
+- **Evidence collected**: source
+- **False positives**: A deliberate cross-property transition on a single known state swap (for example a theme toggle that must move color and border together).
+- **Not applicable when**: The element transitions exactly one named property through an explicit property list.
+- **Validation**: Replace `transition-all` / `transition: all` with an explicit property list, then confirm hover, focus, and active states still animate.
+- **Sources**: https://developer.chrome.com/docs/modern-web-guidance/guides/ui-behaviors/motion
+
+### `MOT-07` Slow Interaction Feedback
+- **Family**: motion
+- **Confidence**: medium (craft judgment)
+- **Evidence collected**: source
+- **False positives**: Storytelling or demo motion, which is allowed to run longer than product feedback.
+- **Not applicable when**: The element is a page-level surface (sheet, drawer, full-screen menu) where 300-400ms reads as lighter, not sluggish.
+- **Validation**: Time the hover, press, and state change at normal speed; direct feedback should start immediately and settle inside ~300ms.
+- **Sources**: https://emilkowal.ski/ui/great-animations
+
+### `MOT-08` Scroll-Reveal Saturation
+- **Family**: motion
+- **Confidence**: medium (craft judgment)
+- **Evidence collected**: source
+- **False positives**: A single deliberate reveal on the one section that earns it, with content rendered and readable before JavaScript runs.
+- **Not applicable when**: The page needs scroll-linked storytelling and states that in its design contract.
+- **Validation**: Disable JavaScript and load with throttling: first-screen content must be present and legible; keep at most one scroll-reveal motif.
+- **Sources**: https://developer.chrome.com/docs/modern-web-guidance/guides/ui-behaviors/motion
+
+### `MOT-09` Autoplay Motion Without Pause Control
+- **Family**: motion
+- **Confidence**: high (objective defect)
+- **Evidence collected**: source, standard
+- **False positives**: Decorative motion that runs under five seconds, or a loader that communicates real progress.
+- **Not applicable when**: The marquee or carousel pauses when hovered/focused and offers no motion under `prefers-reduced-motion: reduce`.
+- **Validation**: Add a visible keyboard-operable pause control, or make the motion finite. Verify under WCAG 2.2.2 Pause, Stop, Hide.
+- **Sources**: https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html
+
+### `MOT-10` Flashing or Strobe Animation
+- **Family**: motion
+- **Confidence**: high (objective defect)
+- **Evidence collected**: source, standard
+- **False positives**: A single non-repeating flash used as a screenshot or shutter affordance.
+- **Not applicable when**: Nothing flashes more than three times in any one-second period.
+- **Validation**: Remove the flash, or reduce it below three flashes per second; verify with a slow-motion capture.
+- **Sources**: https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html
+
+### `MOT-11` Entrance From scale(0)
+- **Family**: motion
+- **Confidence**: medium (craft judgment)
+- **Evidence collected**: source
+- **False positives**: A spring gesture that legitimately collapses an object to zero while the finger holds it.
+- **Not applicable when**: The element is a loader or icon drawing, not an entering surface.
+- **Validation**: Start the entrance at 0.9-0.96 scale instead of 0 and check the first frame reads as a shape, not a pop-in.
+- **Sources**: https://emilkowal.ski/ui/7-practical-animation-tips
+
+### `MOT-12` CSS Loop Without Reduced-Motion Guard
+- **Family**: motion
+- **Confidence**: medium (craft judgment)
+- **Evidence collected**: source, standard
+- **False positives**: Reduced-motion handling lives in a global stylesheet or provider outside this file.
+- **Not applicable when**: The animation is a progress affordance that communicates real asynchronous state.
+- **Validation**: Add `@media (prefers-reduced-motion: reduce)` (or `motion-safe:`) and confirm the loop stops or simplifies in the browser.
+- **Sources**: https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html
+
+### `MOT-13` Vestibular-Risk Parallax or 3D Tilt
+- **Family**: motion
+- **Confidence**: medium (craft judgment)
+- **Evidence collected**: source, standard
+- **False positives**: Parallax confined to a small decorative accent that stops under reduced motion.
+- **Not applicable when**: The 3D tilt is a direct manipulation preview the user actively drags, not an ambient hover effect.
+- **Validation**: Guard full-viewport parallax, tilt, and zoom with reduced motion and keep the moving area small; WCAG 2.3.3 Animation from Interactions applies.
+- **Sources**: https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html
+
+### `MOT-14` Hover Motion on a Non-Interactive Surface
+- **Family**: motion
+- **Confidence**: high (craft judgment)
+- **Evidence collected**: source
+- **False positives**: The lifted surface is itself the click target (`<a>`, `<button>`, or a row with a real handler).
+- **Not applicable when**: The lift communicates a draggable object during an active drag, not on idle hover.
+- **Validation**: Remove hover lift from static surfaces; if the card is interactive, make the whole card the semantic control and keep the lift subtle.
+- **Sources**: https://emilkowal.ski/ui/great-animations
 
 ### `STR-01` Boxed Card Monotony
 - **Family**: structure
