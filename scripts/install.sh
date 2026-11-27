@@ -35,7 +35,7 @@ else
 fi
 
 BIN_DIR="${SLOPPY_BIN_DIR:-$HOME/.local/bin}"
-SLOPPY_REF="${SLOPPY_REF:-v1.0.0}"
+SLOPPY_REF="${SLOPPY_REF:-main}"
 
 printf "[1/4] Preparing Sloppy environment in %s...\n" "$INSTALL_DIR"
 if [ "$INSTALL_DIR" != "$(pwd)" ]; then
@@ -66,12 +66,13 @@ SLOPPY_DIR="\${SLOPPY_DIR:-$INSTALL_DIR}"
 exec node "\$SLOPPY_DIR/packages/cli/bin/sloppy.js" "\$@"
 EOF
 chmod +x "$BIN_DIR/sloppy"
+ln -sf "$BIN_DIR/sloppy" "$BIN_DIR/sloppy-ai" 2>/dev/null || cp "$BIN_DIR/sloppy" "$BIN_DIR/sloppy-ai"
 
 printf "[4/4] Configuring MCP servers and Agent Skills...\n"
 "$BIN_DIR/sloppy" setup --write
 
 printf "\n[INSTALLATION COMPLETE] Sloppy installed successfully.\n"
-printf "Executable: %s/sloppy\n" "$BIN_DIR"
+printf "Executable: %s/sloppy (and %s/sloppy-ai)\n" "$BIN_DIR" "$BIN_DIR"
 if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
   printf "\nNote: Add %s to your PATH if not already present:\n" "$BIN_DIR"
   printf "  export PATH=\"\$PATH:%s\"\n" "$BIN_DIR"
