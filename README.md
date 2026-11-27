@@ -495,25 +495,27 @@ Autonomous agents interact with Sloppy over stdio using **5 primary high-leverag
 
 ### Client Configuration
 
-#### Cursor (`~/.cursor/mcp.json`)
+You can configure MCP automatically with `npx @sloppy-ai/cli setup --write`, or add manually:
+
+#### Cursor (`~/.cursor/mcp.json` or `.cursor/mcp.json`)
 ```json
 {
   "mcpServers": {
     "sloppy": {
-      "command": "sloppy",
-      "args": ["mcp"]
+      "command": "npx",
+      "args": ["-y", "@sloppy-ai/cli", "mcp"]
     }
   }
 }
 ```
 
-#### Claude Desktop (`claude_desktop_config.json`) / Claude Code
+#### Claude Desktop (`claude_desktop_config.json`) / Claude Code (`~/.claude/mcp.json`)
 ```json
 {
   "mcpServers": {
     "sloppy": {
-      "command": "sloppy",
-      "args": ["mcp"]
+      "command": "npx",
+      "args": ["-y", "@sloppy-ai/cli", "mcp"]
     }
   }
 }
@@ -525,12 +527,13 @@ Autonomous agents interact with Sloppy over stdio using **5 primary high-leverag
   "servers": {
     "sloppy": {
       "type": "stdio",
-      "command": "sloppy",
-      "args": ["mcp"]
+      "command": "npx",
+      "args": ["-y", "@sloppy-ai/cli", "mcp"]
     }
   }
 }
 ```
+*(Note: If installed globally via `npm install -g @sloppy-ai/cli`, you can alternatively use `"command": "sloppy"` with `"args": ["mcp"]`)*
 
 ---
 
@@ -668,16 +671,22 @@ Sloppy includes an interactive comparison studio (`packages/playground`) for tes
 ```
 sloppy/
 ├── packages/
-│   ├── core/          # Primary wedge: source scanner, rules, scoring, rubric, repair planner, and config loader
-│   ├── cli/           # Developer CLI, setup orchestrator, and CI quality gate
-│   ├── mcp/           # Lean 5-tool Model Context Protocol stdio server for agents
-│   ├── kit/           # Portable React craft primitives (Stage, Window, Follow, Fly, Expand)
-│   ├── verify/        # Static and headless Playwright verification engine
+│   ├── core/          # Primary wedge: source scanner, rules, scoring, rubric, repair planner (@sloppy-ai/core)
+│   ├── cli/           # Developer CLI, setup orchestrator, and CI quality gate (@sloppy-ai/cli)
+│   ├── mcp/           # Lean 5-tool Model Context Protocol stdio server for agents (@sloppy-ai/mcp)
+│   ├── kit/           # Portable React craft primitives (Stage, Window, Follow, Fly, Expand) (@sloppy-ai/kit)
+│   ├── verify/        # Static and headless Playwright verification engine (@sloppy-ai/verify)
 │   ├── playground/    # Vite + React comparison and verification studio
 │   └── components/    # Internal research corpus across 7 UI ecosystems
+├── skills/
+│   ├── sloppy/             # Primary agent coordinator skill and reference manuals (@sloppy-ai/skill)
+│   ├── sloppy-ui/          # Visual surfaces, monochromatic ground, authentic icons (@sloppy-ai/skill-ui)
+│   ├── sloppy-code/        # TypeScript architecture, a11y, comment hygiene (@sloppy-ai/skill-code)
+│   ├── sloppy-copywriting/ # Word budget, anti-cliche, concrete proof (@sloppy-ai/skill-copywriting)
+│   ├── sloppy-human/       # Real engineering domain authenticity (@sloppy-ai/skill-human)
+│   └── sloppy-layoutmobile/# Responsive viewport framing, breaking boxed cards (@sloppy-ai/skill-layoutmobile)
 ├── patterns/          # 74 curated gold pattern directories
 ├── benchmarks/        # Real-world raw AI specimens (v0, Bolt, Lovable)
-├── skills/sloppy/     # Universal agent skill definition (SKILL.md + references)
 └── test/              # Unit, rubric, config, benchmark, and MCP contract tests
 ```
 
