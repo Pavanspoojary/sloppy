@@ -27,7 +27,7 @@
     "@sloppy-ai/verify": "^1.1.0"
   },
   "devDependencies": {
-    "@types/node": "^22.10.1",
+    "@types/node": "^26.6.6",
     "typescript": "^5.6.3"
   },
   "license": "MIT"
