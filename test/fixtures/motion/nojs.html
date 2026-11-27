@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>First paint fixture: script-gated content</title>
+  <style>
+    body { margin: 0; background: #fafafa; color: #18181b; font: 16px/1.6 system-ui, sans-serif; opacity: 0; }
+    html[data-ready] body { opacity: 1; transition: opacity 400ms ease-out; }
+    main { max-width: 640px; padding: 48px 24px; }
+    h1 { font-size: 32px; letter-spacing: -0.02em; margin: 0 0 16px; }
+    p { margin: 0 0 12px; color: #3f3f46; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Quarterly ledger review</h1>
+    <p>Every invoice, payout, and adjustment for the quarter in one reconciled view. Filter by client, export the balance sheet, and close the period without a second spreadsheet.</p>
+    <p>Totals reconcile against the bank feed nightly, so the number you read here is the number your accountant will see. Unmatched transactions stay in a separate queue until someone resolves them.</p>
+    <p>Access is scoped per workspace. Reviewers can read and comment; only owners can approve a close or reopen a settled period.</p>
+  </main>
+  <script>
+    document.documentElement.dataset.ready = '';
+  </script>
+</body>
+</html>

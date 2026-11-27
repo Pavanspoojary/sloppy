@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fixture } from './helpers.mjs';
 import { analyzeFocusOrder, auditA11ySnapshot, runAccessibilityAudit } from '../packages/verify/accessibility.mjs';
 
 const cleanButton = {
@@ -161,4 +165,41 @@ test('reflow and 200% text resize evidence is produced only when the browser rep
   const resize = findings.find((item) => item.rule === 'a11y.textResizeClipped');
   assert.equal(resize.confidence, 'medium');
   assert.match(resize.evidence.criterion, /1\.4\.4/);
+});
+
+test('content that only appears after JavaScript is reported as a first-paint defect', () => {
+  const findings = auditA11ySnapshot([cleanButton], { firstPaint: { withJsChars: 400, withoutJsChars: 0 } });
+  const firstPaint = findings.find((item) => item.rule === 'motion.jsDependentFirstPaint');
+  assert.equal(firstPaint.severity, 'high');
+  assert.equal(firstPaint.objective, false);
+
+  const staticPage = auditA11ySnapshot([cleanButton], { firstPaint: { withJsChars: 400, withoutJsChars: 380 } });
+  assert.equal(staticPage.some((item) => item.rule === 'motion.jsDependentFirstPaint'), false);
+});
+
+test('a served page decides first-paint evidence from the rendered DOM', async (t) => {
+  const root = path.resolve(path.dirname(fixture('motion/nojs.html')));
+  const server = http.createServer(async (req, res) => {
+    const file = path.join(root, (req.url || '/').replace(/^\//, '').split('?')[0] || 'nojs.html');
+    try {
+      const body = await fs.readFile(file);
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(body);
+    } catch {
+      res.writeHead(404).end('not found');
+    }
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    const gated = await runAccessibilityAudit(`${origin}/nojs.html`, { timeoutMs: 12000 });
+    if (gated.unavailable) return t.skip(`browser unavailable: ${gated.unavailable}`);
+    assert.ok(gated.findings.some((item) => item.rule === 'motion.jsDependentFirstPaint'), JSON.stringify(gated.findings));
+
+    const staticRender = await runAccessibilityAudit(`${origin}/clean.html`, { timeoutMs: 12000 });
+    assert.equal(staticRender.findings.some((item) => item.rule === 'motion.jsDependentFirstPaint'), false);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
 });

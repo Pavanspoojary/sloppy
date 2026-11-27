@@ -169,6 +169,16 @@ export function auditA11ySnapshot(snapshot, options = {}) {
     });
   }
 
+  const firstPaint = options.firstPaint;
+  if (firstPaint && firstPaint.withJsChars >= 200 && firstPaint.withoutJsChars < firstPaint.withJsChars * 0.5) {
+    push('motion.jsDependentFirstPaint', `Without JavaScript the page shows ${firstPaint.withoutJsChars} of ${firstPaint.withJsChars} characters; first paint must render the content, not wait for a script.`, { selector: 'document' }, {
+      severity: 'high',
+      confidence: 'medium',
+      objective: false,
+      kind: 'dom'
+    });
+  }
+
   if (options.reducedMotionIgnored) {
     push('a11y.reducedMotionIgnored', 'Infinite animation keeps running under prefers-reduced-motion: reduce.', { selector: 'document' }, {
       severity: 'low',
@@ -405,6 +415,39 @@ export async function runAccessibilityAudit(target, options = {}) {
       } catch {}
     }
 
+    let firstPaint = null;
+    if (options.checkFirstPaint !== false) {
+      const visibleChars = () => {
+        const hidden = (el) => {
+          for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
+            const style = getComputedStyle(node);
+            if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return true;
+          }
+          return false;
+        };
+        let total = 0;
+        for (const el of document.querySelectorAll('main, header, section, article, h1, h2, h3, p, li, blockquote, figcaption')) {
+          if (!hidden(el)) total += (el.innerText || '').trim().length;
+        }
+        return total;
+      };
+      const withJsChars = await page.evaluate(visibleChars);
+      let context;
+      let withoutJsChars = null;
+      try {
+        context = await browser.newContext({ javaScriptEnabled: false, viewport: viewport || { width: options.width || 1440, height: options.height || 900 } });
+        const staticPage = await context.newPage();
+        await staticPage.goto(target, { waitUntil: 'domcontentloaded', timeout: options.timeoutMs || 8000 });
+        await staticPage.waitForTimeout(150);
+        withoutJsChars = await staticPage.evaluate(visibleChars);
+      } catch {
+        withoutJsChars = null;
+      } finally {
+        await context?.close().catch(() => {});
+      }
+      if (withoutJsChars !== null) firstPaint = { withJsChars, withoutJsChars };
+    }
+
     let reflowOverflow = null;
     let textResizeClipped = [];
     try {
@@ -456,6 +499,7 @@ export async function runAccessibilityAudit(target, options = {}) {
       reflowOverflow,
       textResizeClipped,
       reducedMotionIgnored,
+      firstPaint,
       autoplayWithoutControl,
       slowFeedback,
       viewport: { width: options.width || 1440, height: options.height || 900 }
@@ -470,7 +514,7 @@ export async function runAccessibilityAudit(target, options = {}) {
       summary: findings.length
         ? `Found ${findings.length} accessibility issue(s) in the rendered DOM.`
         : 'Rendered DOM passes the name, label, focus, target-size, reference, reflow, text-resize, reduced-motion, and motion-budget checks.',
-      checked: ['accessible name', 'form labels', 'focus visibility', 'focus order', 'target size 24x24', 'aria references', 'reflow at 320px', '200% text resize', 'reduced motion', 'autoplay pause control', 'interaction transition duration']
+      checked: ['accessible name', 'form labels', 'focus visibility', 'focus order', 'target size 24x24', 'aria references', 'reflow at 320px', '200% text resize', 'reduced motion', 'first paint without JavaScript', 'autoplay pause control', 'interaction transition duration']
     };
   } catch (error) {
     const reason = String(error?.message || error).split('\n')[0];
