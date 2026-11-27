@@ -328,7 +328,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       setup: 'Usage: sloppy setup [--write|-w] [--global|-g] [--json]',
       check: 'Usage: sloppy check [paths...|url] [--changed|--staged] [--cache] [--compact] [--strict] [--json] [--max-score <n>] [--fail-on <none|low|medium|high|critical>] [--min-grade <A+|A|B|C|D|F>] [--type <illustration|feature-card|hero|application|bento>] [--render|--multi-width] [--a11y] [--static] [--quiet]',
       fix: 'Usage: sloppy fix <file> [--diff|--check|--write] [--look <look>] [--json]\n       sloppy fix --stdin [--json]',
-      verify: 'Usage: sloppy verify [target] [--json] [--multi-width] [--a11y] [--motion [spec.json]] (verification timeout: 15000ms)',
+      verify: 'Usage: sloppy verify [target] [--json] [--multi-width] [--a11y] [--motion [spec.json]] [--repeat N] [--baseline <path>] (flags combine in one browser; timeout: 15000ms)',
       'install-mcp': 'Usage: sloppy install-mcp --client <cursor|vscode|claude|codex> [--dir <path>] [--write] [--json]'
     };
     console.log(help[command]); return true;
@@ -1585,7 +1585,7 @@ Usage:
   sloppy plan <file>          Generate structured repair plan with confidence & risk scores
   sloppy fix <file> [--diff|--check|--write]  Review or apply a proposed repair
   sloppy fix --stdin [--json]  Transform source from stdin
-  sloppy verify [target]      Run browser or static verification (--multi-width, --a11y, --motion <spec>)
+  sloppy verify [target]      Run browser or static verification (flags combine: --multi-width, --a11y, --motion <spec>, --repeat N, --baseline <path>)
   sloppy rules                List canonical rule IDs with tier, severity, and auto-fix/detect-only mode
   sloppy install-mcp --client <client>  Configure an MCP client
   sloppy version [--json]     Show CLI and core versions

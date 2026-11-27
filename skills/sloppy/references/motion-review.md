@@ -157,7 +157,13 @@ than a quiet page. Frequency beats aesthetics.
    finding; do not silence one without a written rationale in `sloppy.config.json` or
    `sloppy-override`.
 2. **Rendered pass.** Run `sloppy verify <url> --a11y --multi-width`, and for declared
-   flows `sloppy verify <url> --motion <spec.json>`. The interaction audit re-runs every
+   flows add `--motion <spec.json>`; every flag shares one browser, so one command is
+   one launch. A spec interaction may open from the keyboard (`openKey`) and close with
+   a key (`closeKey`), and `precondition` steps set up a state before it is measured.
+   Run `--repeat 3 --baseline motion-baseline.json` before trusting frame or layout
+   numbers. The accessibility pass now also renders the page with JavaScript disabled
+   and reports `motion.jsDependentFirstPaint` when the content only appears afterward.
+   The interaction audit re-runs every
    declared interaction under `prefers-reduced-motion: reduce` and reports leftover
    travel (`motion.reducedMotionTravel`), a state change that disappears
    (`motion.reducedMotionHidesContent`), and loops that keep running

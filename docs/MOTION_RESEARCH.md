@@ -91,7 +91,12 @@ Rendered (`sloppy verify --a11y`) now also measures:
 - infinite animations running with no pause control (large-area or marquee/carousel-named),
 - interactive controls whose computed transition duration is 600ms or more,
 - infinite animations still running under `prefers-reduced-motion: reduce`,
+- first paint with JavaScript disabled (`motion.jsDependentFirstPaint`) when most visible
+  text only appears after a script runs,
 - 320px reflow and 200% text-resize clipping, which motion-adjacent layouts break often.
+
+All requested passes share one browser launch: `--a11y --multi-width --motion` is one
+Chrome process and one JSON object.
 
 Rendered interaction evidence (`sloppy verify --motion <spec>`):
 
@@ -102,11 +107,17 @@ Rendered interaction evidence (`sloppy verify --motion <spec>`):
   running), `motion.interruptNotRecovered` (reversed open left half-open),
   `motion.layoutShift` (observed layout movement during the interaction, craft
   evidence), and `motion.focusLoss` (focus not returned to the trigger),
+- opens a surface from the keyboard (`openKey`) and closes it with a key (`closeKey`),
+  reporting `motion.keyboardOpenIgnored` and `motion.keyboardCloseIgnored`,
+- runs `precondition` steps before measuring, so tabs, filters, and staged states are
+  auditable without a bespoke page,
 - re-runs every declared interaction under `prefers-reduced-motion: reduce` and reports
   `motion.reducedMotionTravel` (the target still moves), `motion.reducedMotionHidesContent`
   (the state change was deleted instead of simplified), and
   `motion.reducedMotionKeepsLoop` (an infinite animation keeps running),
-- keeps frame-budget evidence low-confidence craft rather than a CI threshold.
+- keeps frame-budget evidence low-confidence craft rather than a CI threshold, and
+- `--repeat N` separates findings that held in every run from machine-dependent ones,
+  with `--baseline <path>` writing the stable set for calibration.
 
 ## 5. Remaining gaps, in priority order
 
@@ -114,10 +125,11 @@ Rendered interaction evidence (`sloppy verify --motion <spec>`):
    and filters. Loading, empty, and error states, plus declared keyboard paths, are
    still uncovered.
 2. **Calibrated layout-shift evidence.** Observed shift entries are summed and reported
-   as craft (`motion.layoutShift`); a CI threshold still needs calibration across runs.
+   as craft (`motion.layoutShift`). `--repeat` now separates stable findings from
+   machine-dependent ones; a CI threshold still needs a recorded baseline.
 3. **Calibrated frame budget.** `requestAnimationFrame` deltas are sampled and reported
-   as low-confidence craft; a stable threshold needs per-machine baselines and
-   repeated runs before it can gate CI.
+   as low-confidence craft; repeated runs and a baseline now exist, but no threshold
+   should gate CI until two machines agree on one.
 4. Done: **motion contract tokens in `DESIGN.md`.** `motion-fast`, `motion-base`,
    `motion-slow`, `motion-max-feedback`, `motion-ease-enter`, `motion-ease-exit`, and
    `motion-signature` are parsed from the token lock. `MOT-07` uses the declared feedback
@@ -126,13 +138,14 @@ Rendered interaction evidence (`sloppy verify --motion <spec>`):
 5. **Screenshot motion review.** Capture the first/last frame of a declared transition
    and compare geometry, text pixels, and masks. Keep findings in Reflex/Finish until
    calibrated.
-6. **No-JavaScript and throttled-load evidence.** Prove first-screen content exists
-   without JS and before scroll observers run (`MOT-08` currently static-only).
-   Reduced-motion interaction evidence is now rendered; the no-JS first paint is not.
+6. Done: **No-JavaScript first paint.** `verify --a11y` renders the page with
+   JavaScript disabled and reports when the visible text only appears after a script.
+   Throttled-load evidence (slow CPU or network before first paint) is still missing.
 7. **Flash frequency measurement.** `MOT-10` detects named flashes; a rendered check
    could count luminance inversions per second.
-8. **Keyboard-initiated animation detection.** Requires interaction fixtures plus a
-   declared keyboard path.
+8. Done: **Keyboard paths.** `openKey` and `closeKey` exercise keyboard activation and
+   dismissal per declared interaction. Focus trapping inside an open dialog is still
+   unmeasured.
 
 ## 6. Non-goals
 

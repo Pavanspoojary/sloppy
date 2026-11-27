@@ -8,7 +8,7 @@ honest about what Sloppy can and cannot evidence today. Update it when a gap clo
 | Layer | Current capability | Where | Gap |
 | :--- | :--- | :--- | :--- |
 | Static/source | Tag, class, attribute, text, and comment scanning. Findings now carry file, line, selector, confidence, evidence kind, and applicability notes. | `packages/core/src/linter/index.ts`, `rule-metadata.ts` | Cross-file semantics and type inference remain out of scope. |
-| Browser/DOM/computed | Multi-width overflow, rendered contrast, and rendered accessibility (names, labels, focus visibility, tab-sequence order, 24x24 target size with spacing exception, aria references, duplicate ids, 320px reflow, 200% text resize clipping, reduced motion) via Playwright. Motion budget probes measure infinite autoplay with no pause control and interaction transitions at 600ms or more. Declared motion interactions are executed from a spec and checked for post-settle handoff shift, anchor drift, stuck finite transitions, and half-recovered interruptions; every declared interaction is re-run under `prefers-reduced-motion: reduce` to check leftover travel, a deleted state change, and loops that keep running. Static fallback is labeled and never reports a pass. | `packages/verify/multi-width.mjs`, `accessibility.mjs`, `motion-interactions.mjs` | Interaction coverage is limited to what a spec declares; it does not discover flows or assert application semantics. Focus order and text-resize checks are heuristics with medium/low confidence, not full conformance evidence. Frame-budget evidence is low-confidence and not a CI threshold. |
+| Browser/DOM/computed | Multi-width overflow, rendered contrast, and rendered accessibility (names, labels, focus visibility, tab-sequence order, 24x24 target size with spacing exception, aria references, duplicate ids, 320px reflow, 200% text resize clipping, reduced motion) via Playwright. Motion budget probes measure infinite autoplay with no pause control and interaction transitions at 600ms or more. Declared motion interactions are executed from a spec and checked for post-settle handoff shift, anchor drift, stuck finite transitions, and half-recovered interruptions; every declared interaction is re-run under `prefers-reduced-motion: reduce` to check leftover travel, a deleted state change, and loops that keep running. First paint is also rendered with JavaScript disabled, and declared interactions may open and close from the keyboard. Static fallback is labeled and never reports a pass. | `packages/verify/multi-width.mjs`, `accessibility.mjs`, `motion-interactions.mjs` | Interaction coverage is limited to what a spec declares; it does not discover flows or assert application semantics. Focus order and text-resize checks are heuristics with medium/low confidence, not full conformance evidence. Frame-budget evidence is low-confidence and not a CI threshold. |
 | Visual/perceptual | None in the core scanner. The rubric is a source heuristic, not a screenshot judgment. | `packages/core/src/linter/rubric.ts` | No screenshot regions, DOM anchors, or human-calibrated visual model. |
 | Standards | Source findings cite WCAG 1.4.3, 4.1.2, and 2.1.1. Rendered checks cite 4.1.2, 3.3.2, 2.4.3, 2.4.7, 2.5.8, 1.4.10, and 1.4.4. Reduced-motion evidence is collected but classified as craft, not conformance. | `rule-metadata.ts`, `accessibility.mjs` | Focus appearance (2.4.11/2.4.13), full keyboard task completion, and non-heuristic 1.4.4 verification are not covered. |
 | Runtime | `verify` fails closed when the browser is unavailable; no console/network/layout-shift collection. | `packages/verify/browser.mjs` | Add runtime logs and deterministic task assertions. |
@@ -30,7 +30,7 @@ honest about what Sloppy can and cannot evidence today. Update it when a gap clo
 | Structure | `STR-01`, `STR-02`, `STR-03` |
 | Layout | `LAY-01` |
 | Typography | `TYP-08` |
-| Motion | `MOT-01`–`MOT-17` |
+| Motion | `MOT-01`–`MOT-18` |
 | Content | `CPY-01`–`CPY-07`, `VIS-09` |
 | Interaction | `UX-02`, `UX-05` |
 | Accessibility | `VIS-08`, `AX-01` |
@@ -85,12 +85,15 @@ resize clipping, reduced-motion checks, and rendered motion-budget probes (autop
 without a pause control, slow interaction feedback) in `verify --a11y` / `check --a11y`,
 with an honest `unavailable` result instead of a pass.
 
-Done: the motion rule family expanded from `MOT-01`–`MOT-05` to `MOT-01`–`MOT-17`,
+Done: the motion rule family expanded from `MOT-01`–`MOT-05` to `MOT-01`–`MOT-18`,
 covering `transition: all`, slow interaction feedback, scroll-reveal saturation,
 autoplay without pause, flashing, `scale(0)` entrances, unguarded CSS loops,
 vestibular-risk parallax/tilt, hover lift on static surfaces, uniform entrance motion,
-overshoot/elastic easing on routine surfaces, and permanent `will-change` hints. The
-research and remaining motion roadmap live in `docs/MOTION_RESEARCH.md`.
+overshoot/elastic easing on routine surfaces, permanent `will-change` hints, and
+durations outside a declared motion scale. `verify` now runs every requested pass in
+one browser, proves first paint without JavaScript, follows keyboard open/close paths,
+and can repeat runs into a stable baseline. The research and remaining motion roadmap
+live in `docs/MOTION_RESEARCH.md`.
 
 1. Done: deterministic motion interaction evidence. A declared spec (`trigger`, `target`, `anchor`, optional `closeTrigger`) runs menu, tab, form, and filter changes and reports post-settle handoff shift, anchor drift, stuck transitions, and half-recovered interruptions. Remaining scope: loading/empty/error state transitions and declared keyboard paths. Layout shift is collected as craft evidence; a calibrated threshold is still pending.
 2. Add screenshot capture with DOM anchors and viewport metadata; keep visual
