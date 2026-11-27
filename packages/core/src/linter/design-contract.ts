@@ -199,3 +199,22 @@ universal threshold. All values are optional; the default feedback ceiling is 60
 Rules suppressed by this contract are still reported as declared exceptions in
 \`sloppy check --json\` under \`designContract\`.
 `;
+
+/**
+ * Starter spec for `sloppy verify --motion`. The selectors are deliberately
+ * placeholders: running it before editing reports a missing selector instead of
+ * a false pass, which keeps the evidence honest.
+ */
+export const MOTION_SPEC_TEMPLATE = `{
+  "interactions": [
+    {
+      "name": "Replace with one real flow (menu, tabs, form, or filter)",
+      "trigger": "[data-sloppy-trigger]",
+      "target": "[data-sloppy-target]",
+      "anchor": "[data-sloppy-anchor]",
+      "kind": "click",
+      "waitMs": 500
+    }
+  ]
+}
+`;

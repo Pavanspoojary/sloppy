@@ -149,6 +149,13 @@ export function auditMotionInteractionSamples(samples = [], options = {}) {
       });
     }
 
+    if (sample.missingSelector) {
+      push('motion.missingSelector', `${sample.name}: selector "${sample.missingSelector}" was not found, so the declared interaction never ran.`, sample, {
+        severity: 'high',
+        confidence: 'high'
+      });
+    }
+
     if (sample.focusChecked && sample.focusReturned === false) {
       push('motion.focusLoss', `${sample.name}: closing the surface does not return focus to its trigger; keyboard users are left without a position.`, sample, {
         severity: 'high',
@@ -311,6 +318,7 @@ export async function runMotionInteractionAudit(target, options = {}) {
       }), { trigger: interaction.trigger, targetSelector: interaction.target, anchorSelector: interaction.anchor });
 
       if (!boxes.targetFound || !boxes.triggerFound) {
+        sample.missingSelector = !boxes.triggerFound ? interaction.trigger : interaction.target;
         sample.before = { anchor: boxes.anchor };
         samples.push(sample);
         continue;

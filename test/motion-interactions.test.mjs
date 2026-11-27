@@ -64,6 +64,15 @@ test('a late layout change, moving anchor, stuck transition, and half-recovered 
   for (const finding of findings) assert.equal(finding.evidence.kind, 'interaction');
 });
 
+test('a declared selector that is missing is reported instead of passing', () => {
+  const findings = auditMotionInteractionSamples([
+    { name: 'menu', target: '#panel', missingSelector: '#open' }
+  ]);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].rule, 'motion.missingSelector');
+  assert.equal(findings[0].severity, 'high');
+});
+
 test('layout movement and a lost focus return are reported as their own findings', () => {
   const findings = auditMotionInteractionSamples([
     { name: 'shifting form', target: '#form', layoutShift: 0.04 },
