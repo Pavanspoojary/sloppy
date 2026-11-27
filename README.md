@@ -2,39 +2,66 @@
 
 **The anti-slop design engine and quality gate for your coding agent.**
 
-Catch low-taste AI UI anti-patterns—unwarranted purple gradients, unanchored floating windows, sparkle icons, fake metric proof, and unearned bouncy loops—before they ship.
-
 [![npm version](https://img.shields.io/npm/v/@sloppy-ai/cli.svg?style=flat-square)](https://www.npmjs.com/package/@sloppy-ai/cli)
 [![license](https://img.shields.io/npm/l/@sloppy-ai/cli.svg?style=flat-square)](LICENSE)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/Pavanspoojary/sloppy/ci.yml?branch=main&style=flat-square)](https://github.com/Pavanspoojary/sloppy/actions)
 
+Catch low-taste AI UI anti-patterns—unwarranted purple gradients, unanchored floating windows, sparkle icons, fake metric proof, and unearned bouncy loops—before they ship.
+
 ---
 
-## Install
+## Quickstart
 
-### In your coding agent (Antigravity, Claude Code, Cursor, Codex)
+### In your coding agent
 
-One command auto-detects and configures MCP servers and links all 6 specialist skills into your agent directories:
+Auto-detect and wire the MCP server and link all 6 specialist skills into **Antigravity**, **Claude Code**, **Cursor**, **Codex**, and **VS Code**:
 
 ```bash
-npx @sloppy-ai/cli setup --write
+npx @sloppy-ai/cli@latest setup --write
 ```
+
+<details>
+<summary>Using pnpm, bun, or yarn?</summary>
+
+```bash
+# pnpm
+pnpm dlx @sloppy-ai/cli@latest setup --write
+
+# bun
+bunx @sloppy-ai/cli@latest setup --write
+
+# yarn
+yarn dlx @sloppy-ai/cli@latest setup --write
+```
+</details>
 
 Reload your editor or agent session. That is it.
 
 ### In your terminal or CI
 
-Run checks instantly with zero installation:
+Run an instant zero-install audit against your frontend codebase:
 
 ```bash
-npx @sloppy-ai/cli check ./src
+npx @sloppy-ai/cli@latest check ./src
 ```
 
-Or install globally to get the `sloppy` and `sloppy-ai` commands:
+Or install globally to get the fast `sloppy` CLI binary:
 
 ```bash
-npm install -g @sloppy-ai/cli
+npm install -g @sloppy-ai/cli@latest
 ```
+
+<details>
+<summary>Global install with pnpm or bun</summary>
+
+```bash
+# pnpm
+pnpm add -g @sloppy-ai/cli@latest
+
+# bun
+bun add -g @sloppy-ai/cli@latest
+```
+</details>
 
 Works with **Google Antigravity**, **Claude Code**, **Cursor**, **Codex**, **VS Code**, and any **CI/CD pipeline**.
 
@@ -70,6 +97,8 @@ The lean 5-tool MCP server runs over stdio. When an agent edits UI, Sloppy provi
 
 ### 2. In your terminal
 
+Use the global `sloppy` binary or run on-demand with `npx @sloppy-ai/cli@latest`:
+
 ```bash
 # Audit files against the slop threshold (exit 0 clean, 1 violations)
 sloppy check ./src --json --fail-on high --max-score 20
@@ -99,6 +128,12 @@ Add zero-tolerance anti-slop enforcement with automated GitHub Code Scanning SAR
     fail-on: 'high'
     max-score: '0'
     upload-sarif: 'true'
+```
+
+Or run via CLI in any CI runner:
+
+```bash
+npx @sloppy-ai/cli@latest check ./src --format sarif --output sloppy.sarif
 ```
 
 ---
@@ -139,14 +174,14 @@ To preserve agent context windows while going deeper per domain, Sloppy provides
 Install all 6 skills across Antigravity, Claude Code, Cursor, and Codex:
 
 ```bash
-npx @sloppy-ai/cli setup --write
+npx @sloppy-ai/cli@latest setup --write
 ```
 
 ---
 
 ## MCP Client Configuration
 
-While `npx @sloppy-ai/cli setup --write` configures clients automatically, you can also configure manually:
+While `npx @sloppy-ai/cli@latest setup --write` configures clients automatically, you can also configure manually:
 
 ### Cursor (`.cursor/mcp.json` or `~/.cursor/mcp.json`)
 ```json
@@ -154,7 +189,7 @@ While `npx @sloppy-ai/cli setup --write` configures clients automatically, you c
   "mcpServers": {
     "sloppy": {
       "command": "npx",
-      "args": ["-y", "@sloppy-ai/cli", "mcp"]
+      "args": ["-y", "@sloppy-ai/cli@latest", "mcp"]
     }
   }
 }
@@ -166,7 +201,7 @@ While `npx @sloppy-ai/cli setup --write` configures clients automatically, you c
   "mcpServers": {
     "sloppy": {
       "command": "npx",
-      "args": ["-y", "@sloppy-ai/cli", "mcp"]
+      "args": ["-y", "@sloppy-ai/cli@latest", "mcp"]
     }
   }
 }
@@ -179,13 +214,13 @@ While `npx @sloppy-ai/cli setup --write` configures clients automatically, you c
     "sloppy": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@sloppy-ai/cli", "mcp"]
+      "args": ["-y", "@sloppy-ai/cli@latest", "mcp"]
     }
   }
 }
 ```
 
-*(Note: When installed globally via `npm install -g @sloppy-ai/cli`, `"command": "sloppy"` with `"args": ["mcp"]` is also supported)*
+*(Note: When installed globally via `npm install -g @sloppy-ai/cli@latest`, `"command": "sloppy"` with `"args": ["mcp"]` is also supported)*
 
 ---
 
