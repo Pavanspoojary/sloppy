@@ -297,7 +297,7 @@ echo '<div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl 
 | `list` | `sloppy list [library]` | Search and list curated components across the ecosystem. |
 | `init` | `sloppy init [--from <url>]` | Scaffold React kit, or extract design DNA from live URL/dev-server into `sloppy.config.json` and `DESIGN.md`. |
 | `looks` | `sloppy looks [--next]` | Display tokens or deal fresh material from anti-repetition memory. |
-| `verify` | `sloppy verify [target] [--multi-width] [--a11y] [--static]` | Multi-width responsive verification (8 widths) or rendered accessibility verification, both failing closed when unavailable. |
+| `verify` | `sloppy verify [target] [--multi-width] [--a11y] [--motion <spec.json>] [--static]` | Multi-width responsive verification (8 widths), rendered accessibility, or declared motion interaction evidence, all failing closed when unavailable. |
 | `hook` | `sloppy hook install [--cursor\|--claude\|--git]` | Install lightweight sub-30ms Floor checks for edit-time validation. |
 
 ---
@@ -320,6 +320,8 @@ Before any automated fix or agent redesign touches a file, Sloppy snapshots all 
 Tests real rendered contrast, mobile horizontal overflow, and above-the-fold hero framing across 8 canonical viewports (375px to 1920px). When Playwright or Chrome is not installed, Sloppy cleanly falls back to static source scanning without failing or crashing.
 
 **Rendered accessibility (`--a11y`)** checks the live DOM for accessible names, form labels, focus visibility, focus order, WCAG 2.2 target size (24x24) with the spacing exception, broken `aria-*` references, duplicate ids, 320px reflow, 200% text resize clipping, animation that ignores `prefers-reduced-motion`, autoplay motion with no pause control, and interaction transitions slower than 600ms. Focus order and text-resize findings are labeled lower confidence because they are heuristics, not conformance claims. It requires a served URL: a source file or an unavailable browser returns `unavailable` and exit code `2`, never a fabricated pass. Add it to the same report with `sloppy check https://localhost:3000 --a11y --json`.
+
+**Rendered motion interactions (`--motion`)** run only the interactions you declare in a spec file (`{"interactions":[{"trigger":"#open","target":"#panel","anchor":"header","closeTrigger":"#close"}]}`) against a served URL. It reports an element that moves after settling (`motion.handoffShift`), surrounding geometry that drifts with the target (`motion.anchorDrift`), a finite transition still running after the settle window (`motion.stuckTransition`), and a reversed open/close left half-open (`motion.interruptNotRecovered`). Frame-budget evidence stays low-confidence craft. It fails closed with exit code `2` when no browser or spec is available, and never clicks undeclared production controls.
 
 ### 4. Decoupled Materials & Anti-Repetition Engine
 Themes are treated as pure lightweight materials (≤8 KB of surface, border, typography, and accent tokens) completely separated from page layout. `sloppy looks --next` tracks recently dealt looks so generated outputs never repeat the same theme twice.

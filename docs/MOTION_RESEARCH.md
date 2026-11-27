@@ -86,16 +86,25 @@ Rendered (`sloppy verify --a11y`) now also measures:
 - infinite animations still running under `prefers-reduced-motion: reduce`,
 - 320px reflow and 200% text-resize clipping, which motion-adjacent layouts break often.
 
+Rendered interaction evidence (`sloppy verify --motion <spec>`):
+
+- executes only declared selectors (`trigger`, `target`, `anchor`, optional `closeTrigger`),
+- samples boxes and `requestAnimationFrame` deltas across the interaction,
+- reports `motion.handoffShift` (movement after settle), `motion.anchorDrift`
+  (surrounding geometry moves), `motion.stuckTransition` (finite animation still
+  running), and `motion.interruptNotRecovered` (reversed open left half-open),
+- keeps frame-budget evidence low-confidence craft rather than a CI threshold.
+
 ## 5. Remaining gaps, in priority order
 
-1. **Interaction fixtures.** Tab switch, menu open/close, form validation, filter update,
-   loading/empty/error. Today's motion checks are source heuristics plus a few rendered
-   probes; they cannot prove an interruption retargets or that a handoff does not shift.
+1. **State-transition coverage.** Declared interactions now cover menus, tabs, forms,
+   and filters. Loading, empty, and error states, plus declared keyboard paths, are
+   still uncovered.
 2. **Animation-driven layout shift.** Collect CLS/clip evidence around a declared
-   interaction, not only static reflow.
-3. **Frame-budget profiling.** Record `requestAnimationFrame` deltas during a declared
-   transition and fail on sustained long tasks. This is the only honest way to catch
-   backdrop-filter and layer explosions.
+   interaction, not only static reflow and post-settle boxes.
+3. **Calibrated frame budget.** `requestAnimationFrame` deltas are sampled and reported
+   as low-confidence craft; a stable threshold needs per-machine baselines and
+   repeated runs before it can gate CI.
 4. **Motion contract tokens in `DESIGN.md`.** Declare duration scale, curves, and the one
    signature move so scanners can compare used values against the contract instead of a
    universal threshold.

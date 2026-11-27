@@ -65,6 +65,26 @@ The last pass. Every answer comes from a frame you looked at, never from the cod
 | A gate line you think is intentional | Look again; if it still looks fine, say so in REHEARSAL.md with the frame; never clear it by hiding the thing |
 | Ten film runs, gate green, frame unchanged | Stop. Fresh eye |
 
+## Served motion interactions
+
+A static scan cannot prove a transition lands, retargets, or holds its surroundings. When a page has a declared interaction, run the deterministic motion audit against a served URL:
+
+```bash
+sloppy verify http://localhost:3000 --motion sloppy.motion.json
+```
+
+The spec names only your own selectors; Sloppy never clicks arbitrary production controls:
+
+```json
+{
+  "interactions": [
+    { "name": "filter menu", "trigger": "#open", "target": "#panel", "anchor": "header", "closeTrigger": "#close", "waitMs": 500 }
+  ]
+}
+```
+
+It reports four observed failures: `motion.handoffShift` (the element moves after settling), `motion.anchorDrift` (the surrounding geometry moves with the target), `motion.stuckTransition` (a finite animation still runs after the settle window), and `motion.interruptNotRecovered` (a reversed open/close is left half-open). A frame-budget line is reported only as low-confidence craft evidence. Exit `1` means findings, exit `2` means no browser or no spec; it never reports a pass without observing the interaction.
+
 ## Hand over
 
 - `REHEARSAL.md` written beside the component? A template:
