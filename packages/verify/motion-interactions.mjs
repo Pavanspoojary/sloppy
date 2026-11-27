@@ -175,6 +175,26 @@ export function auditMotionInteractionSamples(samples = [], options = {}) {
   return findings;
 }
 
+export function stabilizeMotionRuns(results = []) {
+  const runs = results.length;
+  const byKey = new Map();
+  for (const result of results) {
+    for (const finding of result.findings || []) {
+      const key = `${finding.rule}|${finding.evidence?.selector || ''}`;
+      const entry = byKey.get(key) || { finding, count: 0 };
+      entry.count += 1;
+      byKey.set(key, entry);
+    }
+  }
+  const stable = [];
+  const unstable = [];
+  for (const entry of byKey.values()) {
+    if (entry.count === runs) stable.push(entry.finding);
+    else unstable.push({ ...entry.finding, seenIn: entry.count });
+  }
+  return { runs, stable, unstable };
+}
+
 function unavailableReason(target, spec) {
   if (!/^https?:\/\//i.test(String(target))) return 'Motion interaction evidence needs a served http(s) URL.';
   if (!spec || !Array.isArray(spec.interactions) || spec.interactions.length === 0) return 'No interactions were declared in the motion spec.';

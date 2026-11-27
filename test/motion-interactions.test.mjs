@@ -6,7 +6,8 @@ import path from 'node:path';
 import { fixture } from './helpers.mjs';
 import {
   auditMotionInteractionSamples,
-  runMotionInteractionAudit
+  runMotionInteractionAudit,
+  stabilizeMotionRuns
 } from '../packages/verify/motion-interactions.mjs';
 
 const box = (x, y, width = 100, height = 40) => ({ x, y, width, height });
@@ -164,6 +165,25 @@ test('keyboard open and close paths are reported when the surface ignores them',
   const rules = findings.map((finding) => finding.rule).sort();
   assert.deepEqual(rules, ['motion.keyboardCloseIgnored', 'motion.keyboardOpenIgnored']);
   assert.ok(findings.every((finding) => finding.evidence.criterion === 'WCAG 2.1.1 Keyboard'));
+});
+
+test('repeat runs separate stable findings from machine-dependent ones', () => {
+  const finding = (rule) => ({
+    rule,
+    message: rule,
+    severity: 'medium',
+    confidence: 'medium',
+    objective: true,
+    evidence: { kind: 'interaction', description: rule, selector: '#panel' }
+  });
+  const stability = stabilizeMotionRuns([
+    { findings: [finding('motion.handoffShift'), finding('motion.frameBudget')] },
+    { findings: [finding('motion.handoffShift')] }
+  ]);
+  assert.equal(stability.runs, 2);
+  assert.deepEqual(stability.stable.map((item) => item.rule), ['motion.handoffShift']);
+  assert.deepEqual(stability.unstable.map((item) => item.rule), ['motion.frameBudget']);
+  assert.equal(stability.unstable[0].seenIn, 1);
 });
 
 test('the audit fails closed without a served URL or a declared interaction', async () => {

@@ -113,7 +113,15 @@ declare module '@sloppy-ai/verify/motion-interactions' {
     checked: string[];
     summary: string;
     unavailable?: string;
+    runs?: number;
+    stable?: MotionInteractionFinding[];
+    unstable?: Array<MotionInteractionFinding & { seenIn: number }>;
   }
+  export function stabilizeMotionRuns(results: MotionInteractionResult[]): {
+    runs: number;
+    stable: MotionInteractionFinding[];
+    unstable: Array<MotionInteractionFinding & { seenIn: number }>;
+  };
   export function auditMotionInteractionSamples(samples: unknown[], options?: { viewport?: { width: number; height: number } }): MotionInteractionFinding[];
   export function runMotionInteractionAudit(target: string, options?: { spec?: MotionInteractionSpec; timeoutMs?: number; width?: number; height?: number; browser?: unknown }): Promise<MotionInteractionResult>;
 }

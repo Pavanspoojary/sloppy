@@ -1070,27 +1070,49 @@ export async function runCli(args: string[]) {
         if (motionIdx !== -1) {
           const explicitSpec = args[motionIdx + 1] && !args[motionIdx + 1].startsWith('-') ? args[motionIdx + 1] : null;
           const specPath = explicitSpec || 'sloppy.motion.json';
-          let spec: import('@sloppy-ai/verify/motion-interactions').MotionInteractionSpec;
+          const repeatIdx = args.indexOf('--repeat');
+          const repeat = repeatIdx !== -1 ? Math.min(10, Math.max(1, Number(args[repeatIdx + 1]) || 1)) : 1;
+          const baselineIdx = args.indexOf('--baseline');
+          const baselinePath = baselineIdx !== -1 && args[baselineIdx + 1] && !args[baselineIdx + 1].startsWith('-') ? args[baselineIdx + 1] : null;
+          let spec: import('@sloppy-ai/verify/motion-interactions').MotionInteractionSpec | null = null;
           try {
             spec = JSON.parse(fs.readFileSync(path.resolve(specPath), 'utf8'));
           } catch (error) {
             console.error(`[ERROR] Could not read motion spec ${specPath}: ${(error as Error).message}`);
             console.error(explicitSpec ? '' : 'Create sloppy.motion.json in the project root or pass --motion <path>.');
-            process.exitCode = 2;
-            break;
+            worstExit = 2;
           }
-          const module = await import('@sloppy-ai/verify/motion-interactions').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/motion-interactions.mjs')));
-          const res = await module.runMotionInteractionAudit(target, { spec, timeoutMs: 15000, browser: await ensureBrowser() });
-          sections.motion = res;
-          noteExit(res);
-          if (!json) {
-            console.log(`\n======================================================`);
-            console.log(`SLOPPY MOTION INTERACTION VERIFICATION`);
-            console.log(`======================================================\n`);
-            console.log(`Target:   ${res.target} (${res.mode})`);
-            console.log(`Summary:  ${res.summary}`);
-            for (const finding of res.findings) console.log(`  [${finding.severity.toUpperCase()}] ${finding.rule}: ${finding.message}`);
-            if (res.unavailable) console.error(`Motion verification unavailable: ${res.unavailable}`);
+          if (spec) {
+            const module = await import('@sloppy-ai/verify/motion-interactions').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/motion-interactions.mjs')));
+            const runs = [];
+            for (let index = 0; index < repeat; index += 1) {
+              const run = await module.runMotionInteractionAudit(target, { spec, timeoutMs: 15000, browser: await ensureBrowser() });
+              runs.push(run);
+              if (run.unavailable) break;
+            }
+            let res = runs[0];
+            if (runs.length > 1) {
+              const stability = module.stabilizeMotionRuns(runs);
+              const findings = [...stability.stable, ...stability.unstable];
+              res = { ...res, ok: findings.length === 0, runs: stability.runs, stable: stability.stable, unstable: stability.unstable, findings };
+            }
+            if (baselinePath && !res.unavailable) {
+              const stable = res.stable || res.findings;
+              fs.writeFileSync(path.resolve(baselinePath), `${JSON.stringify({ target, runs: res.runs || 1, stable }, null, 2)}\n`);
+            }
+            sections.motion = res;
+            noteExit(res);
+            if (!json) {
+              console.log(`\n======================================================`);
+              console.log(`SLOPPY MOTION INTERACTION VERIFICATION`);
+              console.log(`======================================================\n`);
+              console.log(`Target:   ${res.target} (${res.mode})`);
+              console.log(`Summary:  ${res.summary}`);
+              for (const finding of res.findings) console.log(`  [${finding.severity.toUpperCase()}] ${finding.rule}: ${finding.message}`);
+              if (res.runs > 1) console.log(`Repeat:   ${res.runs} runs, ${res.stable.length} stable, ${res.unstable.length} machine-dependent`);
+              if (baselinePath && !res.unavailable) console.log(`Baseline: ${baselinePath}`);
+              if (res.unavailable) console.error(`Motion verification unavailable: ${res.unavailable}`);
+            }
           }
         }
 
