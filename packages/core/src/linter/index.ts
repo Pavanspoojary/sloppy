@@ -648,6 +648,137 @@ export function auditCode(code: string, options: AuditOptions = {}): AuditResult
     }
   }
 
+  // MOT-06: Cross-property transition (transition: all / transition-all)
+  const transitionAllMessage = 'Cross-property transition ("transition: all") animates unknown properties and can drag layout with it.';
+  for (const match of scan.masked.matchAll(/\btransition(?:-property)?\s*:\s*all\b/gi)) {
+    push('TRANSITION_ALL_SLOP', match.index ?? 0, transitionAllMessage);
+  }
+  for (const match of code.matchAll(/\btransition(?:-property)?\s*:\s*['"`]\s*all\b/gi)) {
+    push('TRANSITION_ALL_SLOP', match.index ?? 0, transitionAllMessage);
+  }
+  for (const { tag, tokens } of tagClasses) {
+    if (tokens.includes('transition-all')) push('TRANSITION_ALL_SLOP', tag.start, transitionAllMessage);
+    const styleAttr = tag.attributes.get('style');
+    if (styleAttr && /\btransition(?:-property)?\s*:\s*all\b/i.test(styleAttr.value)) push('TRANSITION_ALL_SLOP', styleAttr.valueStart, transitionAllMessage);
+  }
+
+  // MOT-07: Slow interaction feedback (> ~600ms on hover/press/focus or an interactive control)
+  const INTERACTIVE_TAGS = new Set(['a', 'button', 'input', 'select', 'textarea', 'summary', 'label', 'option']);
+  const hasInteractionVariant = (tokens: string[]) => tokens.some(t => /^(?:hover|active|focus|focus-visible|focus-within|group-hover|peer-hover|group-active):/.test(t));
+  const durationMs = (token: string): number | null => {
+    const match = token.match(/(?:^|:)duration-(\d+|\[[^\]]+\])$/);
+    if (!match) return null;
+    if (match[1].startsWith('[')) {
+      const raw = match[1].slice(1, -1);
+      const value = Number.parseFloat(raw);
+      return /ms$/.test(raw) ? value : Number.isFinite(value) ? value * 1000 : null;
+    }
+    const value = Number(match[1]);
+    return value >= 1 && value <= 30 ? value * 1000 : value;
+  };
+  for (const { tag, tokens } of tagClasses) {
+    const slow = tokens.find(t => { const ms = durationMs(t); return ms !== null && ms >= 600; });
+    if (!slow) continue;
+    if (INTERACTIVE_TAGS.has(tag.name) || hasInteractionVariant(tokens) || tag.attributes.has('onClick')) {
+      push('SLOW_INTERACTION_MOTION', tag.start, `Slow interaction feedback ("${slow}") keeps a direct response from feeling immediate; keep hovers and presses inside ~300ms.`);
+    }
+  }
+
+  // MOT-08: Scroll-reveal saturation: repeated whileInView/AOS reveals hide first-screen content until JS runs
+  const whileInViewCount = [...code.matchAll(/\bwhileInView\b/g)].length;
+  const aosSignal = /\bdata-aos\b|\bAOS\.init\s*\(/.test(code);
+  const observerReveal = /\buseInView\s*\(|\bIntersectionObserver\b/.test(code) && /\binitial\s*=\s*\{\{[^}]*\bopacity\s*:\s*0\b/.test(code);
+  const revealHasReducedGuard = /prefers-reduced-motion|useReducedMotion|MotionConfig|reducedMotion/.test(code);
+  if (!revealHasReducedGuard) {
+    if (whileInViewCount >= 2 || aosSignal) {
+      const at = code.search(/\bwhileInView\b|\bdata-aos\b|\bAOS\.init\s*\(/);
+      push('SCROLL_REVEAL_SATURATION', Math.max(0, at), `Scroll-reveal saturation (${whileInViewCount >= 2 ? `${whileInViewCount} whileInView reveals` : 'AOS reveals'}) hides content until JavaScript runs.`);
+    } else if (observerReveal) {
+      push('SCROLL_REVEAL_SATURATION', Math.max(0, code.search(/\buseInView\s*\(|\bIntersectionObserver\b/)), 'Scroll-triggered reveal starts from opacity 0 and hides content until the observer runs.');
+    }
+  }
+
+  // MOT-09: Autoplay motion without a pause control (WCAG 2.2.2 Pause, Stop, Hide)
+  const hasPauseControl = /(?:aria-label|title|alt)\s*=\s*["'][^"']*\bpause\b|\bpauseOnHover\b|\btogglePause\b|\bisPaused\b|animationPlayState|<button[^>]*>\s*Pause\b/i.test(code);
+  if (!hasPauseControl) {
+    for (const tag of tags) {
+      const classes = classesFor(tag).join(' ');
+      const raw = code.slice(tag.start, tag.end);
+      const marqueeClass = /(?:^|[\s:])(?:animate-(?:marquee|ticker)|marquee|ticker)\b/i.test(classes);
+      const isMarquee = tag.name === 'marquee' || marqueeClass || /\bdata-marquee\b/.test(raw);
+      const autoplayVideo = tag.name === 'video' && /\b(?:autoPlay|autoplay)\b/.test(raw) && /\bloop\b/.test(raw) && !/\bcontrols\b/.test(raw);
+      if (isMarquee) push('AUTOPLAY_MOTION_WITHOUT_CONTROL', tag.start, 'Automatically running marquee/ticker motion offers no pause control; WCAG 2.2.2 requires one for motion over five seconds.');
+      else if (autoplayVideo) push('AUTOPLAY_MOTION_WITHOUT_CONTROL', tag.start, 'Looping autoplay video offers no pause control; WCAG 2.2.2 requires one for motion over five seconds.');
+    }
+    if (/\bautoplay\s*=\s*\{\{/.test(code) && /\bloop\b/.test(code)) {
+      push('AUTOPLAY_MOTION_WITHOUT_CONTROL', Math.max(0, code.search(/\bautoplay\s*=\s*\{\{/)), 'Carousel autoplay with looping slides has no pause control; add a keyboard-operable pause (WCAG 2.2.2).');
+    }
+  }
+
+  // MOT-10: Flashing or strobe animation (WCAG 2.3.1 Three Flashes or Below Threshold)
+  const flashKeyframes = /@keyframes\s+(?:blink|flash|strobe)\b/i.exec(scan.masked);
+  const flashAnimation = /\banimation(?:-name)?\s*:\s*['"]?(?:blink|flash|strobe)\b/i.exec(scan.masked);
+  const flashToken = tags.find(tag => classesFor(tag).some(token => /^animate-\[[^\]]*(?:blink|flash|strobe)/i.test(token)));
+  if (flashKeyframes || flashAnimation || flashToken) {
+    const at = flashKeyframes?.index ?? flashAnimation?.index ?? flashToken?.start ?? 0;
+    push('FLASHING_ANIMATION', at, 'Flashing or strobe animation detected; rapid light-to-dark alternation risks seizures (WCAG 2.3.1).');
+  }
+
+  // MOT-11: Entrance from scale(0)
+  for (const tag of tags) {
+    const initial = tag.attributes.get('initial');
+    if (initial && /\bscale\s*:\s*0(?:\s*[,}])/.test(initial.value)) {
+      push('SCALE_FROM_ZERO', initial.valueStart, 'Entrance starts at scale(0); begin at 0.9-0.96 so the element reads as a shape, not a pop-in.');
+    }
+  }
+  const keyframeScaleZero = /@keyframes[^{]*\{(?:[^{}]|\{[^{}]*\})*?\bfrom\s*\{[^}]*scale\(\s*0(?:\s*,\s*0)?\s*\)/i.exec(scan.masked);
+  if (keyframeScaleZero) push('SCALE_FROM_ZERO', keyframeScaleZero.index ?? 0, 'Entrance keyframe starts at scale(0); begin at 0.9-0.96 to avoid a pop-in.');
+  for (const { tag, tokens } of tagClasses) {
+    if (!tokens.includes('scale-0')) continue;
+    if (tokens.some(t => /^(?:hover|group-hover|active|focus):|^animate-|^transition|^duration-/.test(t))) {
+      push('SCALE_FROM_ZERO', tag.start, 'Animated state starts at scale(0); begin at 0.9-0.96 so the element reads as a shape.');
+    }
+  }
+
+  // MOT-12: CSS loop without a reduced-motion guard
+  const progressAffordance = /\brole\s*=\s*["'](?:status|progressbar)["']|\baria-busy\b|Spinner|Loader|Loading|Skeleton/.test(code);
+  const cssInfinite = /\binfinite\b/.test(scan.masked) && (/@keyframes\b/.test(scan.masked) || /\banimation(?:-name)?\s*:/.test(scan.masked));
+  const tailwindLoop = tags.some(tag => classesFor(tag).some(t => /^animate-(?:bounce|pulse|ping|spin)$|^animate-\[[^\]]*infinite/.test(t)));
+  const hasReducedGuard = /prefers-reduced-motion|useReducedMotion|MotionConfig|reducedMotion|motion-safe:|motion-reduce:/.test(code);
+  if (!hasReducedGuard && !progressAffordance && (cssInfinite || tailwindLoop)) {
+    push('CSS_LOOP_NO_REDUCED_GUARD', Math.max(0, code.search(/@keyframes\b|\banimate-|\banimation(?:-name)?\s*:/)), 'Looping CSS animation has no prefers-reduced-motion fallback; add an @media (prefers-reduced-motion: reduce) or motion-safe guard.');
+  }
+
+  // MOT-13: Vestibular-risk parallax, background attachment, or 3D tilt (WCAG 2.3.3)
+  const parallaxSignal = /\bbackground-attachment\s*:\s*fixed\b|\bbg-fixed\b|\bdata-parallax\b|\bparallax\b/i.exec(code);
+  if (parallaxSignal) push('VESTIBULAR_RISK_MOTION', parallaxSignal.index ?? 0, 'Full-area parallax or fixed background motion can trigger vestibular symptoms; keep it subtle, small, and reduced-motion guarded (WCAG 2.3.3).');
+  for (const { tag, tokens } of tagClasses) {
+    const joined = tokens.join(' ');
+    const tiltToken = tokens.some(t => /^(?:hover|group-hover|focus):rotate-[xy]-|^rotate-[xy]-\d+$/.test(t));
+    const perspective = tokens.some(t => /^perspective-|^transform-3d$|^transform-style-3d$/.test(t));
+    if (tiltToken && perspective) {
+      push('VESTIBULAR_RISK_MOTION', tag.start, '3D tilt on hover moves a large surface; guard it with reduced motion and keep the tilt small (WCAG 2.3.3).');
+    }
+    const styleAttr = tag.attributes.get('style');
+    if (styleAttr && /perspective\(/i.test(styleAttr.value) && /rotate[XY]\(/i.test(styleAttr.value)) {
+      push('VESTIBULAR_RISK_MOTION', styleAttr.valueStart, 'Inline 3D tilt can trigger vestibular symptoms; guard it with reduced motion (WCAG 2.3.3).');
+    }
+    if (/\bgroup-hover:-translate-[xy]-/.test(joined) && !INTERACTIVE_TAGS.has(tag.name)) {
+      push('VESTIBULAR_RISK_MOTION', tag.start, 'Group-hover travel moves a whole surface on hover; scope it to an interactive element and keep the distance small.');
+    }
+  }
+
+  // MOT-14: Hover lift/scale on a non-interactive surface
+  for (const { tag, tokens } of tagClasses) {
+    const lift = tokens.find(t => /^(?:hover|group-hover):-?translate-y-|^hover:scale-1(?:0[2-9]|[1-9]\d|[2-9]\d\d)$/.test(t));
+    if (!lift) continue;
+    if (INTERACTIVE_TAGS.has(tag.name) || tag.attributes.has('onClick') || tag.attributes.has('role') || tag.attributes.has('href')) continue;
+    const insideInteractive = ancestorsOf(tag).some(a => INTERACTIVE_TAGS.has(a.name) || a.attributes.has('onClick') || a.attributes.has('href'));
+    if (!insideInteractive) {
+      push('UNEARNED_HOVER_LIFT', tag.start, `Hover motion ("${lift}") on a non-interactive <${tag.name}> promises a click that never happens.`);
+    }
+  }
+
   const ignoreFile = allComments.some(c => /sloppy-ignore-file/.test(c.text));
   // `sloppy-allow-file` exempts named rules only, so reference specimens keep
   // protection against every other anti-pattern.
