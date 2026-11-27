@@ -1,6 +1,6 @@
 # Motion
 
-The rules for everything that moves: the story, the loop, pace, text that changes, things that arrive and leave, the cursor, drags, scrolling and the camera. The still frame is in `craft.md`; each kit part's props are in `kit.md`.
+The rules for everything that moves: the story, the loop, pace, text that changes, things that arrive and leave, the cursor, drags, scrolling and the camera. The still frame is in `craft.md`; each kit part's props are in `kit.md`; the timing, easing, property, and anti-slop audit is in `motion-review.md`.
 
 ## Index
 
@@ -53,6 +53,8 @@ Pick the shape from what the product is valued for; a demo forced into the wrong
 - **A looping video starts on a calm frame,** never mid fast motion.
 
 ## Pace and easing
+
+Product timing and the curves the scanner checks are in `motion-review.md` (timing by job, `MOT-06`..`MOT-14`).
 
 - **Unhurried, on two curves.** Travel: `cubic-bezier(0.45, 0, 0.1, 1)`. Arrival from nowhere: `cubic-bezier(0.25, 0.8, 0.25, 1)` over 0.8 to 1s. Judge distance and overlap, not duration (`examples/payout-flow`).
 - **Travel has a departure, clear travel and a soft arrival;** length alone does not make it fluid.
