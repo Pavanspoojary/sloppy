@@ -1,44 +1,50 @@
 # Sloppy
 
-> Deterministic Anti-Slop Design Engine, Quality Gate & MCP Server for AI Agents and Web Apps.
+**The anti-slop design engine and quality gate for your coding agent.**
+
+Catch low-taste AI UI anti-patterns—unwarranted purple gradients, unanchored floating windows, sparkle icons, fake metric proof, and unearned bouncy loops—before they ship.
 
 [![npm version](https://img.shields.io/npm/v/@sloppy-ai/cli.svg?style=flat-square)](https://www.npmjs.com/package/@sloppy-ai/cli)
 [![license](https://img.shields.io/npm/l/@sloppy-ai/cli.svg?style=flat-square)](LICENSE)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/Pavanspoojary/sloppy/ci.yml?branch=main&style=flat-square)](https://github.com/Pavanspoojary/sloppy/actions)
 
-Sloppy eliminates low-taste AI UI anti-patterns—unwarranted purple gradients, unanchored floating windows, sparkle icons, unearned bouncy loops, fabricated metrics, and inaccessible fake controls—across AI coding assistants and modern web applications.
-
-It provides a deterministic linter, syntax-validated AST auto-fixer with wiring protection, a 5-tool Model Context Protocol (MCP) server, 6 modular agent skills, and a 10-point craft certification rubric.
-
 ---
 
-## Quickstart
+## Install
 
-Run directly against your codebase with zero installation:
+### In your coding agent (Antigravity, Claude Code, Cursor, Codex)
 
-```bash
-npx @sloppy-ai/cli check ./src
-```
-
-Install globally to expose both `sloppy` and `sloppy-ai` CLI binaries:
-
-```bash
-npm install -g @sloppy-ai/cli
-```
-
-Connect your AI coding assistants (Antigravity, Claude Code, Cursor, Codex):
+One command auto-detects and configures MCP servers and links all 6 specialist skills into your agent directories:
 
 ```bash
 npx @sloppy-ai/cli setup --write
 ```
 
+Reload your editor or agent session. That is it.
+
+### In your terminal or CI
+
+Run checks instantly with zero installation:
+
+```bash
+npx @sloppy-ai/cli check ./src
+```
+
+Or install globally to get the `sloppy` and `sloppy-ai` commands:
+
+```bash
+npm install -g @sloppy-ai/cli
+```
+
+Works with **Google Antigravity**, **Claude Code**, **Cursor**, **Codex**, **VS Code**, and any **CI/CD pipeline**.
+
 ---
 
-## Why Sloppy?
+## Why
 
-AI coding models exhibit **distributional convergence**: when prompted to build modern interfaces, they sample the statistical average of their training data, producing interchangeable, low-taste UI cliches.
+AI models suffer from **distributional convergence**: when prompted to build modern UI, they default to the statistical average of their training corpora. Every generated page looks identical: saturated purple-to-indigo gradients, three floating cards with 1px borders, unearned infinite bounce animations, "10x faster with magical AI" copy, and decorative sparkle icons.
 
-Stripping slop without aesthetic direction creates a lifeless, sterile page. Sloppy pairs negative enforcement gates with positive material design systems to turn AI drafts into production-ready mastercraft:
+Stripping slop without aesthetic direction creates a sterile gray void. Sloppy pairs negative enforcement gates with positive material design systems to turn AI drafts into production-ready mastercraft:
 
 | Dimension | Raw AI Slop | Bans Alone | DESIGN.md Alone | Sloppy (Bans + Direction) |
 | :--- | :--- | :--- | :--- | :--- |
@@ -51,113 +57,69 @@ Stripping slop without aesthetic direction creates a lifeless, sterile page. Slo
 
 ---
 
-## Key Capabilities
+## Three Ways Sloppy Runs
 
-* **Deterministic Quality Gate**: Evaluates source code against 50+ formal anti-slop rules with sub-30ms performance. Exports OASIS SARIF 2.1.0 for GitHub Code Scanning and security tabs.
-* **3-Tier Severity Gates**:
-  * **Floor**: Non-negotiable hard CI blockers (WCAG contrast, broken mobile layouts, dead placeholder links, fake metrics, lorem ipsum).
-  * **Reflex**: AI defaults (purple gradients, sparkle icons, unanchored floating windows, unearned animations) that fail by default but can be overruled with written rationale.
-  * **Finish**: Advisory polish (spacing rhythm, optical balance) that never blocks CI.
-* **AST Auto-Fixer with Wiring Guard**: Surgically repairs violations while snapshotting all interactive event handlers (`onClick`, `onSubmit`), form inputs (`name`, `id`), navigation links (`href`), and headings. If an edit drops any connection, the fix is safely aborted.
-* **Lean MCP Server for Agents**: 5 token-optimized tools (`sloppy_check`, `sloppy_plan`, `sloppy_fix`, `sloppy_catalog`, `sloppy_rules`) enabling autonomous agents to audit, plan, and repair code in a closed loop.
-* **Modular Specialist Skills**: 6 on-demand agent skills preserving context window tokens by loading specialized domain instructions only when needed.
-* **Multi-Width Render & A11y Verification**: Tests real rendered contrast, mobile horizontal overflow, and hero framing across 8 canonical viewports (375px to 1920px), with graceful static fallback when a browser is unavailable.
-* **Master Archetypes & Looks**: 10 production-grade blueprints combining 7 UI ecosystems with 15 curated design looks (`minimal`, `linear`, `blueprint`, `dark-hero`, `raycast`, etc.).
+### 1. In your agent (MCP & Skills)
 
----
-
-## Developer Workflow
-
-Sloppy enforces a closed agent and developer loop: **detect, plan, fix, verify, re-check**.
-
-```bash
-# 1. Audit files against the slop threshold (exit 0 clean, 1 violations)
-sloppy check ./src --json --fail-on high --max-score 20
-
-# 2. Score against the 10-point Craft Rubric (Grade A+ to F)
-sloppy rubric ./src/components/Hero.tsx --strict
-
-# 3. Generate structured repair plans with confidence ratings
-sloppy plan ./src/components/Hero.tsx --json
-
-# 4. Review unified diff before modifying source
-sloppy fix ./src/components/Hero.tsx --diff
-
-# 5. Apply verified repair in-place (with wiring protection)
-sloppy fix ./src/components/Hero.tsx --write --json
-
-# 6. Re-check: Verify the updated file passes clean
-sloppy check ./src/components/Hero.tsx --json
-```
-
-### Stdin Streaming
-
-Pipe source code directly through standard input for editor extensions, agent hooks, and scripts:
-
-```bash
-echo '<div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl border p-6" />' \
-  | sloppy fix --stdin --json
-```
-
----
-
-## Model Context Protocol (MCP)
-
-Autonomous agents interact with Sloppy over stdio using 5 primary high-leverage tools:
+The lean 5-tool MCP server runs over stdio. When an agent edits UI, Sloppy provides an audit, repair plan, and auto-fix in a closed loop before work is marked complete:
 * `sloppy_check`: Primary gate returning score, grade, violations, and recommended actions.
 * `sloppy_plan`: Generates structured repair plans with patch diffs and confidence ratings.
-* `sloppy_fix`: Transforms sloppy code into clean craft with verified diffs and wiring guards.
-* `sloppy_catalog`: Unified registry querying components, patterns, master archetypes, and looks.
-* `sloppy_rules`: Authoritative rules, craft rubric definitions, and surface word budgets.
+* `sloppy_fix`: Transforms sloppy code into clean craft with verified diffs and wiring protection.
+* `sloppy_catalog`: Queries curated components, patterns, master archetypes, and design looks.
+* `sloppy_rules`: Authoritative anti-slop rules, guidelines, craft rubrics, and word budgets.
 
-### Automated Setup
-
-Run one command to auto-detect and configure Cursor, Claude Code, Codex, and VS Code:
+### 2. In your terminal
 
 ```bash
-npx @sloppy-ai/cli setup --write
+# Audit files against the slop threshold (exit 0 clean, 1 violations)
+sloppy check ./src --json --fail-on high --max-score 20
+
+# Score against the 10-point Craft Rubric (Grade A+ to F)
+sloppy rubric ./src/components/Hero.tsx --strict
+
+# Generate a repair plan with confidence and risk ratings
+sloppy plan ./src/components/Hero.tsx --json
+
+# Review unified diff before applying changes
+sloppy fix ./src/components/Hero.tsx --diff
+
+# Surgically repair only specific rule violations in-place
+sloppy fix ./src/components/Hero.tsx --only VIS-02,COD-01 --write
 ```
 
-### Manual Client Configuration
+### 3. In CI/CD Quality Gates
 
-#### Cursor (`~/.cursor/mcp.json` or `.cursor/mcp.json`)
-```json
-{
-  "mcpServers": {
-    "sloppy": {
-      "command": "npx",
-      "args": ["-y", "@sloppy-ai/cli", "mcp"]
-    }
-  }
-}
+Add zero-tolerance anti-slop enforcement with automated GitHub Code Scanning SARIF annotations:
+
+```yaml
+- name: Sloppy Anti-Slop Gate
+  uses: Pavanspoojary/sloppy@v1
+  with:
+    path: './src'
+    fail-on: 'high'
+    max-score: '0'
+    upload-sarif: 'true'
 ```
 
-#### Claude Desktop (`claude_desktop_config.json`) / Claude Code (`~/.claude/mcp.json`)
-```json
-{
-  "mcpServers": {
-    "sloppy": {
-      "command": "npx",
-      "args": ["-y", "@sloppy-ai/cli", "mcp"]
-    }
-  }
-}
-```
+---
 
-#### VS Code (`.vscode/mcp.json`)
-```json
-{
-  "servers": {
-    "sloppy": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@sloppy-ai/cli", "mcp"]
-    }
-  }
-}
-```
+## 3-Tier Severity Gates
 
-*(Note: If installed globally via `npm install -g @sloppy-ai/cli`, you can alternatively specify `"command": "sloppy"` with `"args": ["mcp"]`)*
+Rules are divided into three operational tiers so CI never breaks on subjective taste:
+
+* **Floor (Hard CI Blockers)**: Non-negotiable gates—WCAG contrast, broken mobile layouts, dead placeholder links, fake metrics, and lorem ipsum text. Fails `--strict` unconditionally.
+* **Reflex (AI Defaults, Overrulable with Rationale)**: AI defaults (purple gradients, sparkle icons, unanchored floating windows, unearned animations) that fail by default, but pass if explicitly overruled with a written rationale in `sloppy.config.json` or inline:
+  ```tsx
+  // sloppy-ignore-next-line PURPLE_GRADIENT_SLOP -- Brand primary color approved in design review
+  <div className="bg-gradient-to-r from-purple-500 to-indigo-500" />
+  ```
+* **Finish (Advisory Polish)**: Spacing rhythm, optical alignment, and subtle token balance. Reports warnings without blocking CI.
+
+---
+
+## The Wiring Guard
+
+Developers fear automated AI rewrites that break functionality. Before modifying any file, Sloppy snapshots all interactive event handlers (`onClick`, `onSubmit`), form inputs (`name`, `id`), navigation links (`href`), headings, and test IDs. If an automated fix or agent redesign drops any connection, the fix is safely aborted, preserving your business logic.
 
 ---
 
@@ -174,7 +136,7 @@ To preserve agent context windows while going deeper per domain, Sloppy provides
 | **`sloppy-layoutmobile`** | [`@sloppy-ai/skill-layoutmobile`](https://www.npmjs.com/package/@sloppy-ai/skill-layoutmobile) | Responsive framing, stage coverage (>=66%), breaking boxed cards | `STR-01`, `STR-02`, `LAY-01`, `UX-05` |
 | **`sloppy-code`** | [`@sloppy-ai/skill-code`](https://www.npmjs.com/package/@sloppy-ai/skill-code) | Accessibility (`role`, `tabIndex`), zero dead callbacks, comment hygiene | `AX-01`, `UX-02`, `TOK-01`, `TOK-02`, `COD-01` |
 
-Install and register all 6 skills across Antigravity (`~/.gemini/config/skills/`), Claude Code (`~/.claude/skills/`), and Universal Agents (`~/.agents/skills/`):
+Install all 6 skills across Antigravity, Claude Code, Cursor, and Codex:
 
 ```bash
 npx @sloppy-ai/cli setup --write
@@ -182,116 +144,65 @@ npx @sloppy-ai/cli setup --write
 
 ---
 
-## CI/CD Quality Gate Integration
+## MCP Client Configuration
 
-### GitHub Action (`action.yml`)
+While `npx @sloppy-ai/cli setup --write` configures clients automatically, you can also configure manually:
 
-Add automated anti-slop enforcement with GitHub Code Scanning SARIF annotations:
-
-```yaml
-- name: Sloppy Anti-Slop Gate
-  uses: Pavanspoojary/sloppy@v1
-  with:
-    path: './src'
-    fail-on: 'high'
-    max-score: '0'
-    upload-sarif: 'true'
-```
-
-### Manual CI Workflow
-
-```yaml
-name: Anti-Slop Quality Gate
-
-on: [push, pull_request]
-
-jobs:
-  audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm ci
-      - run: npx @sloppy-ai/cli check ./src --fail-on high --max-score 0
-      - run: npx @sloppy-ai/cli check ./src --format sarif > results.sarif
-      - uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: results.sarif
-```
-
-### Exit Code Contract
-
-* `0`: Clean, or the configured quality gate passed.
-* `1`: Slop violations detected at or above the failure threshold.
-* `2`: Usage error, missing target, I/O failure, or verification unavailable.
-
----
-
-## Configuration (`sloppy.config.json`)
-
-Customize brand exceptions, rule tolerances, or surface word budgets via `sloppy.config.json` or `.sloppyrc.json`:
-
+### Cursor (`.cursor/mcp.json` or `~/.cursor/mcp.json`)
 ```json
 {
-  "strict": false,
-  "failOn": "high",
-  "brand": {
-    "name": "Acme",
-    "allowColors": ["purple-600", "violet-500", "#7c3aed"],
-    "allowGradients": false
-  },
-  "rules": {
-    "VIS-02": "error",
-    "PURPLE_GRADIENT_SLOP": "error",
-    "CENTER_ALIGNED_EVERYTHING": "off",
-    "BOXED_CARD_SYNDROME": "error",
-    "UNANCHORED_FLOATING_WINDOW": "error",
-    "AX-01": "error"
-  },
-  "wordBudget": {
-    "hero": 40,
-    "application": 200
+  "mcpServers": {
+    "sloppy": {
+      "command": "npx",
+      "args": ["-y", "@sloppy-ai/cli", "mcp"]
+    }
   }
 }
 ```
 
-### Inline Exemptions
-
-Suppress specific rules inline using either catalog codes or descriptive slugs:
-
-```tsx
-// Line-level exemption
-// sloppy-ignore-next-line VIS-02
-<div className="bg-gradient-to-r from-purple-500 to-indigo-500" />
-
-// Strict mode requires an explicit written invariant explanation (-- <reason>):
-// sloppy-ignore-next-line COD-02 -- Checked invariant: verified with Zod schema upstream
-const user = rawData as unknown as User;
-
-// File-level exemption
-/* sloppy-allow-file: VIS-02, CENTER_ALIGNED_EVERYTHING */
+### Claude Desktop / Claude Code (`~/.claude/mcp.json`)
+```json
+{
+  "mcpServers": {
+    "sloppy": {
+      "command": "npx",
+      "args": ["-y", "@sloppy-ai/cli", "mcp"]
+    }
+  }
+}
 ```
+
+### VS Code (`.vscode/mcp.json`)
+```json
+{
+  "servers": {
+    "sloppy": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@sloppy-ai/cli", "mcp"]
+    }
+  }
+}
+```
+
+*(Note: When installed globally via `npm install -g @sloppy-ai/cli`, `"command": "sloppy"` with `"args": ["mcp"]` is also supported)*
 
 ---
 
-## CLI Command Reference
+## Commands at a Glance
 
 | Command | Usage | Description |
-|---|---|---|
-| `setup` | `sloppy setup [--write]` | Configure MCP clients (Cursor, VS Code, Claude, Codex) and link Agent Skills. |
-| `check` | `sloppy check <paths...\|url> [--format sarif\|json] [--render] [--a11y] [--watch]` | Primary quality gate with machine-readable verdicts, SARIF export, and exit codes. |
-| `audit` | `sloppy audit <file\|dir>` | Detailed anti-pattern scan with line numbers, code snippets, and remediations. |
+| :--- | :--- | :--- |
+| `setup` | `sloppy setup [--write]` | Configure MCP clients and link Agent Skills across platforms. |
+| `check` | `sloppy check <targets...> [--format sarif\|json] [--render] [--a11y]` | Primary quality gate with machine-readable verdicts and SARIF export. |
+| `audit` | `sloppy audit <file\|dir>` | Detailed anti-pattern scan with line numbers and remediations. |
 | `rubric` | `sloppy rubric <file> [--strict]` | 10-dimension craft rubric score (0-100) and certification grade (A+ to F). |
-| `plan` | `sloppy plan <file>` | Structured repair plan with confidence levels, risk ratings, and patch diffs. |
-| `fix` | `sloppy fix <file> [--write] [--diff] [--stdin] [--only <ids>]` | Syntax-validated auto-repair replacing slop with clean craft. |
-| `verify` | `sloppy verify [target] [--multi-width] [--a11y] [--motion <spec.json>]` | Visual and rendered verification engine failing closed if unavailable. |
-| `install-mcp` | `sloppy install-mcp --client <id>` | Write MCP configuration for Cursor, VS Code, Claude, or Codex. |
+| `plan` | `sloppy plan <file>` | Structured repair plan with confidence levels and patch diffs. |
+| `fix` | `sloppy fix <file> [--write] [--diff] [--stdin] [--only <ids>]` | Syntax-validated auto-repair with wiring protection. |
+| `verify` | `sloppy verify [target] [--multi-width] [--a11y] [--motion <spec.json>]` | Multi-width responsive, contrast, and motion verification. |
 | `archetypes` | `sloppy archetypes` | List the 10 synthesized multi-library master archetypes. |
 | `create` | `sloppy create <archetype>` | Scaffold a master archetype into your component directory. |
-| `looks` | `sloppy looks [--next]` | Display design tokens or deal fresh material from anti-repetition memory. |
+| `looks` | `sloppy looks [--next]` | Display tokens or deal fresh material from anti-repetition memory. |
 | `init` | `sloppy init [--from <url>]` | Scaffold React kit, or extract design DNA from live URL into config and `DESIGN.md`. |
 | `hook` | `sloppy hook install [--cursor\|--claude\|--git]` | Install lightweight sub-30ms Floor checks for edit-time validation. |
 | `dev` | `sloppy dev` | Launch the local visual comparison studio on port 1355. |
@@ -362,12 +273,12 @@ Sloppy dual-indexes every rule by catalog classification code (`VIS-01`, `STR-01
 
 ---
 
-## Packages & Ecosystem
+## Packages Ecosystem
 
-All packages are published under the `@sloppy-ai` npm organization:
+Published under the `@sloppy-ai` npm organization:
 
 | Package | Description | Version |
-|---|---|---|
+| :--- | :--- | :--- |
 | [`@sloppy-ai/cli`](https://www.npmjs.com/package/@sloppy-ai/cli) | Developer CLI, setup orchestrator, and CI quality gate | `1.1.0` |
 | [`@sloppy-ai/core`](https://www.npmjs.com/package/@sloppy-ai/core) | Core rules, scoring engine, AST fixers, and repair planner | `1.1.0` |
 | [`@sloppy-ai/mcp`](https://www.npmjs.com/package/@sloppy-ai/mcp) | Lean 5-tool Model Context Protocol server for AI agents | `1.1.0` |
