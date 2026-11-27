@@ -1,6 +1,6 @@
 {
   "name": "@sloppy-ai/skill",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "The ultimate AI slop UI fixer combining Stageshow craft, 7 UI ecosystems, surgical auto-fixer, 3-tier severity gates (Floor/Reflex/Finish), and wiring guard.",
   "main": "SKILL.md",
   "publishConfig": {
