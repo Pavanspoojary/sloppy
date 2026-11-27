@@ -1,7 +1,7 @@
 {
   "name": "sloppy",
-  "version": "1.4.0",
-  "description": "Universal anti-slop UI craft engine. Enforces 3-tier severity gates (Floor/Reflex/Finish), wiring guard, multi-width rendering, and design DNA extraction.",
+  "version": "1.6.0",
+  "description": "Universal anti-slop UI & motion craft engine. Enforces 3-tier severity gates (Floor/Reflex/Finish), a one-contract motion budget, wiring guard, multi-width rendering, and design DNA extraction.",
   "entry": "SKILL.md",
   "author": "Pavanspoojary",
   "repository": "https://github.com/Pavanspoojary/slopy",
