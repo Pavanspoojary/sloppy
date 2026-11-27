@@ -44,7 +44,16 @@ export type SlopViolationType =
   | 'UNBOUNDED_INFINITE_MOTION'
   | 'REDUCED_MOTION_BLINDNESS'
   | 'LAYOUT_THRASH_ANIMATION'
-  | 'UNMANAGED_WEBGL_OR_MEDIA_LOOP';
+  | 'UNMANAGED_WEBGL_OR_MEDIA_LOOP'
+  | 'TRANSITION_ALL_SLOP'
+  | 'SLOW_INTERACTION_MOTION'
+  | 'SCROLL_REVEAL_SATURATION'
+  | 'AUTOPLAY_MOTION_WITHOUT_CONTROL'
+  | 'FLASHING_ANIMATION'
+  | 'SCALE_FROM_ZERO'
+  | 'CSS_LOOP_NO_REDUCED_GUARD'
+  | 'VESTIBULAR_RISK_MOTION'
+  | 'UNEARNED_HOVER_LIFT';
 
 export type RuleMode = 'auto-fix' | 'detect-only';
 
@@ -88,6 +97,15 @@ export const CANONICAL_RULES: Record<SlopViolationType, CanonicalRule> = {
   REDUCED_MOTION_BLINDNESS: { ruleId: 'MOT-03', title: 'Missing Reduced-Motion Guard', defaultSeverity: 'medium', tier: 'floor', mode: 'detect-only' },
   LAYOUT_THRASH_ANIMATION: { ruleId: 'MOT-04', title: 'Layout-Thrashing Property Animation', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
   UNMANAGED_WEBGL_OR_MEDIA_LOOP: { ruleId: 'MOT-05', title: 'Unmanaged WebGL, Lottie, or Scroll Loop', defaultSeverity: 'high', tier: 'floor', mode: 'detect-only' },
+  TRANSITION_ALL_SLOP: { ruleId: 'MOT-06', title: 'Cross-Property Transition Slop (transition: all)', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
+  SLOW_INTERACTION_MOTION: { ruleId: 'MOT-07', title: 'Slow Interaction Feedback', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
+  SCROLL_REVEAL_SATURATION: { ruleId: 'MOT-08', title: 'Scroll-Reveal Saturation', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
+  AUTOPLAY_MOTION_WITHOUT_CONTROL: { ruleId: 'MOT-09', title: 'Autoplay Motion Without Pause Control', defaultSeverity: 'high', tier: 'floor', mode: 'detect-only' },
+  FLASHING_ANIMATION: { ruleId: 'MOT-10', title: 'Flashing or Strobe Animation', defaultSeverity: 'high', tier: 'floor', mode: 'detect-only' },
+  SCALE_FROM_ZERO: { ruleId: 'MOT-11', title: 'Entrance From scale(0)', defaultSeverity: 'low', tier: 'reflex', mode: 'detect-only' },
+  CSS_LOOP_NO_REDUCED_GUARD: { ruleId: 'MOT-12', title: 'CSS Loop Without Reduced-Motion Guard', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
+  VESTIBULAR_RISK_MOTION: { ruleId: 'MOT-13', title: 'Vestibular-Risk Parallax or 3D Tilt', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
+  UNEARNED_HOVER_LIFT: { ruleId: 'MOT-14', title: 'Hover Motion on a Non-Interactive Surface', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
   CENTER_ALIGNED_EVERYTHING: { ruleId: 'LAY-01', title: 'Center-Aligned Monotony', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },
   FABRICATED_SOCIAL_PROOF: { ruleId: 'CPY-01', title: 'Fabricated Social Proof Metrics', defaultSeverity: 'high', tier: 'floor', mode: 'detect-only' },
   STATUS_DOT_SLOP: { ruleId: 'CPY-02', title: 'Unwired Pulsing Status Dots', defaultSeverity: 'medium', tier: 'reflex', mode: 'detect-only' },

@@ -53,7 +53,16 @@ const advice: Record<SlopViolationType, string> = {
   UNBOUNDED_INFINITE_MOTION: 'Replace unbounded infinite loops ("repeat: Infinity", "loop: true") with caused, finite transitions that settle cleanly.',
   REDUCED_MOTION_BLINDNESS: 'Honor reduced-motion accessibility via useReducedMotion(), <MotionConfig reducedMotion="user">, or prefers-reduced-motion checks.',
   LAYOUT_THRASH_ANIMATION: 'Animate compositor-friendly transform (x, y, scale, rotate) and opacity instead of layout-thrashing width, height, top, left, margin, or padding.',
-  UNMANAGED_WEBGL_OR_MEDIA_LOOP: 'Clean up WebGL/Lottie/scroll instances with .dispose()/.destroy() on unmount, and throttle R3F <Canvas> with frameloop="demand" and bounded dpr.'
+  UNMANAGED_WEBGL_OR_MEDIA_LOOP: 'Clean up WebGL/Lottie/scroll instances with .dispose()/.destroy() on unmount, and throttle R3F <Canvas> with frameloop="demand" and bounded dpr.',
+  TRANSITION_ALL_SLOP: 'Replace `transition: all` / `transition-all` with an explicit property list so layout and inherited properties never animate by accident.',
+  SLOW_INTERACTION_MOTION: 'Keep direct interaction feedback inside roughly 300ms; reserve longer durations for large surfaces or storytelling, not hovers and taps.',
+  SCROLL_REVEAL_SATURATION: 'Render first-screen content visible in HTML; if the page reveals on scroll, keep it to one restrained motif that works without JavaScript.',
+  AUTOPLAY_MOTION_WITHOUT_CONTROL: 'Add a visible keyboard-operable pause control to any motion that starts automatically and runs longer than five seconds.',
+  FLASHING_ANIMATION: 'Remove the flash or keep it below three flashes per second; rapid light-to-dark alternation risks seizures.',
+  SCALE_FROM_ZERO: 'Enter from 0.9-0.96 scale with opacity instead of scale(0), so the element reads as a real object rather than a pop-in.',
+  CSS_LOOP_NO_REDUCED_GUARD: 'Add an `@media (prefers-reduced-motion: reduce)` (or `motion-safe:`) fallback for CSS loops so the animation stops or simplifies.',
+  VESTIBULAR_RISK_MOTION: 'Guard parallax, 3D tilt, and large zoom with reduced motion and keep the moving area small; large-area motion can trigger vestibular symptoms.',
+  UNEARNED_HOVER_LIFT: 'Reserve hover lift and scale for real interactive controls; static cards should respond to content, not pretend to be clickable.'
 };
 
 const BANNER_CHARS = new Set(['-', '=', '_', '*', '#', '~']);
