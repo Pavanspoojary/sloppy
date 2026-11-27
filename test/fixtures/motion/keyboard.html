@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Motion fixture: keyboard menu paths</title>
+  <style>
+    body { margin: 0; background: #0b0b0d; color: #f4f4f5; font: 15px/1.5 system-ui, sans-serif; padding: 24px; }
+    .row { display: flex; gap: 12px; margin-bottom: 16px; }
+    button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid #3f3f46; background: #18181b; color: #f4f4f5; }
+    button:focus-visible { outline: 2px solid #a1a1aa; outline-offset: 2px; }
+    .panel { border: 1px solid #3f3f46; border-radius: 8px; padding: 14px; margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+  <div class="row"><button type="button" id="good-open" aria-expanded="false" aria-controls="good-panel">Good menu</button></div>
+  <div class="panel" id="good-panel" hidden>Sort by: newest first</div>
+
+  <div class="row"><button type="button" id="bad-open" aria-expanded="false" aria-controls="bad-panel">Mouse-only menu</button></div>
+  <div class="panel" id="bad-panel" hidden>Group by: client</div>
+
+  <script>
+    const good = document.getElementById('good-panel');
+    const goodOpen = document.getElementById('good-open');
+    const bad = document.getElementById('bad-panel');
+    const badOpen = document.getElementById('bad-open');
+
+    goodOpen.addEventListener('click', () => {
+      good.hidden = false;
+      goodOpen.setAttribute('aria-expanded', 'true');
+    });
+    badOpen.addEventListener('click', () => {
+      bad.hidden = false;
+      badOpen.setAttribute('aria-expanded', 'true');
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      good.hidden = true;
+      goodOpen.setAttribute('aria-expanded', 'false');
+      goodOpen.focus();
+    });
+  </script>
+</body>
+</html>

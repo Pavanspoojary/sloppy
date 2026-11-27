@@ -136,6 +136,36 @@ test('an entrance that only becomes visible under reduced motion is not called t
   assert.deepEqual(findings, []);
 });
 
+test('keyboard open and close paths are reported when the surface ignores them', () => {
+  const findings = auditMotionInteractionSamples([
+    {
+      name: 'keyboard menu',
+      target: '#good',
+      openedByKeyboard: true,
+      after: { target: { ...box(0, 0), visible: true } },
+      keyboardCloseChecked: true,
+      keyboardClosed: true
+    },
+    {
+      name: 'mouse-only menu',
+      target: '#bad',
+      openedByKeyboard: true,
+      after: { target: { ...box(0, 0), visible: true } },
+      keyboardCloseChecked: true,
+      keyboardClosed: false
+    },
+    {
+      name: 'dead key',
+      target: '#dead',
+      openedByKeyboard: true,
+      after: { target: { ...box(0, 0), visible: false } }
+    }
+  ]);
+  const rules = findings.map((finding) => finding.rule).sort();
+  assert.deepEqual(rules, ['motion.keyboardCloseIgnored', 'motion.keyboardOpenIgnored']);
+  assert.ok(findings.every((finding) => finding.evidence.criterion === 'WCAG 2.1.1 Keyboard'));
+});
+
 test('the audit fails closed without a served URL or a declared interaction', async () => {
   const noUrl = await runMotionInteractionAudit('src/Panel.tsx', { spec: { interactions: [{ trigger: '#a', target: '#b' }] } });
   assert.equal(noUrl.ok, false);
@@ -145,6 +175,11 @@ test('the audit fails closed without a served URL or a declared interaction', as
   const noSpec = await runMotionInteractionAudit('https://127.0.0.1:1', { spec: { interactions: [] } });
   assert.equal(noSpec.ok, false);
   assert.equal(noSpec.mode, 'unavailable');
+
+  const badPrecondition = await runMotionInteractionAudit('https://127.0.0.1:1', {
+    spec: { interactions: [{ trigger: '#a', target: '#b', precondition: [{ nope: true }] }] }
+  });
+  assert.match(badPrecondition.unavailable, /precondition/);
 });
 
 async function serveFixtures() {
@@ -210,3 +245,19 @@ test('a served page that shifts, sticks, and cannot be interrupted is reported',
     await server.close();
   }
 });
+
+test('a served menu that ignores Escape is reported while the keyboard menu passes', async (t) => {
+  const server = await serveFixtures();
+  try {
+    const spec = JSON.parse(await fs.readFile(fixture('motion/keyboard.json'), 'utf8'));
+    const result = await runMotionInteractionAudit(`${server.origin}/keyboard.html`, { spec, timeoutMs: 12000 });
+    if (result.mode === 'unavailable') return t.skip(`browser unavailable: ${result.unavailable}`);
+    const keyboard = result.findings.filter((finding) => finding.rule === 'motion.keyboardCloseIgnored');
+    assert.equal(keyboard.length, 1, JSON.stringify(result.findings, null, 2));
+    assert.equal(keyboard[0].evidence.selector, '#bad-panel');
+    assert.equal(result.findings.some((finding) => finding.rule === 'motion.keyboardOpenIgnored'), false);
+  } finally {
+    await server.close();
+  }
+});
+

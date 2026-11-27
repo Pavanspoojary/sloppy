@@ -11,7 +11,9 @@
  * {
  *   "interactions": [
  *     { "name": "menu", "trigger": "#open", "target": "#menu", "anchor": "header",
- *       "closeTrigger": "#close", "kind": "click", "waitMs": 600 }
+ *       "closeTrigger": "#close", "kind": "click", "waitMs": 600,
+ *       "openKey": "Enter", "closeKey": "Escape",
+ *       "precondition": [{ "click": "#tab-orders" }] }
  *   ]
  * }
  */
@@ -80,6 +82,22 @@ export function auditMotionInteractionSamples(samples = [], options = {}) {
       push('motion.stuckTransition', `${sample.name}: ${running.length} finite animation(s) still running after the settle window (${names}); the state change never comes to rest.`, sample, {
         severity: 'medium',
         confidence: 'high'
+      });
+    }
+
+    if (sample.openedByKeyboard && sample.after?.target && !sample.after.target.visible) {
+      push('motion.keyboardOpenIgnored', `${sample.name}: the trigger does not open the surface from the keyboard; mouse-only activation is not a path.`, sample, {
+        severity: 'high',
+        confidence: 'high',
+        criterion: 'WCAG 2.1.1 Keyboard'
+      });
+    }
+
+    if (sample.keyboardCloseChecked && sample.keyboardClosed === false) {
+      push('motion.keyboardCloseIgnored', `${sample.name}: the surface does not close when its key is pressed; every opened menu needs a keyboard exit.`, sample, {
+        severity: 'high',
+        confidence: 'high',
+        criterion: 'WCAG 2.1.1 Keyboard'
       });
     }
 
@@ -162,8 +180,35 @@ function unavailableReason(target, spec) {
   if (!spec || !Array.isArray(spec.interactions) || spec.interactions.length === 0) return 'No interactions were declared in the motion spec.';
   for (const interaction of spec.interactions) {
     if (!interaction?.trigger || !interaction?.target) return 'Every interaction needs a trigger and a target selector.';
+    if (interaction.openKey !== undefined && typeof interaction.openKey !== 'string') return 'openKey must be a key name such as "Enter".';
+    if (interaction.closeKey !== undefined && typeof interaction.closeKey !== 'string') return 'closeKey must be a key name such as "Escape".';
+    if (interaction.precondition !== undefined) {
+      if (!Array.isArray(interaction.precondition)) return 'precondition must be an array of click, hover, or press steps.';
+      for (const step of interaction.precondition) {
+        if (!step || (!step.click && !step.hover && !step.press)) return 'Every precondition step needs a click, hover, or press selector.';
+      }
+    }
   }
   return null;
+}
+
+async function applyPrecondition(page, steps = []) {
+  for (const step of steps) {
+    if (step.click) await page.click(step.click);
+    else if (step.hover) await page.hover(step.hover);
+    else await page.keyboard.press(step.press);
+  }
+}
+
+async function openInteraction(page, interaction) {
+  if (interaction.openKey) {
+    await page.focus(interaction.trigger);
+    await page.keyboard.press(interaction.openKey);
+  } else if (interaction.kind === 'hover') {
+    await page.hover(interaction.trigger);
+  } else {
+    await page.click(interaction.trigger);
+  }
 }
 
 export async function runMotionInteractionAudit(target, options = {}) {
@@ -227,11 +272,13 @@ export async function runMotionInteractionAudit(target, options = {}) {
       const waitMs = Number.isFinite(interaction.waitMs) ? interaction.waitMs : 600;
       await page.goto(target, { waitUntil: 'domcontentloaded', timeout: options.timeoutMs || 12000 });
       await page.waitForTimeout(200);
+      await applyPrecondition(page, interaction.precondition);
 
       const sample = {
         name: interaction.name || interaction.trigger,
         target: interaction.target,
         selector: interaction.target,
+        openedByKeyboard: Boolean(interaction.openKey),
         interrupted: Boolean(interaction.closeTrigger)
       };
 
@@ -263,8 +310,7 @@ export async function runMotionInteractionAudit(target, options = {}) {
         requestAnimationFrame(tick);
       });
 
-      if (interaction.kind === 'hover') await page.hover(interaction.trigger);
-      else await page.click(interaction.trigger);
+      await openInteraction(page, interaction);
 
       await page.waitForTimeout(waitMs);
 
@@ -301,16 +347,28 @@ export async function runMotionInteractionAudit(target, options = {}) {
       sample.later = settled.box;
       sample.layoutShift = settled.layoutShift;
 
+      if (interaction.closeKey) {
+        await page.keyboard.press(interaction.closeKey);
+        await page.waitForTimeout(waitMs);
+        sample.keyboardCloseChecked = true;
+        sample.keyboardClosed = await page.evaluate((targetSelector) => {
+          const el = document.querySelector(targetSelector);
+          if (!el) return true;
+          const style = getComputedStyle(el);
+          return style.display === 'none' || style.visibility === 'hidden' || Number.parseFloat(style.opacity || '1') <= 0.05;
+        }, interaction.target);
+      }
+
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.goto(target, { waitUntil: 'domcontentloaded', timeout: options.timeoutMs || 12000 });
       await page.waitForTimeout(200);
+      await applyPrecondition(page, interaction.precondition);
       const reducedBefore = await page.evaluate(({ targetSelector }) => ({
         target: window.__sloppyBoxOf(targetSelector),
         found: Boolean(document.querySelector(targetSelector))
       }), { targetSelector: interaction.target });
       if (reducedBefore.found) {
-        if (interaction.kind === 'hover') await page.hover(interaction.trigger);
-        else await page.click(interaction.trigger);
+        await openInteraction(page, interaction);
         await page.waitForTimeout(waitMs);
         const reducedAfter = await page.evaluate(({ targetSelector }) => ({
           target: window.__sloppyBoxOf(targetSelector),
@@ -329,7 +387,8 @@ export async function runMotionInteractionAudit(target, options = {}) {
       if (interaction.closeTrigger) {
         await page.goto(target, { waitUntil: 'domcontentloaded', timeout: options.timeoutMs || 12000 });
         await page.waitForTimeout(150);
-        await page.click(interaction.trigger);
+        await applyPrecondition(page, interaction.precondition);
+        await openInteraction(page, interaction);
         await page.waitForTimeout(80);
         await page.click(interaction.closeTrigger);
         await page.waitForTimeout(waitMs);

@@ -100,6 +100,9 @@ declare module '@sloppy-ai/verify/motion-interactions' {
       closeTrigger?: string;
       kind?: 'click' | 'hover';
       waitMs?: number;
+      openKey?: string;
+      closeKey?: string;
+      precondition?: Array<{ click?: string; hover?: string; press?: string }>;
     }>;
   }
   export interface MotionInteractionResult {

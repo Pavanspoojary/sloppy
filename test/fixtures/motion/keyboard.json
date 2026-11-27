@@ -1,0 +1,20 @@
+{
+  "interactions": [
+    {
+      "name": "keyboard menu",
+      "trigger": "#good-open",
+      "target": "#good-panel",
+      "openKey": "Enter",
+      "closeKey": "Escape",
+      "waitMs": 300
+    },
+    {
+      "name": "mouse-only menu",
+      "trigger": "#bad-open",
+      "target": "#bad-panel",
+      "openKey": "Enter",
+      "closeKey": "Escape",
+      "waitMs": 300
+    }
+  ]
+}
