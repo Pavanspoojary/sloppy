@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fixture, parseJsonStdout, runCli } from './helpers.mjs';
+import { spawnSync } from 'node:child_process';
+import { fixture, parseJsonStdout, ROOT, runCli } from './helpers.mjs';
 
 test('check passes a clean fixture with exit 0 and pure JSON stdout', () => {
   const run = runCli(['check', fixture('clean-component.tsx'), '--json']);
@@ -300,4 +301,26 @@ test('rules supports --compact and --rule filtering, and check supports --cache 
   assert.ok([0, 1].includes(changedRun.status));
   const changedPayload = parseJsonStdout(changedRun);
   assert.equal(typeof changedPayload.ok, 'boolean');
+});
+
+test('init scaffolds a motion spec and motion contract without overwriting', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sloppy-init-'));
+  try {
+    const run = () => spawnSync(process.execPath, [path.join(ROOT, 'packages/cli/bin/sloppy.js'), 'init'], {
+      cwd: dir,
+      encoding: 'utf8',
+      timeout: 30000
+    });
+    const first = run();
+    assert.equal(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const spec = JSON.parse(fs.readFileSync(path.join(dir, 'sloppy.motion.json'), 'utf8'));
+    assert.equal(spec.interactions.length, 1);
+    assert.ok(spec.interactions[0].trigger, 'the starter must show the selector shape');
+    const design = fs.readFileSync(path.join(dir, 'DESIGN.md'), 'utf8');
+    assert.match(design, /motion-max-feedback/, 'DESIGN.md must include the motion lock');
+    const second = run();
+    assert.match(second.stdout, /already exists/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

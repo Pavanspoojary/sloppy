@@ -5,6 +5,7 @@ import {
   RULE_METADATA,
   createRepairPlan,
   DESIGN_MD_TEMPLATE,
+  MOTION_SPEC_TEMPLATE,
   detectProjectStack,
   evaluateCraftRubric,
   extractDesignDna,
@@ -1416,6 +1417,7 @@ export async function runCli(args: string[]) {
 
         writeFileSafe(path.resolve(process.cwd(), 'sloppy.config.json'), safeConfigJson, true);
         writeFileSafe(path.resolve(process.cwd(), 'DESIGN.md'), safeDesignMd, true);
+        writeFileSafe(path.resolve(process.cwd(), 'sloppy.motion.json'), MOTION_SPEC_TEMPLATE, true);
 
         console.log(`[SUCCESS] Extracted design DNA from ${dna.sourceUrl}:`);
         console.log(`  - Theme:      ${dna.theme}`);
@@ -1426,6 +1428,7 @@ export async function runCli(args: string[]) {
         console.log(`\nCreated files:`);
         console.log(`  * ./sloppy.config.json (Brand tokens & 3-tier rules)`);
         console.log(`  * ./DESIGN.md (Comprehensive design system specification)`);
+        console.log(`  * ./sloppy.motion.json (Starter interaction spec; edit its selectors)`);
         break;
       }
 
@@ -1449,9 +1452,16 @@ export async function runCli(args: string[]) {
 
       const designPath = path.resolve(process.cwd(), 'DESIGN.md');
       if (writeFileSafe(designPath, DESIGN_MD_TEMPLATE, force) !== 'exists') {
-        console.log(`[SUCCESS] Generated ./DESIGN.md design contract (token lock: palette, type, radius, blur cap, signature).`);
+        console.log(`[SUCCESS] Generated ./DESIGN.md design contract (token lock: palette, type, radius, blur cap, signature, motion scale).`);
       } else {
         console.log(`[INFO] ./DESIGN.md already exists. Pass --force to regenerate the token-lock template.`);
+      }
+
+      const motionPath = path.resolve(process.cwd(), 'sloppy.motion.json');
+      if (writeFileSafe(motionPath, MOTION_SPEC_TEMPLATE, force) !== 'exists') {
+        console.log(`[SUCCESS] Generated ./sloppy.motion.json starter (edit the placeholder selectors before running --motion).`);
+      } else {
+        console.log(`[INFO] ./sloppy.motion.json already exists. Pass --force to regenerate the starter spec.`);
       }
 
       const destDir = path.resolve(process.cwd(), 'src/kit');
@@ -1594,7 +1604,7 @@ Usage:
   sloppy list [library]       List all components or filter by library
   sloppy libs                 Show the 7 integrated UI libraries and their design roles
   sloppy add <componentId>    Install a component directly into your project
-  sloppy init                 Scaffold the anti-slop React kit into ./src/kit/
+  sloppy init                 Scaffold the React kit, DESIGN.md, and sloppy.motion.json
   sloppy looks                View available design looks and token scales
   sloppy dev                  Launch visual playground on http://127.0.0.1:1355
   sloppy mcp                  Start the stdio Model Context Protocol server
