@@ -178,6 +178,24 @@ export function auditA11ySnapshot(snapshot, options = {}) {
     });
   }
 
+  for (const item of options.autoplayWithoutControl || []) {
+    push('motion.autoplayWithoutControl', `Automatically running motion has no visible pause control (${item.animationName || 'infinite animation'} on ${item.selector}).`, { selector: item.selector }, {
+      severity: 'high',
+      confidence: 'medium',
+      kind: 'computed-style',
+      criterion: 'WCAG 2.2.2 Pause, Stop, Hide'
+    });
+  }
+
+  for (const item of options.slowFeedback || []) {
+    push('motion.slowFeedback', `Interactive feedback takes ${Math.round(item.ms)}ms to transition (${item.selector}); keep hover, press, and focus responses inside roughly 300ms.`, { selector: item.selector }, {
+      severity: 'low',
+      confidence: 'medium',
+      objective: false,
+      kind: 'computed-style'
+    });
+  }
+
   return findings;
 }
 
@@ -337,6 +355,55 @@ export async function runAccessibilityAudit(target, options = {}) {
     }
 
     const viewport = page.viewportSize();
+    let autoplayWithoutControl = [];
+    let slowFeedback = [];
+    if (options.checkMotionBudget !== false) {
+      try {
+        const motion = await page.evaluate(() => {
+          const label = (el) => {
+            const cls = [...(el.classList || [])].filter((value) => /^[A-Za-z0-9_-]+$/.test(value)).slice(0, 2);
+            return el.id ? `#${el.id}` : `${el.tagName.toLowerCase()}${cls.map((value) => `.${value}`).join('')}`;
+          };
+          const pauseControl = [...document.querySelectorAll('button, [role="button"], a')]
+            .some((el) => /pause|stop playback|stop animation/i.test(`${el.getAttribute('aria-label') || ''} ${el.getAttribute('title') || ''} ${el.textContent || ''}`));
+          const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
+          const autoplay = [];
+          for (const animation of document.getAnimations?.() || []) {
+            const timing = animation.effect?.getTiming?.();
+            if (!timing || timing.iterations !== Infinity || animation.playState !== 'running') continue;
+            if (pauseControl) continue;
+            const el = animation.effect?.target;
+            if (!el || el.nodeType !== 1) continue;
+            const rect = el.getBoundingClientRect();
+            const area = Math.max(0, rect.width) * Math.max(0, rect.height);
+            const name = `${animation.animationName || ''} ${el.className || ''} ${el.id || ''}`.toLowerCase();
+            const named = /marquee|ticker|carousel|autoplay|logo-scroll/.test(name);
+            if (!named && area < viewportArea * 0.25) continue;
+            autoplay.push({ selector: label(el), animationName: animation.animationName || 'infinite animation' });
+            if (autoplay.length >= 5) break;
+          }
+          const slow = [];
+          for (const el of document.querySelectorAll('a, button, input, select, textarea, summary, [role="button"]')) {
+            const style = getComputedStyle(el);
+            if (style.transitionProperty === 'none') continue;
+            const durations = style.transitionDuration.split(',').map((value) => {
+              const trimmed = value.trim();
+              const number = Number.parseFloat(trimmed);
+              if (!Number.isFinite(number)) return 0;
+              return /ms$/.test(trimmed) ? number : number * 1000;
+            });
+            const ms = Math.max(0, ...durations);
+            if (ms < 600) continue;
+            slow.push({ selector: label(el), ms });
+            if (slow.length >= 5) break;
+          }
+          return { autoplay, slow };
+        });
+        autoplayWithoutControl = motion.autoplay;
+        slowFeedback = motion.slow;
+      } catch {}
+    }
+
     let reflowOverflow = null;
     let textResizeClipped = [];
     try {
@@ -388,6 +455,8 @@ export async function runAccessibilityAudit(target, options = {}) {
       reflowOverflow,
       textResizeClipped,
       reducedMotionIgnored,
+      autoplayWithoutControl,
+      slowFeedback,
       viewport: { width: options.width || 1440, height: options.height || 900 }
     });
 
@@ -399,8 +468,8 @@ export async function runAccessibilityAudit(target, options = {}) {
       findings,
       summary: findings.length
         ? `Found ${findings.length} accessibility issue(s) in the rendered DOM.`
-        : 'Rendered DOM passes the name, label, focus, target-size, reference, reflow, text-resize, and reduced-motion checks.',
-      checked: ['accessible name', 'form labels', 'focus visibility', 'focus order', 'target size 24x24', 'aria references', 'reflow at 320px', '200% text resize', 'reduced motion']
+        : 'Rendered DOM passes the name, label, focus, target-size, reference, reflow, text-resize, reduced-motion, and motion-budget checks.',
+      checked: ['accessible name', 'form labels', 'focus visibility', 'focus order', 'target size 24x24', 'aria references', 'reflow at 320px', '200% text resize', 'reduced motion', 'autoplay pause control', 'interaction transition duration']
     };
   } catch (error) {
     const reason = String(error?.message || error).split('\n')[0];
