@@ -328,7 +328,7 @@ async function handleAgentCommand(command: string, args: string[]): Promise<bool
       setup: 'Usage: sloppy setup [--write|-w] [--global|-g] [--json]',
       check: 'Usage: sloppy check [paths...|url] [--changed|--staged] [--cache] [--compact] [--strict] [--json] [--max-score <n>] [--fail-on <none|low|medium|high|critical>] [--min-grade <A+|A|B|C|D|F>] [--type <illustration|feature-card|hero|application|bento>] [--render|--multi-width] [--a11y] [--static] [--quiet]',
       fix: 'Usage: sloppy fix <file> [--diff|--check|--write] [--look <look>] [--json]\n       sloppy fix --stdin [--json]',
-      verify: 'Usage: sloppy verify [target] [--json] [--multi-width] [--a11y] [--motion <spec.json>] (verification timeout: 15000ms)',
+      verify: 'Usage: sloppy verify [target] [--json] [--multi-width] [--a11y] [--motion [spec.json]] (verification timeout: 15000ms)',
       'install-mcp': 'Usage: sloppy install-mcp --client <cursor|vscode|claude|codex> [--dir <path>] [--write] [--json]'
     };
     console.log(help[command]); return true;
@@ -1052,17 +1052,14 @@ export async function runCli(args: string[]) {
       try {
         const motionIdx = args.indexOf('--motion');
         if (motionIdx !== -1) {
-          const specPath = args[motionIdx + 1];
-          if (!specPath || specPath.startsWith('-')) {
-            console.error('[ERROR] --motion needs a JSON spec path, for example --motion sloppy.motion.json');
-            process.exitCode = 2;
-            break;
-          }
+          const explicitSpec = args[motionIdx + 1] && !args[motionIdx + 1].startsWith('-') ? args[motionIdx + 1] : null;
+          const specPath = explicitSpec || 'sloppy.motion.json';
           let spec: import('@sloppy-ai/verify/motion-interactions').MotionInteractionSpec;
           try {
             spec = JSON.parse(fs.readFileSync(path.resolve(specPath), 'utf8'));
           } catch (error) {
             console.error(`[ERROR] Could not read motion spec ${specPath}: ${(error as Error).message}`);
+            console.error(explicitSpec ? '' : 'Create sloppy.motion.json in the project root or pass --motion <path>.');
             process.exitCode = 2;
             break;
           }
