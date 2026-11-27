@@ -22,6 +22,7 @@ const SETTLE_MS = 250;
 const HANDOFF_TOLERANCE = 0.5;
 const LONG_FRAME_MS = 32;
 const BAD_FRAME_MS = 60;
+const REDUCED_TRAVEL_TOLERANCE = 8;
 
 const round = (value) => Math.round(value * 100) / 100;
 
@@ -89,6 +90,55 @@ export function auditMotionInteractionSamples(samples = [], options = {}) {
       });
     }
 
+    const reduced = sample.reduced;
+    if (reduced) {
+      // shortcut: travel is only measurable when the target is visible before and after;
+      // a hidden element's entrance is instead checked for the state change surviving.
+      if (reduced.visibleBefore && reduced.visibleAfter) {
+        const travel = Math.max(
+          Math.abs(reduced.after.x - reduced.before.x),
+          Math.abs(reduced.after.y - reduced.before.y)
+        );
+        if (travel > REDUCED_TRAVEL_TOLERANCE) {
+          push('motion.reducedMotionTravel', `${sample.name}: the target still travels ${round(travel)}px under prefers-reduced-motion: reduce; keep the state change, drop the movement.`, sample, {
+            severity: 'medium',
+            confidence: 'high',
+            criterion: 'WCAG 2.3.3'
+          });
+        }
+      }
+      if (sample.after?.target?.visible && reduced.after && !reduced.after.visible) {
+        push('motion.reducedMotionHidesContent', `${sample.name}: the result is missing under reduced motion; reduced motion may simplify a state change, never delete it.`, sample, {
+          severity: 'high',
+          confidence: 'high',
+          criterion: 'WCAG 2.3.3'
+        });
+      }
+      if (reduced.runningInfinite?.length) {
+        push('motion.reducedMotionKeepsLoop', `${sample.name}: ${reduced.runningInfinite.length} infinite animation(s) keep running under reduced motion (${reduced.runningInfinite.slice(0, 3).join(', ')}).`, sample, {
+          severity: 'medium',
+          confidence: 'high',
+          criterion: 'WCAG 2.3.3'
+        });
+      }
+    }
+
+    if (typeof sample.layoutShift === 'number' && sample.layoutShift > 0.005) {
+      push('motion.layoutShift', `${sample.name}: layout moved during the interaction (shift score ${round(sample.layoutShift)}); reserve space or animate a transform so neighbors stay put.`, sample, {
+        severity: 'medium',
+        confidence: 'medium',
+        objective: false
+      });
+    }
+
+    if (sample.focusChecked && sample.focusReturned === false) {
+      push('motion.focusLoss', `${sample.name}: closing the surface does not return focus to its trigger; keyboard users are left without a position.`, sample, {
+        severity: 'high',
+        confidence: 'medium',
+        criterion: 'WCAG 2.4.3 Focus Order'
+      });
+    }
+
     const frames = Array.isArray(sample.frames) ? sample.frames : [];
     if (frames.length >= 5) {
       const long = frames.filter((ms) => ms > LONG_FRAME_MS).length;
@@ -139,6 +189,37 @@ export async function runMotionInteractionAudit(target, options = {}) {
   const browser = launch.browser;
   const viewport = { width: options.width || 1280, height: options.height || 800 };
   const page = await browser.newPage({ viewport });
+  await page.addInitScript(() => {
+    window.__sloppyBoxOf = (selector) => {
+      if (!selector) return null;
+      const el = document.querySelector(selector);
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      const opacity = Number.parseFloat(style.opacity || '1');
+      return {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        visible: style.display !== 'none' && style.visibility !== 'hidden' && opacity > 0.05
+      };
+    };
+    window.__sloppyInfiniteAnimations = () => (document.getAnimations?.() || [])
+      .filter((animation) => {
+        if (animation.playState !== 'running') return false;
+        return animation.effect?.getTiming?.()?.iterations === Infinity;
+      })
+      .map((animation) => animation.animationName || animation.transitionProperty || 'animation');
+    window.__sloppyLayoutShifts = [];
+    try {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          window.__sloppyLayoutShifts.push(entry.value);
+        }
+      }).observe({ type: 'layout-shift', buffered: true });
+    } catch {}
+  });
   const samples = [];
   try {
     for (const interaction of spec.interactions) {
@@ -153,22 +234,13 @@ export async function runMotionInteractionAudit(target, options = {}) {
         interrupted: Boolean(interaction.closeTrigger)
       };
 
-      const boxes = await page.evaluate(({ trigger, targetSelector, anchorSelector }) => {
-        const boxOf = (selector) => {
-          if (!selector) return null;
-          const el = document.querySelector(selector);
-          if (!el) return null;
-          const rect = el.getBoundingClientRect();
-          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-        };
-        return {
-          target: boxOf(targetSelector),
-          anchor: boxOf(anchorSelector),
-          trigger: boxOf(trigger),
-          targetFound: Boolean(document.querySelector(targetSelector)),
-          triggerFound: Boolean(document.querySelector(trigger))
-        };
-      }, { trigger: interaction.trigger, targetSelector: interaction.target, anchorSelector: interaction.anchor });
+      const boxes = await page.evaluate(({ trigger, targetSelector, anchorSelector }) => ({
+        target: window.__sloppyBoxOf(targetSelector),
+        anchor: window.__sloppyBoxOf(anchorSelector),
+        trigger: window.__sloppyBoxOf(trigger),
+        targetFound: Boolean(document.querySelector(targetSelector)),
+        triggerFound: Boolean(document.querySelector(trigger))
+      }), { trigger: interaction.trigger, targetSelector: interaction.target, anchorSelector: interaction.anchor });
 
       if (!boxes.targetFound || !boxes.triggerFound) {
         sample.before = { anchor: boxes.anchor };
@@ -179,6 +251,7 @@ export async function runMotionInteractionAudit(target, options = {}) {
       sample.before = { target: boxes.target, anchor: boxes.anchor };
       await page.evaluate(() => {
         window.__sloppyMotionFrames = [];
+        window.__sloppyLayoutShifts = [];
         window.__sloppyMotionSampling = true;
         let last = performance.now();
         const tick = (now) => {
@@ -195,13 +268,6 @@ export async function runMotionInteractionAudit(target, options = {}) {
       await page.waitForTimeout(waitMs);
 
       const after = await page.evaluate(({ targetSelector, anchorSelector }) => {
-        const boxOf = (selector) => {
-          if (!selector) return null;
-          const el = document.querySelector(selector);
-          if (!el) return null;
-          const rect = el.getBoundingClientRect();
-          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-        };
         const running = (document.getAnimations?.() || [])
           .filter((animation) => {
             if (animation.playState !== 'running') return false;
@@ -209,7 +275,11 @@ export async function runMotionInteractionAudit(target, options = {}) {
             return timing && timing.iterations !== Infinity;
           })
           .map((animation) => animation.animationName || animation.transitionProperty || 'animation');
-        return { target: boxOf(targetSelector), anchor: boxOf(anchorSelector), running };
+        return {
+          target: window.__sloppyBoxOf(targetSelector),
+          anchor: window.__sloppyBoxOf(anchorSelector),
+          running
+        };
       }, { targetSelector: interaction.target, anchorSelector: interaction.anchor });
 
       sample.after = { target: after.target, anchor: after.anchor };
@@ -223,12 +293,37 @@ export async function runMotionInteractionAudit(target, options = {}) {
       sample.frames = frames;
 
       await page.waitForTimeout(SETTLE_MS);
-      sample.later = await page.evaluate((targetSelector) => {
-        const el = document.querySelector(targetSelector);
-        if (!el) return null;
-        const rect = el.getBoundingClientRect();
-        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-      }, interaction.target);
+      const settled = await page.evaluate((targetSelector) => ({
+        box: window.__sloppyBoxOf(targetSelector),
+        layoutShift: (window.__sloppyLayoutShifts || []).reduce((total, value) => total + value, 0)
+      }), interaction.target);
+      sample.later = settled.box;
+      sample.layoutShift = settled.layoutShift;
+
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.goto(target, { waitUntil: 'domcontentloaded', timeout: options.timeoutMs || 12000 });
+      await page.waitForTimeout(200);
+      const reducedBefore = await page.evaluate(({ targetSelector }) => ({
+        target: window.__sloppyBoxOf(targetSelector),
+        found: Boolean(document.querySelector(targetSelector))
+      }), { targetSelector: interaction.target });
+      if (reducedBefore.found) {
+        if (interaction.kind === 'hover') await page.hover(interaction.trigger);
+        else await page.click(interaction.trigger);
+        await page.waitForTimeout(waitMs);
+        const reducedAfter = await page.evaluate(({ targetSelector }) => ({
+          target: window.__sloppyBoxOf(targetSelector),
+          runningInfinite: window.__sloppyInfiniteAnimations()
+        }), { targetSelector: interaction.target });
+        sample.reduced = {
+          before: reducedBefore.target,
+          after: reducedAfter.target,
+          visibleBefore: Boolean(reducedBefore.target?.visible),
+          visibleAfter: Boolean(reducedAfter.target?.visible),
+          runningInfinite: reducedAfter.runningInfinite
+        };
+      }
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
 
       if (interaction.closeTrigger) {
         await page.goto(target, { waitUntil: 'domcontentloaded', timeout: options.timeoutMs || 12000 });
@@ -237,6 +332,13 @@ export async function runMotionInteractionAudit(target, options = {}) {
         await page.waitForTimeout(80);
         await page.click(interaction.closeTrigger);
         await page.waitForTimeout(waitMs);
+        sample.focusChecked = true;
+        sample.focusReturned = await page.evaluate(({ targetSelector, triggerSelector }) => {
+          const trigger = document.querySelector(triggerSelector);
+          const active = document.activeElement;
+          if (!trigger || !active) return false;
+          return active === trigger || trigger.contains(active);
+        }, { targetSelector: interaction.target, triggerSelector: interaction.trigger });
         sample.interruptRecovered = await page.evaluate((targetSelector) => {
           const el = document.querySelector(targetSelector);
           if (!el) return true;

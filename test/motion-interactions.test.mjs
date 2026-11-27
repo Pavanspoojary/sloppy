@@ -63,6 +63,18 @@ test('a late layout change, moving anchor, stuck transition, and half-recovered 
   for (const finding of findings) assert.equal(finding.evidence.kind, 'interaction');
 });
 
+test('layout movement and a lost focus return are reported as their own findings', () => {
+  const findings = auditMotionInteractionSamples([
+    { name: 'shifting form', target: '#form', layoutShift: 0.04 },
+    { name: 'menu close', target: '#panel', focusChecked: true, focusReturned: false }
+  ]);
+  const rules = new Set(findings.map((finding) => finding.rule));
+  assert.ok(rules.has('motion.layoutShift'), [...rules].join(', '));
+  assert.ok(rules.has('motion.focusLoss'), [...rules].join(', '));
+  const shift = findings.find((finding) => finding.rule === 'motion.layoutShift');
+  assert.equal(shift.objective, false);
+});
+
 test('a slow interaction reports a frame-budget finding only as low-confidence craft', () => {
   const findings = auditMotionInteractionSamples([
     { name: 'janky', target: '#panel', frames: [16, 80, 90, 16, 75, 16] }
@@ -71,6 +83,57 @@ test('a slow interaction reports a frame-budget finding only as low-confidence c
   assert.ok(budget);
   assert.equal(budget.confidence, 'low');
   assert.equal(budget.objective, false);
+});
+
+test('reduced-motion samples report leftover travel, deleted state, and live loops', () => {
+  const findings = auditMotionInteractionSamples([
+    {
+      name: 'sliding card',
+      target: '#card',
+      after: { target: { ...box(10, 10), visible: true } },
+      reduced: {
+        before: { ...box(10, 10), visible: true },
+        after: { ...box(130, 10), visible: true },
+        visibleBefore: true,
+        visibleAfter: true,
+        runningInfinite: []
+      }
+    },
+    {
+      name: 'toast',
+      target: '#toast',
+      after: { target: { ...box(0, 0, 100, 20), visible: true } },
+      reduced: {
+        before: { ...box(0, 0, 100, 20), visible: false },
+        after: { ...box(0, 0, 0, 0), visible: false },
+        visibleBefore: false,
+        visibleAfter: false,
+        runningInfinite: ['heartbeat']
+      }
+    }
+  ]);
+  const rules = new Set(findings.map((finding) => finding.rule));
+  assert.ok(rules.has('motion.reducedMotionTravel'), [...rules].join(', '));
+  assert.ok(rules.has('motion.reducedMotionHidesContent'), [...rules].join(', '));
+  assert.ok(rules.has('motion.reducedMotionKeepsLoop'), [...rules].join(', '));
+});
+
+test('an entrance that only becomes visible under reduced motion is not called travel', () => {
+  const findings = auditMotionInteractionSamples([
+    {
+      name: 'menu',
+      target: '#panel',
+      after: { target: { ...box(10, 10), visible: true } },
+      reduced: {
+        before: { ...box(10, 0, 0, 0), visible: false },
+        after: { ...box(10, 10), visible: true },
+        visibleBefore: false,
+        visibleAfter: true,
+        runningInfinite: []
+      }
+    }
+  ]);
+  assert.deepEqual(findings, []);
 });
 
 test('the audit fails closed without a served URL or a declared interaction', async () => {
@@ -116,6 +179,22 @@ test('a clean served interaction page passes the rendered motion audit', async (
   }
 });
 
+test('a served page blind to reduced motion is reported in the same audit', async (t) => {
+  const server = await serveFixtures();
+  try {
+    const spec = JSON.parse(await fs.readFile(fixture('motion/reduce.json'), 'utf8'));
+    const result = await runMotionInteractionAudit(`${server.origin}/reduce.html`, { spec, timeoutMs: 12000 });
+    if (result.mode === 'unavailable') return t.skip(`browser unavailable: ${result.unavailable}`);
+    const rules = new Set(result.findings.map((finding) => finding.rule));
+    for (const rule of ['motion.reducedMotionTravel', 'motion.reducedMotionHidesContent', 'motion.reducedMotionKeepsLoop']) {
+      assert.ok(rules.has(rule), `missing ${rule}; got ${[...rules].join(', ')}`);
+    }
+    assert.equal(result.ok, false);
+  } finally {
+    await server.close();
+  }
+});
+
 test('a served page that shifts, sticks, and cannot be interrupted is reported', async (t) => {
   const server = await serveFixtures();
   try {
@@ -123,7 +202,7 @@ test('a served page that shifts, sticks, and cannot be interrupted is reported',
     const result = await runMotionInteractionAudit(`${server.origin}/broken.html`, { spec, timeoutMs: 12000 });
     if (result.mode === 'unavailable') return t.skip(`browser unavailable: ${result.unavailable}`);
     const rules = new Set(result.findings.map((finding) => finding.rule));
-    for (const rule of ['motion.anchorDrift', 'motion.handoffShift', 'motion.stuckTransition', 'motion.interruptNotRecovered']) {
+    for (const rule of ['motion.anchorDrift', 'motion.handoffShift', 'motion.layoutShift', 'motion.focusLoss', 'motion.stuckTransition', 'motion.interruptNotRecovered']) {
       assert.ok(rules.has(rule), `missing ${rule}; got ${[...rules].join(', ')}`);
     }
     assert.equal(result.ok, false);

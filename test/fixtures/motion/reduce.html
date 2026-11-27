@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Motion interaction fixture: reduced motion blind</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; background: #09090b; color: #f4f4f5; font: 15px/1.5 system-ui, sans-serif; }
+    header { display: flex; gap: 8px; align-items: center; padding: 16px 20px; border-bottom: 1px solid #27272a; }
+    button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid #3f3f46; background: #18181b; color: #f4f4f5; }
+    button:hover { background: #27272a; }
+    main { padding: 28px 20px; display: grid; gap: 20px; }
+    #card {
+      width: 220px; padding: 16px; border: 1px solid #3f3f46; border-radius: 8px; background: #18181b;
+      transition: transform 300ms ease-out;
+    }
+    #card[data-moved] { transform: translateX(120px); }
+    #toast { color: #a1a1aa; opacity: 0; transition: opacity 150ms ease-out; }
+    #toast[data-open] { opacity: 1; }
+    #dot {
+      display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #f4f4f5;
+      animation: heartbeat 1s linear infinite;
+    }
+    @keyframes heartbeat { 50% { opacity: 0.3 } }
+    @media (prefers-reduced-motion: reduce) {
+      /* The state change is deleted and the travel/loop are left unguarded. */
+      #toast { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Ledger</strong>
+    <button type="button" id="move" aria-controls="card">Move card</button>
+    <button type="button" id="show" aria-controls="toast">Show toast</button>
+    <span id="dot"></span>
+  </header>
+
+  <main>
+    <div id="card">Visible card</div>
+    <p id="toast" role="status">Saved</p>
+  </main>
+
+  <script>
+    const card = document.getElementById('card');
+    const toast = document.getElementById('toast');
+    document.getElementById('move').addEventListener('click', () => card.setAttribute('data-moved', ''));
+    document.getElementById('show').addEventListener('click', () => {
+      toast.textContent = 'Saved';
+      toast.setAttribute('data-open', '');
+    });
+  </script>
+</body>
+</html>

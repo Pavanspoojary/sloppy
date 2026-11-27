@@ -1,0 +1,18 @@
+{
+  "interactions": [
+    {
+      "name": "card slides under reduced motion",
+      "trigger": "#move",
+      "target": "#card",
+      "kind": "click",
+      "waitMs": 500
+    },
+    {
+      "name": "toast is deleted under reduced motion",
+      "trigger": "#show",
+      "target": "#toast",
+      "kind": "click",
+      "waitMs": 300
+    }
+  ]
+}
