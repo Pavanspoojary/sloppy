@@ -9,7 +9,8 @@
     "./verification": "./verification.mjs",
     "./multi-width": "./multi-width.mjs",
     "./accessibility": "./accessibility.mjs",
-    "./motion-interactions": "./motion-interactions.mjs"
+    "./motion-interactions": "./motion-interactions.mjs",
+    "./browser": "./browser.mjs"
   },
   "files": [
     "verification.mjs",

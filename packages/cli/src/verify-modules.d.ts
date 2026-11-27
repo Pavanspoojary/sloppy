@@ -35,7 +35,11 @@ declare module '@sloppy-ai/verify/multi-width' {
     findings: MultiWidthFinding[];
     summary: string;
   }
-  export function runMultiWidthVerification(target: string, options?: { staticOnly?: boolean }): Promise<MultiWidthResult>;
+  export function runMultiWidthVerification(target: string, options?: { staticOnly?: boolean; browser?: unknown }): Promise<MultiWidthResult>;
+}
+
+declare module '@sloppy-ai/verify/browser' {
+  export function tryLaunch(): Promise<{ browser: unknown; reason: string | null }>;
 }
 
 declare module '@sloppy-ai/verify/accessibility' {
@@ -57,6 +61,7 @@ declare module '@sloppy-ai/verify/accessibility' {
   export interface AuditA11yOptions {
     timeoutMs?: number;
     viewport?: { width: number; height: number };
+    browser?: unknown;
   }
   export function auditA11ySnapshot(snapshot: unknown[], options?: AuditA11yOptions): A11yFinding[];
   export function runAccessibilityAudit(target: string, options?: AuditA11yOptions): Promise<{
@@ -107,7 +112,7 @@ declare module '@sloppy-ai/verify/motion-interactions' {
     unavailable?: string;
   }
   export function auditMotionInteractionSamples(samples: unknown[], options?: { viewport?: { width: number; height: number } }): MotionInteractionFinding[];
-  export function runMotionInteractionAudit(target: string, options?: { spec?: MotionInteractionSpec; timeoutMs?: number; width?: number; height?: number }): Promise<MotionInteractionResult>;
+  export function runMotionInteractionAudit(target: string, options?: { spec?: MotionInteractionSpec; timeoutMs?: number; width?: number; height?: number; browser?: unknown }): Promise<MotionInteractionResult>;
 }
 
 declare module '@sloppy/verify' {

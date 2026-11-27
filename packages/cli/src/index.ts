@@ -1048,9 +1048,25 @@ export async function runCli(args: string[]) {
       const target = args[1] && !args[1].startsWith('-') ? args[1] : 'http://127.0.0.1:1355';
       const isMultiWidth = args.includes('--multi-width') || args.includes('--render') || args.includes('-m');
       const staticOnly = args.includes('--static');
+      const a11yRequested = args.includes('--a11y');
+      const motionIdx = args.indexOf('--motion');
+      const besidesRender = motionIdx !== -1 || a11yRequested || isMultiWidth;
+      const sections: Record<string, any> = {};
+      let worstExit = 0;
+      let sharedBrowser: any;
+      const noteExit = (result: { ok?: boolean; unavailable?: string }) => {
+        worstExit = Math.max(worstExit, result.unavailable ? 2 : result.ok ? 0 : 1);
+      };
+      // One launch serves every requested pass; modules fall back to their own launch when absent.
+      const ensureBrowser = async () => {
+        if (!sharedBrowser) {
+          const { tryLaunch } = await import('@sloppy-ai/verify/browser').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/browser.mjs')));
+          sharedBrowser = (await tryLaunch()).browser || undefined;
+        }
+        return sharedBrowser;
+      };
 
       try {
-        const motionIdx = args.indexOf('--motion');
         if (motionIdx !== -1) {
           const explicitSpec = args[motionIdx + 1] && !args[motionIdx + 1].startsWith('-') ? args[motionIdx + 1] : null;
           const specPath = explicitSpec || 'sloppy.motion.json';
@@ -1064,9 +1080,10 @@ export async function runCli(args: string[]) {
             break;
           }
           const module = await import('@sloppy-ai/verify/motion-interactions').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/motion-interactions.mjs')));
-          const res = await module.runMotionInteractionAudit(target, { spec, timeoutMs: 15000 });
-          if (json) emitJson(res);
-          else {
+          const res = await module.runMotionInteractionAudit(target, { spec, timeoutMs: 15000, browser: await ensureBrowser() });
+          sections.motion = res;
+          noteExit(res);
+          if (!json) {
             console.log(`\n======================================================`);
             console.log(`SLOPPY MOTION INTERACTION VERIFICATION`);
             console.log(`======================================================\n`);
@@ -1075,16 +1092,14 @@ export async function runCli(args: string[]) {
             for (const finding of res.findings) console.log(`  [${finding.severity.toUpperCase()}] ${finding.rule}: ${finding.message}`);
             if (res.unavailable) console.error(`Motion verification unavailable: ${res.unavailable}`);
           }
-          if (res.unavailable) process.exitCode = 2;
-          else if (!res.ok) process.exitCode = 1;
-          break;
         }
 
-        if (args.includes('--a11y')) {
+        if (a11yRequested) {
           const module = await import('@sloppy-ai/verify/accessibility').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/accessibility.mjs')));
-          const res = await module.runAccessibilityAudit(target, { timeoutMs: 15000 });
-          if (json) emitJson(res);
-          else {
+          const res = await module.runAccessibilityAudit(target, { timeoutMs: 15000, browser: await ensureBrowser() });
+          sections.a11y = res;
+          noteExit(res);
+          if (!json) {
             console.log(`\n======================================================`);
             console.log(`SLOPPY RENDERED ACCESSIBILITY VERIFICATION`);
             console.log(`======================================================\n`);
@@ -1093,17 +1108,15 @@ export async function runCli(args: string[]) {
             for (const finding of res.findings) console.log(`  [${finding.severity.toUpperCase()}] ${finding.rule}: ${finding.message}${finding.evidence?.criterion ? ` (${finding.evidence.criterion})` : ''}`);
             if (res.unavailable) console.error(`Accessibility unavailable: ${res.unavailable}`);
           }
-          if (res.unavailable) process.exitCode = 2;
-          else if (!res.ok) process.exitCode = 1;
-          break;
         }
 
         if (isMultiWidth) {
           const moduleName = '@sloppy-ai/verify/multi-width';
           const module = await import(moduleName).catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/multi-width.mjs')));
-          const res = await module.runMultiWidthVerification(target, { staticOnly });
-          if (json) emitJson(res);
-          else {
+          const res = await module.runMultiWidthVerification(target, { staticOnly, browser: staticOnly ? undefined : await ensureBrowser() });
+          sections.multiWidth = res;
+          worstExit = Math.max(worstExit, res.allPassed ? 0 : 1);
+          if (!json) {
             console.log(`\n======================================================`);
             console.log(`SLOPPY MULTI-WIDTH VIEWPORT VERIFICATION (${res.totalViewportsTested} WIDTHS)`);
             console.log(`======================================================\n`);
@@ -1112,28 +1125,37 @@ export async function runCli(args: string[]) {
             console.log(`Passed:   ${res.viewportsPassed}/${res.totalViewportsTested} viewports`);
             for (const f of res.findings) console.log(`  [${f.severity.toUpperCase()}] ${f.viewportName} (${f.width}px): ${f.message}`);
           }
-          if (!res.allPassed) process.exitCode = 1;
-          break;
         }
 
-        const { verifyTarget } = await import('@sloppy-ai/verify').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/verification.mjs')));
-        const result = await verifyTarget(target, { timeoutMs: 15000 });
-        if (json) emitJson(result);
-        else {
-          console.log(`\n======================================================`);
-          console.log(`SLOPPY BROWSER & GEOMETRIC VERIFICATION HARNESS`);
-          console.log(`======================================================\n`);
-          console.log(`Verification ${result.ok ? 'passed' : 'failed'}: ${result.target} (${result.mode})`);
-          for (const violation of result.violations) console.log(`[${violation.rule}] ${violation.message}${violation.evidence ? `: ${violation.evidence}` : ''}`);
-          if (result.unavailable) console.error(`Verification unavailable: ${result.unavailable}`);
+        if (!besidesRender) {
+          const { verifyTarget } = await import('@sloppy-ai/verify').catch(async () => import(path.resolve(ROOT_DIR, 'packages/verify/verification.mjs')));
+          const result = await verifyTarget(target, { timeoutMs: 15000 });
+          if (json) emitJson(result);
+          else {
+            console.log(`\n======================================================`);
+            console.log(`SLOPPY BROWSER & GEOMETRIC VERIFICATION HARNESS`);
+            console.log(`======================================================\n`);
+            console.log(`Verification ${result.ok ? 'passed' : 'failed'}: ${result.target} (${result.mode})`);
+            for (const violation of result.violations) console.log(`[${violation.rule}] ${violation.message}${violation.evidence ? `: ${violation.evidence}` : ''}`);
+            if (result.unavailable) console.error(`Verification unavailable: ${result.unavailable}`);
+          }
+          if (result.unavailable) process.exitCode = 2;
+          else if (!result.ok) process.exitCode = 1;
         }
-        if (result.unavailable) process.exitCode = 2;
-        else if (!result.ok) process.exitCode = 1;
+
+        if (json) {
+          const passes = Object.values(sections);
+          if (passes.length === 1) emitJson(passes[0]);
+          else if (passes.length > 1) emitJson({ ok: worstExit === 0, target, ...sections });
+        }
       } catch (error) {
         const unavailable = `Verification unavailable: ${(error as Error).message}`;
         if (json) emitJson({ ok: false, target, unavailable }); else console.error(unavailable);
         process.exitCode = 2;
+      } finally {
+        if (sharedBrowser) await sharedBrowser.close().catch(() => {});
       }
+      if (worstExit) process.exitCode = Math.max(Number(process.exitCode) || 0, worstExit);
       break;
     }
 

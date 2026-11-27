@@ -212,7 +212,8 @@ export async function runAccessibilityAudit(target, options = {}) {
     };
   }
 
-  const launchResult = await tryLaunch();
+  const ownsBrowser = !options.browser;
+  const launchResult = options.browser ? { browser: options.browser, reason: null } : await tryLaunch();
   if (!launchResult.browser) {
     return {
       target,
@@ -484,6 +485,6 @@ export async function runAccessibilityAudit(target, options = {}) {
     };
   } finally {
     await page.close();
-    await browser.close();
+    if (ownsBrowser) await browser.close();
   }
 }

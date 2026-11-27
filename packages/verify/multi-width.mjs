@@ -24,9 +24,9 @@ export async function runMultiWidthVerification(target, options = {}) {
   const isUrl = /^https?:\/\//i.test(target);
   
   if (!options.staticOnly && isUrl) {
-    const launchResult = await tryLaunch();
+    const launchResult = options.browser ? { browser: options.browser } : await tryLaunch();
     if (launchResult.browser) {
-      return await runBrowserMultiWidth(launchResult.browser, target);
+      return await runBrowserMultiWidth(launchResult.browser, target, options);
     }
   }
 
@@ -34,9 +34,10 @@ export async function runMultiWidthVerification(target, options = {}) {
   return runStaticMultiWidthFallback(target);
 }
 
-async function runBrowserMultiWidth(browser, url) {
+async function runBrowserMultiWidth(browser, target, options = {}) {
   const findings = [];
   let viewportsPassed = 0;
+  const ownsBrowser = !options.browser;
 
   try {
     for (const vp of CANONICAL_VIEWPORT_WIDTHS) {
@@ -44,7 +45,7 @@ async function runBrowserMultiWidth(browser, url) {
       let vpPassed = true;
 
       try {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 8000 });
+        await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 8000 });
         await page.waitForTimeout(250);
 
         // 1. Check Mobile Horizontal Overflow
@@ -181,7 +182,7 @@ async function runBrowserMultiWidth(browser, url) {
       if (vpPassed) viewportsPassed++;
     }
   } finally {
-    await browser.close();
+    if (ownsBrowser) await browser.close();
   }
 
   const allPassed = findings.length === 0;

@@ -145,6 +145,15 @@ test('verify reports honestly instead of printing a fake pass', () => {
   assert.ok(payload.unavailable || payload.violations.length > 0);
 });
 
+test('verify composes passes into one run and one JSON object', () => {
+  const run = runCli(['verify', 'https://127.0.0.1:1', '--a11y', '--multi-width', '--json'], { timeout: 30000 });
+  assert.equal(run.status, 2, run.stderr);
+  const payload = parseJsonStdout(run);
+  assert.equal(payload.ok, false);
+  assert.ok(payload.a11y, 'combined JSON keeps the accessibility section');
+  assert.ok(payload.multiWidth, 'combined JSON keeps the multi-width section');
+});
+
 test('fix, audit, plan, rubric, and verify have one behaviour for human and --json', () => {
   const source = fs.readFileSync(fixture('slop-component.tsx'), 'utf8');
   const human = runCli(['fix', '--stdin'], { input: source });

@@ -173,7 +173,8 @@ export async function runMotionInteractionAudit(target, options = {}) {
     return { target, ok: false, mode: 'unavailable', findings: [], checked: [], summary: reason, unavailable: reason };
   }
 
-  const launch = await tryLaunch();
+  const ownsBrowser = !options.browser;
+  const launch = options.browser ? { browser: options.browser } : await tryLaunch();
   if (!launch.browser) {
     return {
       target,
@@ -358,7 +359,7 @@ export async function runMotionInteractionAudit(target, options = {}) {
     }
   } finally {
     await page.close().catch(() => {});
-    await browser.close().catch(() => {});
+    if (ownsBrowser) await browser.close().catch(() => {});
   }
 
   const findings = auditMotionInteractionSamples(samples, { viewport });
