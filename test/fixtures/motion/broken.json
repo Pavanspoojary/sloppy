@@ -1,0 +1,20 @@
+{
+  "interactions": [
+    {
+      "name": "menu shifts its anchor and lands late",
+      "trigger": "#open",
+      "target": "#panel",
+      "anchor": "#anchor",
+      "kind": "click",
+      "waitMs": 600
+    },
+    {
+      "name": "slow panel never settles and cannot be interrupted",
+      "trigger": "#slow",
+      "target": "#slow-panel",
+      "closeTrigger": "#slow-close",
+      "kind": "click",
+      "waitMs": 600
+    }
+  ]
+}

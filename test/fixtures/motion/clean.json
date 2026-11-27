@@ -1,0 +1,21 @@
+{
+  "interactions": [
+    {
+      "name": "filter menu opens and closes",
+      "trigger": "#open",
+      "target": "#panel",
+      "anchor": "#anchor",
+      "closeTrigger": "#close",
+      "kind": "click",
+      "waitMs": 500
+    },
+    {
+      "name": "form validation message",
+      "trigger": "#submit",
+      "target": "#error",
+      "anchor": "#form-anchor",
+      "kind": "click",
+      "waitMs": 400
+    }
+  ]
+}
