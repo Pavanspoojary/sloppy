@@ -1,8 +1,8 @@
 ---
 name: sloppy
-description: The AI slop UI & code fixer. Eliminates purple gradients, sparkle icons, boxed cards, floating frames, unearned loops, fake copy, and low-evidence TypeScript via 3-tier severity gates (Floor/Reflex/Finish), wiring guards, multi-width checks, decoupled looks, and MCP tools.
+description: The AI slop UI & motion fixer. Eliminates purple gradients, sparkle icons, boxed cards, floating frames, unearned loops, fade-up-everything scroll reveals, slow hovers, marquees without pause, and low-evidence TypeScript via 3-tier severity gates (Floor/Reflex/Finish), wiring guards, multi-width checks, decoupled looks, and MCP tools.
 metadata:
-  version: 1.5.0
+  version: 1.6.0
 ---
 
 # Sloppy: Anti-Slop Engine
@@ -29,8 +29,11 @@ Eliminate AI UI and TypeScript slop with deterministic source scanning, 3-tier s
    - Use 1 clean, restrained surface step (`0 -> 1 -> 2`). Separate sub-items with clean vertical whitespace, subtle dividers (`divide-y divide-neutral-800/60`), or quiet indentation—never another bordered card container.
 4. **Rung 4: Restrained Motion & Functional Transitions**
    - Motion is strictly functional: orient spatial hierarchy on state changes.
-   - Prefer standard CSS transitions (`transition-opacity duration-150`) over heavy physics engines.
-   - Zero decorative infinite loops (`animate-bounce`, continuous rotation, unearned shimmers). Always guard with `useReducedMotion()` / `prefers-reduced-motion` (`MOT-03`).
+   - Keep one motion contract: three durations (`150-200ms` hover/press, `200-300ms` small surfaces, `300-500ms` sheets), one entrance `ease-out` curve, springs only for gestures, one signature move per page. Never animate keyboard-repeated actions, and never use `transition: all` (`MOT-06`).
+   - Prefer standard CSS transitions over heavy physics engines. Animate `transform`/`opacity`, never layout geometry (`MOT-04`).
+   - Zero decorative infinite loops (`animate-bounce`, continuous rotation, unearned shimmers) and no unguarded CSS loops (`MOT-01`, `MOT-12`). Never autoplay a marquee, logo strip, or video longer than five seconds without a keyboard pause control (`MOT-09`), and never flash above three times per second (`MOT-10`).
+   - Hover and press feedback inside ~300ms (`MOT-07`); entrances from `0.9-0.96` scale, never `scale(0)` (`MOT-11`); no parallax, fixed backgrounds, or 3D tilt without reduced-motion guards (`MOT-13`); no hover lift on surfaces that are not clickable (`MOT-14`).
+   - Never hide first-screen content behind scroll reveals: no fade-up on every section (`MOT-08`). Always guard with `useReducedMotion()` / `prefers-reduced-motion` (`MOT-03`).
 5. **Rung 5: Radical Information & Copy Restraint**
    - Strict word budget: 3–7 words per hero/card headline.
    - Never invent marketing cheerleading or fake analytics stats.
@@ -50,14 +53,14 @@ Load only the specialist needed for your active domain to minimize context token
 | `sloppy-layoutmobile` | `>=66%` stage coverage, edge bleed, varied layouts, scroll safety | `STR-01`, `STR-02`, `UX-05` |
 | `sloppy-code` | Accessible controls, valid handlers, stacking tokens, TS evidence | `AX-01`, `UX-02`, `TOK-01`, `COD-01`..`06` |
 
-Deep topic guides (open only when needed): `references/craft.md`, `references/framing.md`, `references/motion.md`, `references/kit.md`, `references/bento.md`, `references/looks.md`, `references/verify.md`.
+Deep topic guides (open only when needed): `references/craft.md`, `references/framing.md`, `references/motion.md`, `references/motion-review.md`, `references/kit.md`, `references/bento.md`, `references/looks.md`, `references/verify.md`.
 
 ---
 
 ## 3-Tier Severity Gates
 
-1. **Floor (Hard CI Blockers)**: Contrast (`VIS-08`), dead handlers/links (`UX-02`), clickable `<div>` (`AX-01`), fabricated metrics (`CPY-01`), lorem ipsum (`CPY-07`), scroll lock (`UX-05`), `z-[9999]` (`TOK-01`), chained `!` (`COD-06`), missing reduced-motion (`MOT-03`). Never bypassed.
-2. **Reflex (Overrulable AI Defaults)**: Purple gradients (`VIS-02`), gradient hero text (`VIS-01`), emerald monoculture (`VIS-03`), sparkles (`MED-02`), boxed cards (`STR-01`), floating frames (`STR-02`), infinite/layout-thrash motion (`MOT-01`, `MOT-02`, `MOT-04`), chained casts / `any` returns (`COD-02`, `COD-03`, `COD-04`). Pass in CI only with written rationale in `sloppy.config.json` (`overrules`) or inline:
+1. **Floor (Hard CI Blockers)**: Contrast (`VIS-08`), dead handlers/links (`UX-02`), clickable `<div>` (`AX-01`), fabricated metrics (`CPY-01`), lorem ipsum (`CPY-07`), scroll lock (`UX-05`), `z-[9999]` (`TOK-01`), chained `!` (`COD-06`), missing reduced-motion (`MOT-03`), autoplay motion with no pause control (`MOT-09`), flashing/strobe animation (`MOT-10`). Never bypassed.
+2. **Reflex (Overrulable AI Defaults)**: Purple gradients (`VIS-02`), gradient hero text (`VIS-01`), emerald monoculture (`VIS-03`), sparkles (`MED-02`), boxed cards (`STR-01`), floating frames (`STR-02`), infinite/layout-thrash motion (`MOT-01`, `MOT-02`, `MOT-04`), `transition: all` (`MOT-06`), slow hovers (`MOT-07`), scroll-reveal saturation (`MOT-08`), `scale(0)` entrances (`MOT-11`), unguarded CSS loops (`MOT-12`), parallax/3D tilt (`MOT-13`), hover lift on static cards (`MOT-14`), chained casts / `any` returns (`COD-02`, `COD-03`, `COD-04`). Pass in CI only with written rationale in `sloppy.config.json` (`overrules`) or inline:
    `// sloppy-override: VIS-02 Client brand requirement`
 3. **Finish (Advisory)**: Narration comments (`COD-01`), empty object spreads (`COD-05`), sterile surfaces (`LIV-01`), minor rhythm polish. Never blocks CI.
 
@@ -89,7 +92,7 @@ sloppy libs && sloppy list motion && sloppy looks --next
 1. **Ground & Elevate**: Step surfaces `0 -> 1 -> 2 -> 3` (`bg-neutral-950` -> `neutral-900` -> `neutral-800`) instead of wrapping everything in identical bordered cards.
 2. **Budget Copy**: Keep 3–7 real strings per hero/illustration (`<Bar />` for filler copy); no lorem ipsum or invented round-number metrics.
 3. **Frame & Bleed**: Fill `>= 66%` of stage width and bleed filler off at least one edge; test across 8 widths (375px–1920px).
-4. **Purposeful Motion**: Guard all animations with `useReducedMotion()` / `prefers-reduced-motion` (`MOT-03`), animate `transform`/`opacity` only (`MOT-04`), avoid static infinite loops (`MOT-02`), and clean up Three.js/R3F/Pixi/Lenis/Lottie instances (`MOT-05`).
+4. **Purposeful Motion**: Guard all animations with `useReducedMotion()` / `prefers-reduced-motion` (`MOT-03`), animate `transform`/`opacity` only (`MOT-04`), avoid static infinite loops (`MOT-02`), and clean up Three.js/R3F/Pixi/Lenis/Lottie instances (`MOT-05`). Keep a single motion contract: `transition` property lists (`MOT-06`), feedback inside ~300ms (`MOT-07`), no scroll-reveal saturation (`MOT-08`), a pause control for autoplay (`MOT-09`), no flashing (`MOT-10`), entrances from `0.9-0.96` (`MOT-11`), reduced-motion-guarded CSS loops (`MOT-12`), small guarded parallax/tilt (`MOT-13`), and no hover lift on static surfaces (`MOT-14`).
 5. **Authentic Chrome & Icons**: Use product-appropriate icons (`Activity`, `Zap`, `Terminal`, `Database`), never decorative sparkles or raw emojis (`MED-01`).
 6. **TypeScript Honesty**: Zero `as unknown as T`, unvalidated `any`/`unknown` returns, `Record<string, any>`, or `foo!.bar`. Strict ignores require rationale (`// sloppy-ignore-next-line RULE -- reason`).
 7. **Target Grade A+ (>=95/100)**: Run `sloppy rubric <file>` and `sloppy check --strict` before declaring completion. Keep code and docs free of emojis and follow Conventional Commits.

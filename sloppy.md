@@ -9,7 +9,7 @@
 - **UI YAGNI**: Never build speculative screens, secondary cards, filter bars, search fields, or extra modal wizards unless explicitly requested. Minimal effective UI wins.
 - **Native Platform First**: Reach for `<button>`, `<select>`, `<dialog>`, and native input types before hand-rolling 300 lines of custom div soup.
 - **Single Surface Elevation**: 1 clean elevated surface beats 4 nested bordered boxes. Use dividers (`divide-y`) or whitespace instead of nested cards inside cards.
-- **Restrained Motion**: Use plain CSS transitions over heavy physics loops. Zero decorative bobbing or infinite shimmers. Always respect `prefers-reduced-motion`.
+- **Restrained Motion**: Use plain CSS transitions over heavy physics loops. Name the properties (`transition: opacity, transform`, never `transition: all`, `MOT-06`), keep hover/press feedback inside `~300ms` (`MOT-07`), and use one motion contract per page: three durations, one entrance `ease-out` curve, springs only for gestures, one signature move. Zero decorative bobbing or infinite shimmers. Always respect `prefers-reduced-motion` (`MOT-03`).
 - **Radical Copy Budget**: Maximum 3–7 words per header. Zero cheerleading ("Effortlessly manage...") or fake stats ("+99.8%"). Use quiet neutral placeholder bars for filler.
 
 ---
@@ -24,6 +24,8 @@
 - **`TOK-01` Layer Scale**: Use `z-0`, `z-10`, `z-20`, `z-50`—never `z-[9999]`.
 - **`COD-06` Safe Access**: Zero `foo!.bar!.baz`; use `?.` or guards.
 - **`MOT-03` Reduced Motion**: Honor `useReducedMotion()`, `<MotionConfig reducedMotion="user">`, or `prefers-reduced-motion`.
+- **`MOT-09` Autoplay Without Pause**: Any marquee, logo strip, auto-carousel, or looping video over five seconds needs a visible, keyboard-operable pause control (WCAG 2.2.2). `prefers-reduced-motion` does not replace it.
+- **`MOT-10` No Flashing**: No blink, flash, or strobe above three flashes per second (WCAG 2.3.1).
 
 ## 2. AI Reflex Bans & Craft Replacements
 
@@ -31,6 +33,7 @@
 - **Sparkles (`MED-02`) & Emoji Chrome (`MED-01`)**: Use domain SVG icons (`Activity`, `Zap`, `Terminal`, `Database`), zero raw emojis in UI.
 - **Boxed Cards (`STR-01`) & Floating Frames (`STR-02`)**: Vary elevation steps (`0 -> 1 -> 2 -> 3`), cover `>= 66%` width, bleed filler off an edge.
 - **Motion Discipline (`MOT-01`, `MOT-02`, `MOT-04`, `MOT-05`)**: No static `repeat: Infinity` / `animate-bounce`; animate `transform`/`opacity` (never `width`/`left`/`top`); clean up Three.js/R3F/Lenis/Lottie on unmount (`frameloop="demand"`, `dpr={[1,2]}`).
+- **Motion Slop (`MOT-06`..`MOT-14`)**: No `transition: all`, no 600ms+ hover feedback, no fade-up on every section (`whileInView`/AOS hiding first-screen content), no `scale(0)` entrances, no unguarded CSS loops, no full-area parallax or 3D hover tilt without reduced motion, and no hover lift/scale on a surface that is not clickable.
 - **Copy Cliches (`CPY-04`, `CPY-05`)**: Cut "It's not just X, it's Y", adjective triplets, em-dash spam, and generic "Powered by AI" pills (`CPY-02`, `MADE_UP_AI_BADGE`).
 - **Low-Evidence TypeScript (`COD-01`..`COD-05`)**: Strip obvious `// Render ...` narration (`COD-01`), `as unknown as T` (`COD-02`), `(): any` (`COD-03`), `Record<string, any>` (`COD-04`), and `...(cond ? {a} : {})` (`COD-05`). Strict ignores require `-- <invariant reason>`.
 
